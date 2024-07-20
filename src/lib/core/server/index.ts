@@ -53,7 +53,7 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
     private readonly _middlewares ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     private readonly _globalPrefix : string
-    private readonly _cluster ?: { use : boolean, maxWorkers ?: number }
+    private readonly _cluster ?: { use : boolean, maxWorkers ?: number } | boolean
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory()
     private _swagger : {
@@ -616,7 +616,7 @@ class Spear {
 
             const numCPUs = os.cpus().length
 
-            const maxWorkers = this._cluster?.maxWorkers == null 
+            const maxWorkers = typeof this._cluster === 'boolean' || this._cluster?.maxWorkers == null
             ? numCPUs
             : this._cluster.maxWorkers > numCPUs  
               ? numCPUs   
