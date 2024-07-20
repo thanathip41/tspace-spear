@@ -1,16 +1,21 @@
-import fs from 'fs';
-import path from 'path';
-import findMyWayRouter, { Instance }  from 'find-my-way';
-import { parse } from 'url';
-import onFinished from "on-finished";
+import cluster      from 'cluster'
+import os           from 'os'
+import fs           from 'fs'
+import path         from 'path'
+import { parse }    from 'url'
+import onFinished   from "on-finished"
 import http, { 
     IncomingMessage, 
     Server, 
     ServerResponse 
-} from 'http';
+} from 'http'
+import findMyWayRouter, { 
+    Instance 
+} from 'find-my-way'
 
-import { 
-    Router,
+import { ParserFactory } from './parser-factory'
+import { Router } from './router'
+import type { 
     TContext , 
     TNextFunction, 
     TResponse , 
@@ -25,8 +30,7 @@ import {
     TCookies,
     THeaders,
     TSwagger
-} from '../..'
-import { ParserFactory } from './parser-factory';
+} from '../types'
 
 /**
  * 
@@ -34,7 +38,7 @@ import { ParserFactory } from './parser-factory';
  * 
  * @returns {Spear} application
  * @example
- * new Application()
+ * new Spear()
  *  .get('/' , () => 'Hello world!')
  *  .get('/json' , () => {
  *     return {
@@ -49,6 +53,7 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
     private readonly _middlewares ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     private readonly _globalPrefix : string
+    private readonly _cluster ?: { use : boolean, maxWorkers ?: number }
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory()
     private _swagger : {
@@ -82,7 +87,11 @@ class Spear {
     private _globalMiddlewares : TRequestFunction[] = []
     private _formatResponse : Function | null = null
     private _onListeners : Function[] = []
-    private _fileUploadOptions : { limit : number;  tempFileDir : string , removeTempFile : { remove : boolean; ms : number }} = {
+    private _fileUploadOptions : { 
+        limit : number  
+        tempFileDir : string 
+        removeTempFile : { remove : boolean; ms : number }
+    } = {
         limit : Infinity,
         tempFileDir : 'tmp',
         removeTempFile : {
@@ -95,13 +104,14 @@ class Spear {
         controllers,
         middlewares,
         globalPrefix,
-        logger
+        logger,
+        cluster
     } : TApplication = {}) {
-        if(logger) this._onListeners.push(() => this.use(this._logger));
-        this._controllers = controllers;
-        this._middlewares = middlewares;
-        this._globalPrefix = globalPrefix == null ? '' : globalPrefix;
-
+        if(logger) this.useLogger()
+        this._cluster       = cluster;
+        this._controllers   = controllers;
+        this._middlewares   = middlewares;
+        this._globalPrefix  = globalPrefix == null ? '' : globalPrefix;
     }
 
     get instance () {
@@ -110,48 +120,6 @@ class Spear {
     
     get routers () {
         return this._router;
-    }
-
-    /**
-     * The 'enableCors' is used to enable the cors origins on the server.
-     * 
-     * @params {Object} 
-     * @property {(string | RegExp)[]} origins
-     * @property {boolean} credentials
-     * @returns 
-     */
-    enableCors({ origins , credentials } : {
-        origins ?: (string | RegExp)[] , 
-        credentials ?: boolean
-    } = {}) {
-
-        this._globalMiddlewares.push(({ req , res } : TContext , next : TNextFunction) => {
-
-            const origin = req.headers?.origin
-
-            if(origin == null) return next()
-
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-            if(origins == null) {
-                res.setHeader('Access-Control-Allow-Origin', '*')
-            }
-
-            if(Array.isArray(origins) && origins.length) {
-                if(origins.includes(origin)) {
-                    res.setHeader('Access-Control-Allow-Origin', origin);
-                }
-            }
-
-            if(credentials) {
-                res.setHeader('Access-Control-Allow-Credentials', 'true');
-            }
-            
-            return next()
-        })
-
-        return this
     }
 
     /**
@@ -167,6 +135,71 @@ class Spear {
         return this
     }
 
+    /**
+     * The 'useLogger' method is used to add the middleware view logger response.
+     * 
+     * @callback {Function} middleware
+     * @property  {Object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {Function} next  - go to next function
+     * @returns {this}
+     */
+    useLogger ({ methods , exceptPath } : { methods ?: ('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE')[] , exceptPath ?: string[] | RegExp } = {}): this  {
+        
+        this._globalMiddlewares.push(({ req , res } : TContext , next : TNextFunction) => {
+           
+            const diffTime = (hrtime?: [number, number]) => {
+                const MS = 1000
+    
+                if (hrtime == null) return 0
+    
+                const [start, end] = process.hrtime(hrtime)
+    
+                const time = ((start * MS ) + (end / 1e6))
+                
+                return `${time > MS ? `${(time / MS).toFixed(2)} s` : `${time.toFixed(2)} ms`}`
+            }
+          
+            const statusCode = (res: TResponse) => {
+              const statusCode = res.statusCode == null ? 500 : Number(res.statusCode);
+              return statusCode < 400
+                ? `\x1b[32m${statusCode}\x1b[0m`
+                : `\x1b[31m${statusCode}\x1b[0m`
+            }
+
+            
+            if(exceptPath instanceof RegExp && !exceptPath.test(String(req.url))) return next()
+        
+            if(Array.isArray(exceptPath) && !exceptPath.some(v => String(req.url) !== v)) return next()
+
+
+            if(
+                methods != null && 
+                methods.length && 
+                !methods.some(v => v.toLocaleLowerCase() === String(req.method).toLocaleLowerCase())
+            ) {
+                return next()
+            }
+
+            const startTime = process.hrtime()
+    
+            onFinished(res, (): void => {
+            console.log(
+                [
+                `[\x1b[1m\x1b[34mINFO\x1b[0m]`,
+                `\x1b[34m${new Date().toJSON()}\x1b[0m`,
+                `\x1b[33m${req.method}\x1b[0m`,
+                `${decodeURIComponent(String(req.url))}`,
+                `${statusCode(res)}`,
+                `${diffTime(startTime)}`,
+                ].join(" ")
+            );
+            });
+        
+            return next();
+        })
+
+        return this
+    }
 
     /**
      * The 'useBodyParser' method is a middleware used to parse the request body of incoming HTTP requests.
@@ -261,7 +294,7 @@ class Spear {
         if(removeTempFile != null) {
             this._fileUploadOptions.removeTempFile = removeTempFile
         }
-
+ 
         this._globalMiddlewares.push(async ({ req } : TContext , next : TNextFunction) => {
 
             const contentType = req?.headers['content-type'];
@@ -324,6 +357,92 @@ class Spear {
     }
 
     /**
+     * The 'listen' method is used to bind and start a server to a particular port and optionally a hostname.
+     * 
+     * @param {number} port 
+     * @param {function} callback 
+     * @returns 
+     */
+    async listen(port : number | (() => ServerResponse) = 3000, callback : (callback : { server : Server , port : number }) => void) {
+
+        if(arguments.length === 1 && typeof port === 'function') {
+            callback = port
+            port = 3000
+        }
+
+        const server = await this._createServer()
+
+        if(
+            this._cluster != null && 
+            this._cluster || (typeof this._cluster === 'object' && Object.keys(this._cluster).length )
+        ) {
+            this._clusterMode(server , Number(port) , callback)
+            return
+        }
+
+        server.listen(port == null ? 3000 : port , () => {
+            if(callback) callback({ server , port} as { server : Server , port : number })
+        })
+
+        server.on('listening', () => {
+            this._onListeners.forEach(listener => listener())
+
+            if(this._swagger.use) {
+                this._swaggerHandler()
+            }
+        })
+
+        server.on('error', (_: NodeJS.ErrnoException) => {
+            port = Math.floor(Math.random() * 8999) + 1000
+            server.listen(port)
+        })
+        
+        return
+    }
+
+    /**
+     * The 'enableCors' is used to enable the cors origins on the server.
+     * 
+     * @params {Object} 
+     * @property {(string | RegExp)[]} origins
+     * @property {boolean} credentials
+     * @returns 
+     */
+    enableCors({ origins , credentials } : {
+        origins ?: (string | RegExp)[] , 
+        credentials ?: boolean
+    } = {}) {
+
+        this._globalMiddlewares.push(({ req , res } : TContext , next : TNextFunction) => {
+
+            const origin = req.headers?.origin
+
+            if(origin == null) return next()
+
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+            if(origins == null) {
+                res.setHeader('Access-Control-Allow-Origin', '*')
+            }
+
+            if(Array.isArray(origins) && origins.length) {
+                if(origins.includes(origin)) {
+                    res.setHeader('Access-Control-Allow-Origin', origin);
+                }
+            }
+
+            if(credentials) {
+                res.setHeader('Access-Control-Allow-Credentials', 'true');
+            }
+            
+            return next()
+        })
+
+        return this
+    }
+
+    /**
      * The 'formatResponse' method is used to format the response
      * 
      * @param {function} format 
@@ -335,7 +454,9 @@ class Spear {
     }
 
     /**
-     * The 'errorHandler' method is middleware that is specifically designed to handle errors that occur during the processing of requests
+     * The 'errorHandler' method is middleware that is specifically designed to handle errors.
+     * 
+     * that occur during the processing of requests
      * 
      * @param {function} error 
      * @returns 
@@ -356,12 +477,12 @@ class Spear {
         const handler = ({ req , res } : TContext) =>{
             return notfound({ 
                 req, 
-                res : this._customizeResponse(req,res),
+                res     : this._customizeResponse(req,res),
                 headers : {},
-                query : {},
-                files : {},
-                body : {},
-                params : {},
+                query   : {},
+                files   : {},
+                body    : {},
+                params  : {},
                 cookies : {}
             })
         }
@@ -390,7 +511,7 @@ class Spear {
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-       
+
         return this
     }
 
@@ -471,7 +592,7 @@ class Spear {
     }
 
     /**
-     * The 'all' method is used to add the request handler to the router for the 'all' method.
+     * The 'all' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
      * 
      * @param {string} path
      * @callback {...Function[]} handlers of the middlewares
@@ -489,105 +610,51 @@ class Spear {
         return this
     }
 
-    /**
-     * The 'listen' method is used to bind and start a server to a particular port and optionally a hostname.
-     * 
-     * @param {number} port 
-     * @param {function} cb 
-     * @returns 
-     */
-    async listen(port : number | (() => ServerResponse) = 3000, cb : (callback : { server : Server , port : number }) => void) {
+    private _clusterMode (server : Server , port : number , callback : (callback : { server : Server , port : number }) => void ) {
 
-        if(arguments.length === 1 && typeof port === 'function') {
-            cb = port
-            port = 3000
+        if (cluster.isPrimary) {
+
+            const numCPUs = os.cpus().length
+
+            const maxWorkers = this._cluster?.maxWorkers == null 
+            ? numCPUs
+            : this._cluster.maxWorkers > numCPUs  
+              ? numCPUs   
+              : this._cluster.maxWorkers
+
+            for (let i = 0; i < maxWorkers; i++) {
+                cluster.fork()
+            }
+
+            cluster.on('exit', () => {
+                cluster.fork()
+            })
+        } 
+
+        if(cluster.isWorker) {
+            server.listen(port == null ? 3000 : port , () => {
+                if(callback) {
+                    callback({ server , port} as { server : Server , port : number })
+                }
+            })
+    
+            server.on('listening', () => {
+                this._onListeners.forEach(listener => listener())
+    
+                if(this._swagger.use) {
+                    this._swaggerHandler()
+                }
+            })
+    
+            server.on('error', (_: NodeJS.ErrnoException) => {
+                port = Math.floor(Math.random() * 8999) + 1000
+                server.listen(port)
+            })
         }
 
-        const server = await this._createServer()
-
-        server.listen(port == null ? 3000 : port , () => {
-            if(cb) cb({ server , port} as { server : Server , port : number })
-        })
-
-
-        server.on('listening', () => {
-            this._onListeners.forEach(listener => listener())
-
-            if(this._swagger.use) {
-
-                const routes = (this.routers as unknown as { routes : any[]})
-                .routes.filter(r => ["GET","POST","PUT","PATCH","DELETE"].includes(r.method))
-                
-                const { 
-                    path  , 
-                    html , 
-                    staticSwaggerHandler, 
-                    staticUrl 
-                } = this._parser.swagger({
-                    ...this._swagger,
-                    options : this._swaggerAdditional,
-                    routes
-                })
-
-                this.routers.get(staticUrl, staticSwaggerHandler)
-
-                this.routers.get(String(path) , (req, res) => {
-
-                    res.writeHead(200, {'Content-Type': 'text/html'})
-
-                    res.write(html)
-
-                    return res.end()
-                })
-            }
-        })
-
-        server.on('error', (_: NodeJS.ErrnoException) => {
-            port = Math.floor(Math.random() * 8999) + 1000
-            server.listen(port)
-        })
-        
         return
     }
 
-    private _logger ({ req , res } : TContext, next: TNextFunction)  {
-
-        const diffTime = (hrtime?: [number, number]) => {
-            const MS = 1000
-            if (hrtime == null) return 0
-
-            const [start, end] = process.hrtime(hrtime)
-
-            const time = +(((start * MS ) + (end / 1e6)).toFixed(2))
-            
-            return `${time > MS ? `${time / MS} s` : `${time} ms`}`
-        };
-      
-        const statusCode = (res: TResponse) => {
-          const statusCode = res.statusCode == null ? 500 : Number(res.statusCode);
-          return statusCode < 400
-            ? `\x1b[32m${statusCode}\x1b[0m`
-            : `\x1b[31m${statusCode}\x1b[0m`;
-        };
-
-        const startTime = process.hrtime();
-    
-          onFinished(res, (): void => {
-            console.log(
-              [
-                `[\x1b[1m\x1b[34mINFO\x1b[0m]`,
-                `\x1b[34m${new Date().toJSON()}\x1b[0m`,
-                `\x1b[33m${req.method}\x1b[0m`,
-                `${decodeURIComponent(String(req.url))}`,
-                `${statusCode(res)}`,
-                `${diffTime(startTime)}`,
-              ].join(" ")
-            );
-          });
-      
-          return next();
-    }
-    
     private async _import (dir: string , pattern ?: RegExp): Promise<string[]> {
         const directories = fs.readdirSync(dir, { withFileTypes: true });
         const files: any[] = (await Promise.all(
@@ -774,6 +841,13 @@ class Spear {
             return res.end(results)
         }
 
+        response.html = (results : string) => {
+
+            res.writeHead(res.statusCode, {'Content-Type': 'text/html'})
+
+            return res.end(results)
+        }
+
         response.error = (err ) => {
             let code =
                 +err.response?.data?.code ||
@@ -879,7 +953,7 @@ class Spear {
         }
 
         response.notFound = (message ?: string) => {
-           
+   
             response.status(404)
 
             message = message ?? `The url '${req.url}' was not found. Please re-check the your url again`
@@ -963,11 +1037,13 @@ class Spear {
 
         return response
     }
-
+   
     private _nextFunction (ctx : TContext) {
 
+        const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
+        
         return async (err ?: any) => {
-
+            
             if(err != null) {
 
                 if(this._errorHandler != null) {
@@ -990,7 +1066,7 @@ class Spear {
             }
 
             if(this._errorHandler != null) {
-                return this._errorHandler(new Error(`The 'next' function does not have any subsequent function.`), ctx)
+                return this._errorHandler(new Error(NEXT_MESSAGE), ctx)
             }
 
             ctx.res.writeHead(500, { 'Content-Type': 'application/json' })
@@ -998,13 +1074,13 @@ class Spear {
             if(this._formatResponse != null) {
                 return ctx.res.end(JSON.stringify(
                     this._formatResponse({ 
-                        message : `The 'next' function does not have any subsequent function.`
+                        message : NEXT_MESSAGE
                     }, ctx.res.statusCode) ,null, 2)
                 )
             }
             
             return ctx.res.end(JSON.stringify({
-                message : `The 'next' function does not have any subsequent function.`
+                message : NEXT_MESSAGE
             },null,2));  
         } 
     }
@@ -1015,7 +1091,7 @@ class Spear {
 
             const runHandler = async (index : number = 0) : Promise<any> => {
 
-                const response = this._customizeResponse(req,res)
+                const response = this._customizeResponse(req,res) as TResponse
 
                 const request = req as TRequest
                 
@@ -1134,10 +1210,13 @@ class Spear {
         await this._registerMiddlewares()
 
         await this._registerControllers()
-        
+
         const server = http.createServer((req : IncomingMessage, res : ServerResponse) => {
             return this._router.lookup(req, res)
         })
+
+        server.keepAliveTimeout =  1000 * 120
+        server.requestTimeout = 1000 * 120
 
         return server
     }
@@ -1152,8 +1231,38 @@ class Spear {
     
         return /\/api\/api/.test(normalizedPath) ? normalizedPath.replace(/\/api\/api\//, "/api/") : normalizedPath
     }
+
+    private _swaggerHandler () {
+
+        const routes = (this.routers as unknown as { routes : any[]})
+        .routes.filter(r => ["GET","POST","PUT","PATCH","DELETE"].includes(r.method))
+                
+        const { 
+            path  , 
+            html , 
+            staticSwaggerHandler, 
+            staticUrl 
+        } = this._parser.swagger({
+            ...this._swagger,
+            options : this._swaggerAdditional,
+            routes
+        })
+
+        this._router.get(staticUrl, staticSwaggerHandler)
+
+        this._router.get(String(path) , (req, res) => {
+
+            res.writeHead(200, {'Content-Type': 'text/html'})
+
+            res.write(html)
+
+            return res.end()
+        })
+
+        return
+    }
 }
 
-export { Spear }
 export class Application extends Spear {}
+export { Spear }
 export default Spear

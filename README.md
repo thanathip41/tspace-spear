@@ -3,7 +3,8 @@
 [![NPM version](https://img.shields.io/npm/v/tspace-spear.svg)](https://www.npmjs.com)
 [![NPM downloads](https://img.shields.io/npm/dm/tspace-spear.svg)](https://www.npmjs.com)
 
-tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server.
+tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. 
+It utilizes the native HTTP server.
 
 ## Install
 
@@ -16,6 +17,7 @@ npm install tspace-spear --save
 ## Basic Usage
 - [StartServer](#start-server)
   - [CRUD](#crud)
+  - [Cluster](#cluster)
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Router](#router)
@@ -101,6 +103,27 @@ new Spear()
 .listen(3000 , ({ server, port }) => 
   console.log(`server listening on : http://localhost:${port}`)
 )
+```
+
+## Cluster
+```js
+import Spear from "tspace-spear";
+new Spear({
+  cluster : {
+    use : true,
+    maxWorkers : 3
+  }
+})
+.get('/' , () => 'Hello world!')
+.get('/json' , () => {
+  return {
+    message : 'Hello world!'
+  }
+})
+.listen(3000 , ({ server, port }) => 
+  console.log(`server listening on : http://localhost:${port}`)
+)
+
 ```
 
 ## Middleware
@@ -510,6 +533,11 @@ class CatController {
 const app = new Spear({
   logger : true, // logging
   globalPrefix : '/api' // prefix all routes
+})
+// or use this for logging
+app.useLogger({
+    methods     : ['GET','POST'],
+    exceptPath  : ['/']
 })
 
 app.enableCors({

@@ -1,11 +1,14 @@
-import fs from 'fs';
-import path from 'path'
-import mime from 'mime-types'
-import formidable from 'formidable';
-import swaggerUiDist from 'swagger-ui-dist'
-import { IncomingMessage, ServerResponse } from "http"
+import fs                from 'fs'
+import path              from 'path'
+import mime              from 'mime-types'
+import formidable        from 'formidable'
+import swaggerUiDist     from 'swagger-ui-dist'
 import { StringDecoder } from "string_decoder"
-import { TSwaggerDoc } from '../types'
+import { TSwaggerDoc }   from '../types'
+import {
+    IncomingMessage, 
+    ServerResponse 
+} from "http"
 
 export class ParserFactory {
 
@@ -20,21 +23,28 @@ export class ParserFactory {
             }
         }
     }) {
+        
         const temp = options.tempFileDir
 
         if (!fs.existsSync(temp)) {
             try { fs.mkdirSync(temp, { recursive: true })} catch (err) {}
         }
 
-        const form = formidable({ uploadDir: temp })
+        const form = formidable({ 
+            uploadDir: temp , 
+            maxFileSize : Infinity , 
+            maxTotalFileSize : Infinity 
+        })
 
         const [dataBody, dataFiles] = await form.parse(req)
         
-        const files : any = {}
-        const body : any = {}
+        const files : Record<string,any> = {}
+        const body  : Record<string,any> = {}
 
         const removeTemp = (fileTemp : string , ms : number) => {
-            const remove = () => fs.unlinkSync(fileTemp)
+            const remove = () => {
+                try { fs.unlinkSync(fileTemp) } catch (err) {}
+            }
             setTimeout(remove, ms)
         }
         
@@ -47,7 +57,6 @@ export class ParserFactory {
                 
                 if(file.size > options.limit) {
                     fs.unlinkSync(file.filepath)
-
                     throw new Error(`The file '${key}' is too large to be uploaded. The limit is '${options.limit}' bytes.`)
                 }
     
@@ -55,6 +64,12 @@ export class ParserFactory {
 
                 files[key].push({
                     size: file.size,
+                    sizes : {
+                        bytes : file.size,
+                        kb    : file.size / 1024,
+                        mb    : file.size / 1024 / 1024,
+                        gb    : file.size / 1024 / 1024 / 1024
+                    },
                     tempFilePath: file.filepath,
                     tempFileName: file.newFilename,
                     mimetype: file.mimetype,
@@ -482,4 +497,5 @@ export class ParserFactory {
             html
         }
     }
+
 }

@@ -86,13 +86,17 @@ export type IRoute = {
     handlers : TContext[]
 }
 
-export type TMethods = 'get' | 'post' | 'patch' | 'put' | 'delete' 
+export type TMethods = 'get' | 'post' | 'patch' | 'put' | 'delete' | 'all'
 
 export type TApplication = {
     controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
     middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     globalPrefix  ?: string
     logger       ?: boolean
+    cluster      ?: {
+        use        : boolean;
+        maxWorkers ?: number
+    }
 }
 
 export type TRequestFunction = (ctx : TContext , next : TNextFunction) => any

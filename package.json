@@ -1,7 +1,7 @@
 {
   "name": "tspace-spear",
-  "version": "1.0.1",
-  "description": "Build a REST API with high speed using a native HTTP server for Node.js.",
+  "version": "1.0.3",
+  "description": "tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server",
   "main": "./build/lib/index.js",
   "types": "./build/lib/index.d.ts",
   "files": [
@@ -28,7 +28,16 @@
     "build": "tsc",
     "prepare": "npm run build",
     "test": "ts-node src/tests/benchmark.test.ts",
-    "test:build": "node build/tests/benchmark.test.js"
+    "test:build": "node build/tests/benchmark.test.js",
+    "test:load": "autocannon -c 100 -d 40 -p 10 localhost:3000"
+  },
+  "dependencies": {
+    "find-my-way": "8.2.0",
+    "formidable": "3.5.1",
+    "mime-types": "2.1.35",
+    "on-finished": "2.4.1",
+    "reflect-metadata": "0.1.14",
+    "swagger-ui-dist": "5.17.10"
   },
   "devDependencies": {
     "@types/autocannon": "^7.12.5",
@@ -42,15 +51,8 @@
     "autocannon": "^7.15.0",
     "express": "^4.19.2",
     "fastify": "^4.28.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "yargs": "^17.7.2"
-  },
-  "dependencies": {
-    "find-my-way": "^8.1.0",
-    "formidable": "^3.5.1",
-    "mime-types": "^2.1.35",
-    "on-finished": "^2.4.1",
-    "reflect-metadata": "^0.1.14",
-    "swagger-ui-dist": "^5.17.10"
   }
 }
