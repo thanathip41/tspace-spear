@@ -93,10 +93,7 @@ export type TApplication = {
     middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     globalPrefix  ?: string
     logger       ?: boolean
-    cluster      ?: {
-        use        : boolean;
-        maxWorkers ?: number
-    }
+    cluster      ?: boolean | number 
 }
 
 export type TRequestFunction = (ctx : TContext , next : TNextFunction) => any

@@ -53,7 +53,7 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
     private readonly _middlewares ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     private readonly _globalPrefix : string
-    private readonly _cluster ?: { use : boolean, maxWorkers ?: number } | boolean
+    private readonly _cluster ?: number | boolean
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory()
     private _swagger : {
@@ -165,12 +165,10 @@ class Spear {
                 ? `\x1b[32m${statusCode}\x1b[0m`
                 : `\x1b[31m${statusCode}\x1b[0m`
             }
-
             
-            if(exceptPath instanceof RegExp && !exceptPath.test(String(req.url))) return next()
+            if(exceptPath instanceof RegExp && exceptPath.test(String(req.url))) return next()
         
-            if(Array.isArray(exceptPath) && !exceptPath.some(v => String(req.url) !== v)) return next()
-
+            if(Array.isArray(exceptPath) && exceptPath.some(v => String(req.url) === v)) return next()
 
             if(
                 methods != null && 
@@ -371,10 +369,10 @@ class Spear {
         }
 
         const server = await this._createServer()
-
+        
         if(
             this._cluster != null && 
-            this._cluster || (typeof this._cluster === 'object' && Object.keys(this._cluster).length )
+            this._cluster || typeof this._cluster === 'number'
         ) {
             this._clusterMode(server , Number(port) , callback)
             return
@@ -616,11 +614,9 @@ class Spear {
 
             const numCPUs = os.cpus().length
 
-            const maxWorkers = typeof this._cluster === 'boolean' || this._cluster?.maxWorkers == null
+            const maxWorkers = typeof this._cluster === 'boolean' || this._cluster == null
             ? numCPUs
-            : this._cluster.maxWorkers > numCPUs  
-              ? numCPUs   
-              : this._cluster.maxWorkers
+            : this._cluster
 
             for (let i = 0; i < maxWorkers; i++) {
                 cluster.fork()
@@ -1215,9 +1211,11 @@ class Spear {
             return this._router.lookup(req, res)
         })
 
-        server.keepAliveTimeout =  1000 * 120
-        server.requestTimeout = 1000 * 120
-
+        server.timeout = 0
+        server.keepAliveTimeout = 0
+        server.headersTimeout = 0
+        server.requestTimeout = 0
+       
         return server
     }
 
