@@ -199,6 +199,62 @@ class Spear {
         return this
     }
 
+      /**
+     * The 'useFileUpload' method is a middleware used to handler file uploads. It adds a file upload of incoming HTTP requests.
+     * 
+     * @param {?Object} 
+     * @property {?number} limits
+     * @property {?string} tempFileDir
+     * @property {?Object} removeTempFile
+     * @property {boolean} removeTempFile.remove
+     * @property {number} removeTempFile.ms
+     * @returns 
+     */
+      useFileUpload ({ limit, tempFileDir , removeTempFile } : {
+        limit ?: number
+        tempFileDir ?: string
+        removeTempFile ?: {
+            remove : boolean
+            ms : number
+        }
+    } = {}) {
+
+        if(limit != null) {
+            this._fileUploadOptions.limit = limit
+        }
+
+        if(tempFileDir != null) {
+            this._fileUploadOptions.tempFileDir = tempFileDir
+        }
+
+        if(removeTempFile != null) {
+            this._fileUploadOptions.removeTempFile = removeTempFile
+        }
+ 
+        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
+
+            const contentType = req?.headers['content-type'];
+
+            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
+
+            const isListMethods = ['POST','PATCH','PUT','DELETE'].includes(String(req.method))
+
+            if(!isListMethods || !isFileUpload) return next()
+
+            if(req?._filesParser != null) return next()
+
+            Promise.resolve(this._parser.files({ req , options : this._fileUploadOptions}))
+            .then(r => {
+                req._filesParser = r.files
+                req._bodyParser = r.body
+                return next()
+            })
+            .catch(_ => next())
+        })
+
+        return this
+    }
+
     /**
      * The 'useBodyParser' method is a middleware used to parse the request body of incoming HTTP requests.
      *
@@ -206,7 +262,7 @@ class Spear {
      */
     useBodyParser (): this {
 
-        this._globalMiddlewares.push(async ({ req , res } : TContext , next : TNextFunction) => {
+        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
 
             const contentType = req?.headers['content-type'];
 
@@ -216,9 +272,12 @@ class Spear {
 
             if(req?._bodyParser != null) return next()
 
-            req._bodyParser = await this._parser.body(req)
-
-            return next()
+            Promise.resolve(this._parser.body(req))
+            .then(r => {
+                req._bodyParser = r 
+                return next()
+            })
+            .catch(_ => next())
         })
 
         return this
@@ -257,62 +316,6 @@ class Spear {
         for(const {path , method , handlers} of routes) {
             this[method](this._normalizePath(this._globalPrefix , path) , ...handlers)
         }
-
-        return this
-    }
-
-    /**
-     * The 'useFileUpload' method is a middleware used to handler file uploads. It adds a file upload of incoming HTTP requests.
-     * 
-     * @param {?Object} 
-     * @property {?number} limits
-     * @property {?string} tempFileDir
-     * @property {?Object} removeTempFile
-     * @property {boolean} removeTempFile.remove
-     * @property {number} removeTempFile.ms
-     * @returns 
-     */
-    useFileUpload ({ limit, tempFileDir , removeTempFile } : {
-        limit ?: number
-        tempFileDir ?: string
-        removeTempFile ?: {
-            remove : boolean
-            ms : number
-        }
-    } = {}) {
-
-        if(limit != null) {
-            this._fileUploadOptions.limit = limit
-        }
-
-        if(tempFileDir != null) {
-            this._fileUploadOptions.tempFileDir = tempFileDir
-        }
-
-        if(removeTempFile != null) {
-            this._fileUploadOptions.removeTempFile = removeTempFile
-        }
- 
-        this._globalMiddlewares.push(async ({ req } : TContext , next : TNextFunction) => {
-
-            const contentType = req?.headers['content-type'];
-
-            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
-
-            const isListMethods = ['POST','PATCH','PUT','DELETE'].includes(String(req.method))
-
-            if(!isListMethods || !isFileUpload) return next()
-
-            if(req?._filesParser != null) return next()
-
-            const { body , files } = await this._parser.files({ req , options : this._fileUploadOptions})
-            
-            req._filesParser = files
-
-            req._bodyParser = body
-
-            return next()
-        })
 
         return this
     }
@@ -488,6 +491,16 @@ class Spear {
         this._onListeners.push(() => {
             return this._router.all('*', this._wrapHandlers(...this._globalMiddlewares,handler))
         })
+
+        return this
+    }
+
+    low (path : string , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+
+        this._router.get(
+            this._normalizePath(this._globalPrefix, path), 
+            (req, res) => res.end('hello world!') 
+        );
 
         return this
     }
@@ -1038,7 +1051,7 @@ class Spear {
 
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
-        return async (err ?: any) => {
+        return (err ?: any) => {
             
             if(err != null) {
 
@@ -1083,12 +1096,12 @@ class Spear {
 
     private _wrapHandlers = (...handlers : ((ctx : TContext , next : TNextFunction) => any)[]) : any => {
 
-        return async (req : IncomingMessage, res : ServerResponse , params : Record<string,any>) => {
+        return (req : IncomingMessage, res : ServerResponse , params : Record<string,any>) => {
 
-            const runHandler = async (index : number = 0) : Promise<any> => {
+            const runHandler = (index : number = 0) : any => {
 
                 const response = this._customizeResponse(req,res) as TResponse
-
+                
                 const request = req as TRequest
                 
                 const body = request._bodyParser as TBody
@@ -1106,17 +1119,17 @@ class Spear {
                     return Object.keys(data).length ? data : {}
                 }
                
-                const ctx = {
-                    req : request, 
-                    res : response,
+                const ctx : any = {
+                    req, 
+                    res: response,
                     headers : RecordOrEmptyRecord(headers),
                     params  : RecordOrEmptyRecord(params),
                     query   : RecordOrEmptyRecord(query),
                     body    : RecordOrEmptyRecord(body),
                     files   : RecordOrEmptyRecord(files),
-                    cookies : RecordOrEmptyRecord(cookies),
+                    cookies : RecordOrEmptyRecord(cookies) 
                 }
-
+              
                 if(index === handlers.length - 1) {
                     return this._wrapResponse(handlers[index].bind(handlers[index]))(ctx, this._nextFunction(ctx))
                 }
@@ -1126,9 +1139,11 @@ class Spear {
                 })
             }
 
-            await runHandler()
-            .catch(err => {
+            try {
+                runHandler()
+            }
 
+            catch(err) {
                 const ctx = {
                     req, 
                     res : this._customizeResponse(req,res), 
@@ -1141,63 +1156,61 @@ class Spear {
                 }
 
                 return this._nextFunction(ctx)(err)
-            })
-           
-        };
+            }
+        }
     }
 
-    private _wrapResponse(handler : (ctx : TContext , next : TNextFunction) => any) {
+    private _wrapResponse(handler: (ctx: TContext, next: TNextFunction) => any) {
+        return (ctx: TContext, next: TNextFunction) => {
+            Promise.resolve(handler(ctx, next))
+            .then(result => {
 
-        return async (ctx : TContext , next : TNextFunction) => {
+                if (ctx.res.writableEnded) return
 
-            const result = await handler(ctx , next);
+                if (result instanceof ServerResponse) return;
 
-            if(result instanceof ServerResponse) return
-    
-            if(typeof result === 'string') {
-                if(!ctx.res.headersSent) {
-                    ctx.res.writeHead(200, { 'Content-Type': 'text/plain' })
-                }
-                return ctx.res.end(result)
-            }
-
-            if(this._formatResponse != null) {
-
-                const formatResponse = this._formatResponse({ ...result }, ctx.res.statusCode)
-
-                if(typeof formatResponse === 'string') {
-                    if(!ctx.res.headersSent) {
-                        ctx.res.writeHead(200, { 'Content-Type': 'text/plain' })
+                if (typeof result === 'string') {
+                    if (!ctx.res.headersSent) {
+                        ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
                     }
-                    return ctx.res.end(formatResponse)
+                    ctx.res.end(result);
+                    return;
                 }
 
-                if(!ctx.res.headersSent) {
-                    ctx.res.writeHead(200, { 'Content-Type': 'application/json' })
+                if (this._formatResponse != null) {
+                    const formattedResult = this._formatResponse(result, ctx.res.statusCode);
+
+                    if (typeof formattedResult === 'string') {
+                        if (!ctx.res.headersSent) {
+                            ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
+                        }
+                        ctx.res.end(formattedResult);
+                        return;
+                    }
+
+                    if (!ctx.res.headersSent) {
+                        ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
+                    }
+
+                    ctx.res.end(JSON.stringify(formattedResult, null, 2));
+                    return;
                 }
 
-                if(Array.isArray(result)) {
-                    return ctx.res.end(JSON.stringify(this._formatResponse(result)))
+                if (!ctx.res.headersSent) {
+                    ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
                 }
 
-                return ctx.res.end(JSON.stringify(
-                    this._formatResponse({ 
-                        ...result
-                    }, ctx.res.statusCode) ,null, 2)
-                )
-            }
-        
-            if(!ctx.res.headersSent) {
-                ctx.res.writeHead(200, { 'Content-Type': 'application/json' })
-            }
+                ctx.res.end(JSON.stringify(result, null, 2));
+            })
+            .catch(_ => {
 
-            if(Array.isArray(result)) {
-                return ctx.res.end(JSON.stringify(result))
-            }
+                if (ctx.res.writableEnded) return
 
-            return ctx.res.end(JSON.stringify({
-                ...result,
-            },null,2))
+                if (!ctx.res.headersSent) {
+                    ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
+                }
+                ctx.res.end(JSON.stringify({ error: 'Internal Server Error' }));
+            })
         };
     }
 
