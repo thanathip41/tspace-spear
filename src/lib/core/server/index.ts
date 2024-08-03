@@ -114,11 +114,23 @@ class Spear {
         this._globalPrefix  = globalPrefix == null ? '' : globalPrefix;
     }
 
-    get instance () {
+    /**
+     * The get 'instance' method is used to get the instance of Spear.
+     * 
+     * @returns {this}
+     */
+    get instance (): this {
+        
         return this
     }
     
-    get routers () {
+    /**
+     * The get 'routers' method is used get the all routers.
+     * 
+     * @returns {Instance<findMyWayRouter.HTTPVersion.V1>}
+     */
+    get routers (): Instance<findMyWayRouter.HTTPVersion.V1> {
+
         return this._router;
     }
 
@@ -131,7 +143,9 @@ class Spear {
      * @returns {this}
      */
     use (middleware : (ctx : TContext , next : TNextFunction) =>  void): this {
+
         this._globalMiddlewares.push(middleware)
+
         return this
     }
 
@@ -241,12 +255,12 @@ class Spear {
 
             if(!isListMethods || !isFileUpload) return next()
 
-            if(req?._filesParser != null) return next()
+            if(req?.files != null) return next()
 
             Promise.resolve(this._parser.files({ req , options : this._fileUploadOptions}))
             .then(r => {
-                req._filesParser = r.files
-                req._bodyParser = r.body
+                req.files = r.files
+                req.body = r.body
                 return next()
             })
             .catch(_ => next())
@@ -270,11 +284,11 @@ class Spear {
 
             if(isFileUpload) return next()
 
-            if(req?._bodyParser != null) return next()
+            if(req?.body != null) return next()
 
             Promise.resolve(this._parser.body(req))
             .then(r => {
-                req._bodyParser = r 
+                req.body = r 
                 return next()
             })
             .catch(_ => next())
@@ -292,9 +306,9 @@ class Spear {
 
         this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
 
-            if(req?._cookiesParser != null) return next()
+            if(req?.cookies != null) return next()
 
-            req._cookiesParser = this._parser.cookies(req)
+            req.cookies = this._parser.cookies(req)
            
             return next()
         })
@@ -473,10 +487,10 @@ class Spear {
      * @param {function} notfound 
      * @returns 
      */
-    notFoundHandler (notfound : (ctx : TContext) =>  any) {
+    notFoundHandler (fn : (ctx : TContext) =>  any) {
 
         const handler = ({ req , res } : TContext) =>{
-            return notfound({ 
+            return fn({ 
                 req, 
                 res     : this._customizeResponse(req,res),
                 headers : {},
@@ -489,18 +503,8 @@ class Spear {
         }
     
         this._onListeners.push(() => {
-            return this._router.all('*', this._wrapHandlers(...this._globalMiddlewares,handler))
+            return this.all('*', ...this._globalMiddlewares, handler)
         })
-
-        return this
-    }
-
-    low (path : string , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
-
-        this._router.get(
-            this._normalizePath(this._globalPrefix, path), 
-            (req, res) => res.end('hello world!') 
-        );
 
         return this
     }
@@ -707,7 +711,7 @@ class Spear {
 
                 if(prefixPath == null) continue
     
-                for(const { method, path, handler} of Array.from(routers)) {
+                for(const { method, path, handler } of Array.from(routers)) {
 
                     const find = Array.from(swaggers).find(s => s.handler === handler)
 
@@ -724,9 +728,7 @@ class Spear {
                 
                     this[method](
                         this._normalizePath(this._globalPrefix ,prefixPath ,path), 
-                        this._wrapResponse(
-                            controllerInstance[String(handler)].bind(controllerInstance)
-                        )
+                        controllerInstance[String(handler)].bind(controllerInstance)
                     )
                 }
             }
@@ -763,7 +765,7 @@ class Spear {
 
                 this[method](
                     this._normalizePath(this._globalPrefix , prefixPath, path), 
-                    this._wrapResponse(controllerInstance[String(handler)].bind(controllerInstance))
+                    controllerInstance[String(handler)].bind(controllerInstance)
                 )
             }
         }
@@ -1104,11 +1106,11 @@ class Spear {
                 
                 const request = req as TRequest
                 
-                const body = request._bodyParser as TBody
+                const body = request.body as TBody
                 
-                const files = request._filesParser as TFiles
+                const files = request.files as TFiles
 
-                const cookies = request._cookiesParser as TCookies
+                const cookies = request.cookies as TCookies
 
                 const headers = request.headers as THeaders
                 
@@ -1165,7 +1167,7 @@ class Spear {
             Promise.resolve(handler(ctx, next))
             .then(result => {
 
-                if (ctx.res.writableEnded) return
+                if (ctx.res.writableEnded) return;
 
                 if (result instanceof ServerResponse) return;
 
@@ -1200,16 +1202,20 @@ class Spear {
                     ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
                 }
 
-                ctx.res.end(JSON.stringify(result, null, 2));
+                ctx.res.end(result == null ? undefined : JSON.stringify(result, null, 2));
+                return;
             })
             .catch(_ => {
 
-                if (ctx.res.writableEnded) return
+                if (ctx.res.writableEnded) return;
 
                 if (!ctx.res.headersSent) {
                     ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
                 }
+
                 ctx.res.end(JSON.stringify({ error: 'Internal Server Error' }));
+
+                return;
             })
         };
     }

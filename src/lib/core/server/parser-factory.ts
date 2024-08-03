@@ -4,6 +4,7 @@ import mime              from 'mime-types'
 import formidable        from 'formidable'
 import swaggerUiDist     from 'swagger-ui-dist'
 import { StringDecoder } from "string_decoder"
+import querystring       from 'querystring'
 import { TSwaggerDoc }   from '../types'
 import {
     IncomingMessage, 
@@ -74,7 +75,8 @@ export class ParserFactory {
                     tempFileName: file.newFilename,
                     mimetype: file.mimetype,
                     extension : String(mime.extension(String(file.mimetype))),
-                    name: file.originalFilename
+                    name: file.originalFilename,
+                    remove : () => fs.unlinkSync(file.filepath)
                 })
 
                 if(!options.removeTempFile.remove) continue
@@ -110,14 +112,20 @@ export class ParserFactory {
     
             req.on('end', () => {
                 try {
-    
+
+                    const isUrlEncoded = req.headers['content-type']?.includes('x-www-form-urlencoded');
+
+                    if (isUrlEncoded) {
+                        return resolve(querystring.parse(payload));
+                    }
+
                     payload += decoder.end();
-                
+
                     return resolve(JSON.parse(payload));
-    
+                   
                 } catch (e) {
                     
-                    return resolve({})
+                    return resolve({});
                 }
             });
     
@@ -497,5 +505,4 @@ export class ParserFactory {
             html
         }
     }
-
 }

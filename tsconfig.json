@@ -17,6 +17,6 @@
     "emitDecoratorMetadata": true,
     "sourceMap": true
   },
-  "include": ["src"],
+  "include": ["src","build.ts"],
   "exclude": ["node_modules", "build"]
 }

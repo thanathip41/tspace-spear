@@ -25,12 +25,19 @@ export type TBody<T = Record<string,
 export type TCookies<T = Record<string, any>> = T
 
 export type TFiles<T = Record<string, {
-    size: number
-    tempFilePath: string
-    tempName: string
-    mimetype: string
-    extension : string
-    name: string
+    size: number;
+    sizes : {
+        bytes : number,
+        kb    : number,
+        mb    : number,
+        gb    : number
+    };
+    tempFilePath: string;
+    tempName: string;
+    mimetype: string;
+    extension : string;
+    name: string;
+    remove : () => void
 }[]>> = T
 
 export type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
