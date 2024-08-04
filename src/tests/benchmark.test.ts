@@ -16,7 +16,7 @@ connections = connections == null ? 100 : Number(connections)
 pipelining  = pipelining == null ? 10 : Number(pipelining)
 duration    = duration == null ? 10 : Number(duration)
 
-async function runExpress () {
+function runExpress () {
     
     const port = 3000;
     
@@ -30,8 +30,21 @@ async function runExpress () {
     });
 }
 
-async function runFastify () {
-    const port = 3001
+function runHttp () {
+    const port = 3001;
+    const server = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end(MESSAGE);
+    });
+
+    server.listen(port, () => {
+        console.log(`Server 'Http' running at http://localhost:${port}`);
+    });
+}
+
+function runFastify () {
+    const port = 3002
 
     Fastify()
     .get('/', (request, reply) => {
@@ -45,26 +58,13 @@ async function runFastify () {
     })
 }
 
-async function runHttp () {
-    const port = 3002;
-    const server = http.createServer((req, res) => {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/plain');
-        res.end(MESSAGE);
-    });
 
-    server.listen(port, () => {
-        console.log(`Server 'Http' running at http://localhost:${port}`);
-    });
-}
 
-async function runSpear () {
-    const port = 3100
+function runSpear () {
+    const port = 3003
 
     new Spear()
-    .get('/' , ({ res }) => {
-        return res.end(MESSAGE)
-    })
+    .get('/' , ({ res }) => MESSAGE)
     .listen(port , () => 
         console.log(`server 'Spear' running at : http://localhost:${port}`)
     )
@@ -74,9 +74,9 @@ const url = (port : number) => `http://localhost:${port}`
 
 const urls = [
     { name: 'express',      url: url(3000)},
-    { name: 'fastify',      url: url(3001)},
-    { name: 'http',         url: url(3002)},
-    { name: 'tspace-spear', url: url(3100)}
+    { name: 'http',         url: url(3001)},
+    { name: 'fastify',      url: url(3002)},
+    { name: 'tspace-spear', url: url(3003)}
 ];
 
 const sleep = (ms : number) => {

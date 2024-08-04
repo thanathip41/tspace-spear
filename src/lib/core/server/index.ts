@@ -12,7 +12,6 @@ import http, {
 import findMyWayRouter, { 
     Instance 
 } from 'find-my-way'
-
 import { ParserFactory } from './parser-factory'
 import { Router } from './router'
 import type { 
@@ -213,7 +212,42 @@ class Spear {
         return this
     }
 
-      /**
+    /**
+     * The 'useBodyParser' method is a middleware used to parse the request body of incoming HTTP requests.
+     * @param {object?} 
+     * @property {array?} except the body parser with some methods
+     * @returns {this}
+     */
+    useBodyParser ({ except } : { except ?: ('GET' | 'POST' |'PUT' |'PATCH' | 'DELETE')[] } = {}): this {
+
+        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
+
+            const contentType = req?.headers['content-type'];
+
+            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
+
+            if(except != null && Array.isArray(except)) {
+                if(except.some(v => v.toLocaleLowerCase() === (req.method)?.toLocaleLowerCase())) {
+                    return next()
+                }
+            }
+
+            if(isFileUpload) return next()
+
+            if(req?.body != null) return next()
+
+            Promise.resolve(this._parser.body(req))
+            .then(r => {
+                req.body = r 
+                return next()
+            })
+            .catch(_ => next())
+        })
+
+        return this
+    }
+
+    /**
      * The 'useFileUpload' method is a middleware used to handler file uploads. It adds a file upload of incoming HTTP requests.
      * 
      * @param {?Object} 
@@ -224,7 +258,7 @@ class Spear {
      * @property {number} removeTempFile.ms
      * @returns 
      */
-      useFileUpload ({ limit, tempFileDir , removeTempFile } : {
+    useFileUpload ({ limit, tempFileDir , removeTempFile } : {
         limit ?: number
         tempFileDir ?: string
         removeTempFile ?: {
@@ -251,9 +285,11 @@ class Spear {
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
 
-            const isListMethods = ['POST','PATCH','PUT','DELETE'].includes(String(req.method))
+            if(req.method === 'GET') {
+                return next()
+            }
 
-            if(!isListMethods || !isFileUpload) return next()
+            if(!isFileUpload) return next()
 
             if(req?.files != null) return next()
 
@@ -261,34 +297,6 @@ class Spear {
             .then(r => {
                 req.files = r.files
                 req.body = r.body
-                return next()
-            })
-            .catch(_ => next())
-        })
-
-        return this
-    }
-
-    /**
-     * The 'useBodyParser' method is a middleware used to parse the request body of incoming HTTP requests.
-     *
-     * @returns {this}
-     */
-    useBodyParser (): this {
-
-        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
-
-            const contentType = req?.headers['content-type'];
-
-            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
-
-            if(isFileUpload) return next()
-
-            if(req?.body != null) return next()
-
-            Promise.resolve(this._parser.body(req))
-            .then(r => {
-                req.body = r 
                 return next()
             })
             .catch(_ => next())
@@ -327,12 +335,12 @@ class Spear {
 
         const routes = router.routes
 
-        for(const {path , method , handlers} of routes) {
+        for(const { path , method , handlers } of routes) {
             this[method](this._normalizePath(this._globalPrefix , path) , ...handlers)
         }
 
         return this
-    }
+    } 
 
     /**
      * The 'useSwagger' method is a middleware used to create swagger api.
