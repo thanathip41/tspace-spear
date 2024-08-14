@@ -1,6 +1,6 @@
 {
   "name": "tspace-spear",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server",
   "main": "./build/lib/index.js",
   "types": "./build/lib/index.d.ts",
@@ -15,9 +15,9 @@
   "keywords": [
     "tspace",
     "tspace-spear",
-    "web",
-    "framework",
-    "web framework"
+    "api",
+    "rest api",
+    "framework"
   ],
   "author": "Thanathip (https://github.com/thanathip41)",
   "license": "MIT",
@@ -34,8 +34,8 @@
     "load": "autocannon -c 100 -d 40 -p 10 localhost:3000"
   },
   "dependencies": {
-    "find-my-way": "8.2.0",
-    "formidable": "3.5.1",
+    "find-my-way": "7.4.0",
+    "formidable": "2.1.2",
     "mime-types": "2.1.35",
     "on-finished": "2.4.1",
     "reflect-metadata": "0.1.14",
@@ -54,6 +54,7 @@
     "express": "^4.19.2",
     "fastify": "^4.28.1",
     "ts-node": "^10.9.2",
+    "tspace-echo-spear": "^1.0.0",
     "typescript": "^5.4.5",
     "yargs": "^17.7.2"
   }

@@ -58,10 +58,8 @@ function runFastify () {
     })
 }
 
-
-
 function runSpear () {
-    const port = 3003
+    const port = 3999
 
     new Spear()
     .get('/' , ({ res }) => MESSAGE)
@@ -73,10 +71,10 @@ function runSpear () {
 const url = (port : number) => `http://localhost:${port}`
 
 const urls = [
-    { name: 'express',      url: url(3000)},
-    { name: 'http',         url: url(3001)},
-    { name: 'fastify',      url: url(3002)},
-    { name: 'tspace-spear', url: url(3003)}
+    { name: 'express',           url: url(3000)},
+    { name: 'http',              url: url(3001)},
+    { name: 'fastify',           url: url(3002)},
+    { name: 'tspace-spear',      url: url(3999)}
 ];
 
 const sleep = (ms : number) => {
@@ -107,6 +105,7 @@ const runBenchmark = async () : Promise<void> => {
             name,
             url,
             requests : result.requests.total, 
+            ['req/sec'] : result.requests.total / duration,
             average  : result.latency.average
         });
     }
