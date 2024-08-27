@@ -33,6 +33,7 @@ export type TFiles<T = Record<string, {
         gb    : number
     };
     tempFilePath: string;
+    tempFileName : string;
     tempName: string;
     mimetype: string;
     extension : string;

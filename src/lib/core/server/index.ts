@@ -293,7 +293,7 @@ class Spear {
 
             if(req?.files != null) return next()
 
-            Promise.resolve(this._parser.files({ req , options : this._fileUploadOptions}))
+            Promise.resolve(this._parser.files({ req , options : this._fileUploadOptions }))
             .then(r => {
                 req.files = r.files
                 req.body = r.body
@@ -477,6 +477,17 @@ class Spear {
     }
 
     /**
+     * The 'response' method is used to format the response
+     * 
+     * @param {function} format 
+     * @returns 
+     */
+    response (format : (r : unknown , statusCode : number) => any) {
+        this._formatResponse = format
+        return this
+    }
+
+    /**
      * The 'errorHandler' method is middleware that is specifically designed to handle errors.
      * 
      * that occur during the processing of requests
@@ -490,12 +501,53 @@ class Spear {
     }
 
     /**
+     * The 'catch' method is middleware that is specifically designed to handle errors.
+     * 
+     * that occur during the processing of requests
+     * 
+     * @param {function} error 
+     * @returns 
+     */
+    catch (error : (err : Error , ctx : TContext) =>  any) {
+        this._errorHandler = error
+        return this
+    }
+
+    /**
      * The 'notFoundHandler' method is middleware that is specifically designed to handle errors notfound that occur during the processing of requests
      * 
      * @param {function} notfound 
      * @returns 
      */
     notFoundHandler (fn : (ctx : TContext) =>  any) {
+
+        const handler = ({ req , res } : TContext) =>{
+            return fn({ 
+                req, 
+                res     : this._customizeResponse(req,res),
+                headers : {},
+                query   : {},
+                files   : {},
+                body    : {},
+                params  : {},
+                cookies : {}
+            })
+        }
+    
+        this._onListeners.push(() => {
+            return this.all('*', ...this._globalMiddlewares, handler)
+        })
+
+        return this
+    }
+
+    /**
+     * The 'notfound' method is middleware that is specifically designed to handle errors notfound that occur during the processing of requests
+     * 
+     * @param {function} notfound 
+     * @returns 
+     */
+    notfound (fn : (ctx : TContext) =>  any) {
 
         const handler = ({ req , res } : TContext) =>{
             return fn({ 

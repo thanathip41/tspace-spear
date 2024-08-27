@@ -1,15 +1,24 @@
 import fs                from 'fs'
 import path              from 'path'
 import mime              from 'mime-types'
-import formidable        from 'formidable'
+import busboy            from 'busboy'
+import crypto            from 'crypto'
 import swaggerUiDist     from 'swagger-ui-dist'
-import { StringDecoder } from "string_decoder"
 import querystring       from 'querystring'
-import { TSwaggerDoc }   from '../types'
+import { StringDecoder } from "string_decoder"
+
 import {
     IncomingMessage, 
     ServerResponse 
 } from "http"
+
+import type { 
+    TBody, 
+    TFiles, 
+    TSwaggerDoc 
+} from '../types'
+
+
 
 export class ParserFactory {
 
@@ -31,72 +40,84 @@ export class ParserFactory {
             try { fs.mkdirSync(temp, { recursive: true })} catch (err) {}
         }
 
-        const form = formidable({ 
-            uploadDir: temp , 
-            maxFileSize : Infinity , 
-            maxTotalFileSize : Infinity 
-        })
+        return new Promise<{ body : TBody , files : TFiles }>((resolve, reject) => {
 
-        const [dataBody, dataFiles] = await form.parse(req)
-        
-        const files : Record<string,any> = {}
-        const body  : Record<string,any> = {}
-
-        const removeTemp = (fileTemp : string , ms : number) => {
-            const remove = () => {
-                try { fs.unlinkSync(fileTemp) } catch (err) {}
-            }
-            setTimeout(remove, ms)
-        }
-        
-        for(const key in dataFiles) {
-            const data =  dataFiles[key]
-
-            if(data == null) continue
-
-            for(const file of data) {
-                
-                if(file.size > options.limit) {
-                    fs.unlinkSync(file.filepath)
-                    throw new Error(`The file '${key}' is too large to be uploaded. The limit is '${options.limit}' bytes.`)
-                }
+            const body  : Record<string,any> = {};
+            const files : Record<string,any> = {};
     
-                if(files[key] == null) files[key] = []
+            const bb = busboy({ headers: req.headers });
 
-                files[key].push({
-                    size: file.size,
-                    sizes : {
-                        bytes : file.size,
-                        kb    : file.size / 1024,
-                        mb    : file.size / 1024 / 1024,
-                        gb    : file.size / 1024 / 1024 / 1024
-                    },
-                    tempFilePath: file.filepath,
-                    tempFileName: file.newFilename,
-                    mimetype: file.mimetype,
-                    extension : String(mime.extension(String(file.mimetype))),
-                    name: file.originalFilename,
-                    remove : () => fs.unlinkSync(file.filepath)
+            bb.on('file', (fieldName : string, fileData : any, info : any) => {
+                const { filename, mimeType } = info;
+                
+                const tempFilename = crypto.randomBytes(16).toString('hex')
+
+                const filePath = path.join(path.resolve(),`${temp}/${tempFilename}`)
+
+                let fileSize = 0;
+
+                fileData.on('data', (data: string) => {
+                    fileSize += data.length;
                 })
 
-                if(!options.removeTempFile.remove) continue
+                fileData.on('close', () => {
 
-                removeTemp(file.filepath , options.removeTempFile.ms)
-            }
-        }
+                    fileData.pipe(fs.createWriteStream(filePath))
 
-        for(const key in dataBody) {
-            const v =  dataBody[key]
+                    const file = {
+                        originalFilename: filename,
+                        filepath : filePath,
+                        newFilename : tempFilename,
+                        mimetype : mimeType,
+                        extension  : String(mime.extension(String(mimeType))),
+                        size  : fileSize
+                    }
 
-            if(v == null) continue
+                    if(file.size > options.limit) {
+                        fs.unlinkSync(file.filepath)
+                        throw new Error(`The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`)
+                    }
 
-            body[key] = v[0]
-        }
+                    if (!files[fieldName]) {
+                        files[fieldName] = []
+                    }
+    
+                    files[fieldName].push({
+                        name: file.originalFilename,
+                        tempFilePath: file.filepath,
+                        tempFileName: file.newFilename,
+                        mimetype: file.mimetype,
+                        extension : file.extension ,                                       
+                        size: file.size,
+                        sizes : {
+                            bytes : file.size,
+                            kb    : file.size / 1024,
+                            mb    : file.size / 1024 / 1024,
+                            gb    : file.size / 1024 / 1024 / 1024
+                        },
+                        remove : () => fs.unlinkSync(file.filepath)
+                    })
+                })
+            })
 
-        return {
-            body,
-            files
-        }
+            bb.on('field', (name: string, value: string) => {
+              body[name] = value;
+            })
+
+            bb.on('close', () => {
+              return resolve({
+                files,
+                body
+              })
+            })
+
+            bb.on('error', (err : any) => {
+                return reject(err)
+            })
+
+            req.pipe(bb)
+        
+        })
     }
     
     body (req : IncomingMessage) {
@@ -144,7 +165,7 @@ export class ParserFactory {
         if(cookieString == null) return null
 
         for(const cookie of cookieString.split(';')) {
-            const [name, value] = cookie.split('=').map(v => v.trim());
+            const [name, value] = cookie.split('=').map((v: string) => v.trim());
             cookies[name] = decodeURIComponent(value);
         }
 
@@ -267,7 +288,7 @@ export class ParserFactory {
                         spec.summary = swagger.description
                     } 
                    
-                    if(Array.from(r.params).length) {
+                    if(Array.isArray(r.params) && Array.from(r.params).length) {
                         spec.parameters = Array.from(r?.params).map(p => {
                             return {
                                 name : p,

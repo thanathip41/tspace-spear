@@ -1,6 +1,7 @@
 import autocannon , { Result } from 'autocannon'
 import Fastify from 'fastify'
 import express, { Request, Response } from 'express'
+import ZeroSpear from 'tspace-0spear'
 import http from 'http'
 import yargs from 'yargs';
 import Spear from "../lib"
@@ -14,7 +15,7 @@ let pipelining = argv.p || argv.pipelining
 
 connections = connections == null ? 100 : Number(connections)
 pipelining  = pipelining == null ? 10 : Number(pipelining)
-duration    = duration == null ? 10 : Number(duration)
+duration    = duration == null ? 40 : Number(duration)
 
 function runExpress () {
     
@@ -58,11 +59,21 @@ function runFastify () {
     })
 }
 
+function runZeroSpear () {
+    const port = 3003
+
+    new ZeroSpear()
+    .get('/' , () => MESSAGE)
+    .listen(port , () => 
+        console.log(`server '0Spear' running at : http://localhost:${port}`)
+    )
+}
+
 function runSpear () {
     const port = 3999
 
     new Spear()
-    .get('/' , ({ res }) => MESSAGE)
+    .get('/' , () => MESSAGE)
     .listen(port , () => 
         console.log(`server 'Spear' running at : http://localhost:${port}`)
     )
@@ -74,6 +85,7 @@ const urls = [
     { name: 'express',           url: url(3000)},
     { name: 'http',              url: url(3001)},
     { name: 'fastify',           url: url(3002)},
+    { name: 'tspace-0spear',     url: url(3003)},
     { name: 'tspace-spear',      url: url(3999)}
 ];
 
@@ -123,6 +135,7 @@ async function runApps() {
 
     await Promise.all([
         runSpear,
+        runZeroSpear,
         runFastify,
         runExpress,
         runHttp

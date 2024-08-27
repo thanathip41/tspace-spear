@@ -579,7 +579,7 @@ app.get('/errors', () => {
 })
     
 // every response should returns following this format response
-app.formatResponse((results : unknown , statusCode : number) => {
+app.response((results : unknown , statusCode : number) => {
 
   if(typeof results === 'string') return results
   
@@ -593,12 +593,12 @@ app.formatResponse((results : unknown , statusCode : number) => {
 })
   
 // every notfound page should returns following this format response
-app.notFoundHandler(({ res } : TContext) => {
+app.notfound(({ res } : TContext) => {
   return res.notFound();
 })
     
 // every errors page should returns following this format response
-app.errorHandler((err : Error , { res } : TContext) => {
+app.catch((err : Error , { res } : TContext) => {
 
   return res
     .status(500)
