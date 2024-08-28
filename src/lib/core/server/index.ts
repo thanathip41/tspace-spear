@@ -220,8 +220,9 @@ class Spear {
      */
     useBodyParser ({ except } : { except ?: ('GET' | 'POST' |'PUT' |'PATCH' | 'DELETE')[] } = {}): this {
 
-        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
+        this._globalMiddlewares.push((ctx : TContext , next : TNextFunction) => {
 
+            const { req } = ctx
             const contentType = req?.headers['content-type'];
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
@@ -241,7 +242,9 @@ class Spear {
                 req.body = r 
                 return next()
             })
-            .catch(_ => next())
+            .catch(err => {
+                return this._nextFunction(ctx)(err)
+            })
         })
 
         return this
@@ -279,8 +282,9 @@ class Spear {
             this._fileUploadOptions.removeTempFile = removeTempFile
         }
  
-        this._globalMiddlewares.push(({ req } : TContext , next : TNextFunction) => {
+        this._globalMiddlewares.push((ctx : TContext , next : TNextFunction) => {
 
+            const { req } = ctx
             const contentType = req?.headers['content-type'];
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
@@ -293,13 +297,16 @@ class Spear {
 
             if(req?.files != null) return next()
 
-            Promise.resolve(this._parser.files({ req , options : this._fileUploadOptions }))
+            Promise
+            .resolve(this._parser.files(req , this._fileUploadOptions ))
             .then(r => {
                 req.files = r.files
                 req.body = r.body
                 return next()
             })
-            .catch(_ => next())
+            .catch(err => {
+                return this._nextFunction(ctx)(err)
+            })
         })
 
         return this
@@ -1165,6 +1172,8 @@ class Spear {
                 const response = this._customizeResponse(req,res) as TResponse
                 
                 const request = req as TRequest
+
+                request.params = params
                 
                 const body = request.body as TBody
                 
@@ -1182,7 +1191,7 @@ class Spear {
                 }
                
                 const ctx : any = {
-                    req, 
+                    req : request, 
                     res: response,
                     headers : RecordOrEmptyRecord(headers),
                     params  : RecordOrEmptyRecord(params),
@@ -1265,7 +1274,7 @@ class Spear {
                 ctx.res.end(result == null ? undefined : JSON.stringify(result, null, 2));
                 return;
             })
-            .catch(_ => {
+            .catch(err => {
 
                 if (ctx.res.writableEnded) return;
 
@@ -1273,7 +1282,7 @@ class Spear {
                     ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
                 }
 
-                ctx.res.end(JSON.stringify({ error: 'Internal Server Error' }));
+                ctx.res.end(JSON.stringify({ message: err?.message || 'Internal Server Error' }));
 
                 return;
             })
@@ -1313,7 +1322,7 @@ class Spear {
 
         const routes = (this.routers as unknown as { routes : any[]})
         .routes.filter(r => ["GET","POST","PUT","PATCH","DELETE"].includes(r.method))
-                
+       
         const { 
             path  , 
             html , 

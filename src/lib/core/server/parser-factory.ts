@@ -1,114 +1,160 @@
-import fs                from 'fs'
-import path              from 'path'
+import fsSystem          from 'fs'
+import pathSystem        from 'path'
 import mime              from 'mime-types'
-import busboy            from 'busboy'
 import crypto            from 'crypto'
 import swaggerUiDist     from 'swagger-ui-dist'
 import querystring       from 'querystring'
+import { Readable }      from 'stream'
 import { StringDecoder } from "string_decoder"
+
+import busboy, { 
+    type FileInfo 
+} from 'busboy'
 
 import {
     IncomingMessage, 
     ServerResponse 
 } from "http"
 
-import type { 
-    TBody, 
-    TFiles, 
-    TSwaggerDoc 
+import { 
+    type TBody, 
+    type TFiles, 
+    type TSwaggerDoc 
 } from '../types'
-
-
 
 export class ParserFactory {
 
-    async files ({ req , options } : { 
-        req : IncomingMessage
-        options : {
-            limit : number
-            tempFileDir : string
-            removeTempFile : {
-                remove :  boolean,
-                ms      : number
-            }
+    async files (req : IncomingMessage , options : {
+        limit : number
+        tempFileDir : string
+        removeTempFile : {
+            remove :  boolean,
+            ms      : number
         }
     }) {
         
         const temp = options.tempFileDir
 
-        if (!fs.existsSync(temp)) {
-            try { fs.mkdirSync(temp, { recursive: true })} catch (err) {}
+        if (!fsSystem.existsSync(temp)) {
+            try { fsSystem.mkdirSync(temp, { recursive: true })} catch (err) {}
         }
 
         return new Promise<{ body : TBody , files : TFiles }>((resolve, reject) => {
 
             const body  : Record<string,any> = {};
             const files : Record<string,any> = {};
-    
-            const bb = busboy({ headers: req.headers });
+         
+            const fileWritePromises :any[] = [];
 
-            bb.on('file', (fieldName : string, fileData : any, info : any) => {
+            const bb = busboy({ headers: req.headers })
+
+            const removeTemp = (fileTemp : string , ms : number) => {
+                const remove = () => {
+                    try { fsSystem.unlinkSync(fileTemp) } catch (err) {}
+                }
+                setTimeout(remove, ms)
+            }
+
+            bb.on('file', (fieldName : string, fileData : Readable, info : FileInfo) => {
+                
                 const { filename, mimeType } = info;
                 
                 const tempFilename = crypto.randomBytes(16).toString('hex')
 
-                const filePath = path.join(path.resolve(),`${temp}/${tempFilename}`)
+                const filePath = pathSystem.join(pathSystem.resolve(),`${temp}/${tempFilename}`)
+
+                const writeStream =  fsSystem.createWriteStream(filePath)
 
                 let fileSize = 0;
 
                 fileData.on('data', (data: string) => {
                     fileSize += data.length;
+
+                    if(fileSize > options.limit) {
+
+                        fileData.unpipe(writeStream)
+
+                        writeStream.destroy()
+
+                        return reject(new Error(`The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`))
+                    }
                 })
 
-                fileData.on('close', () => {
+                const fileWritePromise = new Promise((resolve, reject) => {
+                    
+                    fileData.pipe(writeStream)
 
-                    fileData.pipe(fs.createWriteStream(filePath))
+                    writeStream.on('finish', () => {
 
-                    const file = {
-                        originalFilename: filename,
-                        filepath : filePath,
-                        newFilename : tempFilename,
-                        mimetype : mimeType,
-                        extension  : String(mime.extension(String(mimeType))),
-                        size  : fileSize
-                    }
+                        const file = {
+                            name         : filename,
+                            tempFilePath : filePath,
+                            tempFileName : tempFilename,
+                            mimetype     : mimeType,
+                            extension    : String(mime.extension(String(mimeType))),
+                            size         : fileSize,
+                            sizes : {
+                                bytes : fileSize,
+                                kb    : fileSize / 1024,
+                                mb    : fileSize / 1024 / 1024,
+                                gb    : fileSize / 1024 / 1024 / 1024
+                            },
+                            write : (to : string) => {
+                                return new Promise((resolve, reject) => {
+                                    fsSystem.createReadStream(filePath)
+                                    .pipe(fsSystem.createWriteStream(to))
+                                    .on('finish', () => {
+                                      return resolve(null)
+                                    })
+                                    .on('error', (err) => {
+                                        return reject(err)
+                                    });
+                                })
+                            },
+                            remove : () => {
+                                return new Promise(resolve => setTimeout(() => {
+                                    fsSystem.unlinkSync(filePath)
+                                    return resolve(null)
+                                },100))
+                            }
+                        }
 
-                    if(file.size > options.limit) {
-                        fs.unlinkSync(file.filepath)
-                        throw new Error(`The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`)
-                    }
+                        if (files[fieldName] == null) {
+                            files[fieldName] = []
+                        }
+        
+                        files[fieldName].push(file)
 
-                    if (!files[fieldName]) {
-                        files[fieldName] = []
-                    }
-    
-                    files[fieldName].push({
-                        name: file.originalFilename,
-                        tempFilePath: file.filepath,
-                        tempFileName: file.newFilename,
-                        mimetype: file.mimetype,
-                        extension : file.extension ,                                       
-                        size: file.size,
-                        sizes : {
-                            bytes : file.size,
-                            kb    : file.size / 1024,
-                            mb    : file.size / 1024 / 1024,
-                            gb    : file.size / 1024 / 1024 / 1024
-                        },
-                        remove : () => fs.unlinkSync(file.filepath)
+                        if(options.removeTempFile.remove) {
+                            removeTemp(filePath , options.removeTempFile.ms)
+                        }
+
+                        return resolve(null)
                     })
+
+                    writeStream.on('error', reject)
                 })
+
+                fileWritePromises.push(fileWritePromise)
+                    
             })
 
             bb.on('field', (name: string, value: string) => {
               body[name] = value;
             })
 
-            bb.on('close', () => {
-              return resolve({
-                files,
-                body
-              })
+            bb.on('finish', () => {
+            
+                Promise.all(fileWritePromises)
+                .then(() => {
+                    return resolve({
+                        files,
+                        body
+                    })
+                })
+                .catch((err) => {
+                    return reject(err)
+                })
             })
 
             bb.on('error', (err : any) => {
@@ -417,7 +463,7 @@ export class ParserFactory {
                     tags == null || tags === '' || /^:[^:]*$/.test(tags) ? 'default' : tags
                 ]
 
-                if(Array.from(r.params).length) {
+                if(Array.isArray(r.params) && Array.from(r.params).length) {
                     
                     spec.parameters = Array.from(r.params).map(p => {
                         return {
@@ -500,12 +546,12 @@ export class ParserFactory {
             }
             
             const requestedFilePath :any = params['*'];
-            const filePath = path.join(swaggerUiPath, requestedFilePath);
-            const extname = path.extname(filePath)
+            const filePath = pathSystem.join(swaggerUiPath, requestedFilePath);
+            const extname = pathSystem.extname(filePath)
             const contentType = mimeTypes[extname] || 'text/html'
             
             try {
-                const content = fs.readFileSync(filePath)
+                const content = fsSystem.readFileSync(filePath)
 
                 res.writeHead(200, {'Content-Type': contentType })
 

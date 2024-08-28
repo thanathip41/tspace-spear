@@ -22,11 +22,12 @@ npm install tspace-spear --save
 - [Controller](#controller)
 - [Router](#router)
 - [Swagger](#swagger)
+- [File Upload](#file-upload)
 - [Others](#others)
 
 ## StartServer
 ```js
-import Spear from "tspace-spear";
+import { Spear } from "tspace-spear";
 
 new Spear()
 .get('/' , () => 'Hello world!')
@@ -43,7 +44,7 @@ new Spear()
 
 ### CRUD
 ```js
-import Spear from "tspace-spear";
+import { Spear } from "tspace-spear";
 
 const spears = [
   {
@@ -61,6 +62,7 @@ const spears = [
 ]
 
 new Spear()
+// enable body payload
 .useBodyParser()
 .get('/' , () => spears)
 .get('/:id' , ({ params }) => spears.find(spear => spear.id === Number(params.id ?? 0)))
@@ -107,12 +109,9 @@ new Spear()
 
 ## Cluster
 ```js
-import Spear from "tspace-spear";
+import { Spear } from "tspace-spear";
 new Spear({
-  cluster : {
-    use : true,
-    maxWorkers : 3
-  }
+  cluster : 3
 })
 .get('/' , () => 'Hello world!')
 .get('/json' , () => {
@@ -120,7 +119,7 @@ new Spear({
     message : 'Hello world!'
   }
 })
-.listen(3000 , ({ server, port }) => 
+.listen(3000 , ({ port }) => 
   console.log(`server listening on : http://localhost:${port}`)
 )
 
@@ -256,7 +255,7 @@ class CatController {
   }
 }
 
-import Spear , { Router, TContext, TNextFunction } from "tspace-spear";
+import { Spear } , { Router, TContext, TNextFunction } from "tspace-spear";
 
 import CatController from './cat-controller.ts'
 
@@ -294,7 +293,7 @@ import CatController from './cat-controller.ts'
 ## Router
 
 ```js
-import Spear , { Router, TContext, TNextFunction } from "tspace-spear";
+import { Spear } , { Router, TContext, TNextFunction } from "tspace-spear";
 
 const app = new Spear()
 
@@ -526,6 +525,42 @@ class CatController {
 })()
 ```
 
+## File Upload
+
+```js
+
+import { Spear } from 'tspace-spear';
+import path from 'path'
+
+new Spear()
+// use this for enable file upload
+.useFileUpload({
+  limit : 1000 * 1000, // limit for file upload 1_000_000 bytes by default Infinity
+  tempFileDir : 'temp', // folder temporary directory by default tmp
+  removeTempFile : {
+    remove : true, // remove temporary files by default false
+    ms : 1000 * 60 // remove file temporary after 60 seconds
+  }
+})
+.post('/' , ({ files } : TContext) => {
+
+  // you can move the file from temporary to other folder
+  // for example please validate the your input file
+  const file     = files.file[0]
+  const folder   = 'uploads'
+
+  await file.write(path.join(path.resolve(),`${folder}/${+new Date()}.${file.extension}`))
+
+  // after writed the file you should remove the temporary file
+  await file.remove()
+
+  return {
+    files
+  }
+})
+
+```
+
 ## Others
 
 ```js
@@ -547,14 +582,7 @@ app.enableCors({
     credentials: true
 })
 
-app.useFileUpload({
-  limit : 1000 * 1000, // limit for file upload 1_000_000 bytes
-  tempFileDir : 'tmp', // folder temporary directory
-  removeTempFile : {
-    remove : true, // remove temporary files
-    ms : 1000 * 60 // remove temporary after 60 seconds
-  }
-})
+app.useFileUpload()
 
 app.get('/' , ({ res } : TContext) => {
   return res.json({

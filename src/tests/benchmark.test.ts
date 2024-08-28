@@ -1,7 +1,6 @@
 import autocannon , { Result } from 'autocannon'
 import Fastify from 'fastify'
 import express, { Request, Response } from 'express'
-import ZeroSpear from 'tspace-0spear'
 import http from 'http'
 import yargs from 'yargs';
 import Spear from "../lib"
@@ -59,16 +58,6 @@ function runFastify () {
     })
 }
 
-function runZeroSpear () {
-    const port = 3003
-
-    new ZeroSpear()
-    .get('/' , () => MESSAGE)
-    .listen(port , () => 
-        console.log(`server '0Spear' running at : http://localhost:${port}`)
-    )
-}
-
 function runSpear () {
     const port = 3999
 
@@ -85,12 +74,11 @@ const urls = [
     { name: 'express',           url: url(3000)},
     { name: 'http',              url: url(3001)},
     { name: 'fastify',           url: url(3002)},
-    { name: 'tspace-0spear',     url: url(3003)},
     { name: 'tspace-spear',      url: url(3999)}
 ];
 
 const sleep = (ms : number) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms,null));
 }
 
 const runBenchmark = async () : Promise<void> => {
@@ -135,7 +123,6 @@ async function runApps() {
 
     await Promise.all([
         runSpear,
-        runZeroSpear,
         runFastify,
         runExpress,
         runHttp

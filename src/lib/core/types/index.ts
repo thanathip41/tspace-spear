@@ -34,11 +34,11 @@ export type TFiles<T = Record<string, {
     };
     tempFilePath: string;
     tempFileName : string;
-    tempName: string;
     mimetype: string;
     extension : string;
     name: string;
-    remove : () => void
+    write : (to : string) => Promise<void>;
+    remove : () => Promise<void>;
 }[]>> = T
 
 export type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
@@ -137,6 +137,11 @@ export type TSwagger = {
     description ?: string
     bearerToken ?: boolean
     tags        ?: string[]
+    params ?: Record<string , {
+        description ?: string,
+        type ?: TSwaggerType
+        example ?: any
+    }>
     query ?: Record<string , {
         required ?: boolean,
         description ?: string,
