@@ -15,18 +15,25 @@ npm install tspace-spear --save
 
 ```
 ## Basic Usage
-- [StartServer](#start-server)
-  - [CRUD](#crud)
-  - [Cluster](#cluster)
+- [Start Server](#start-server)
+- [Cluster](#cluster)
+- [Global Prefix](#global-prefix)
+- [Logger](#logger)
+- [Format Response](#format-response)
+  - [Notfound](#notfound)
+  - [Response](#response)
+  - [Catch](#catch)
 - [Cors](#cors)
+- [Body](#body)
+- [File Upload](#file-upload)
+- [Cookie](#cookie)
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Router](#router)
 - [Swagger](#swagger)
-- [File Upload](#file-upload)
-- [Others](#others)
+- [Example CRUD](#example-crud)
 
-## StartServer
+## Start Server
 ```js
 import { Spear } from "tspace-spear";
 
@@ -37,75 +44,8 @@ new Spear()
     message : 'Hello world!'
   }
 })
-.listen(3000 , ({ server, port }) => 
-  console.log(`server listening on : http://localhost:${port}`)
-)
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
-```
-
-### CRUD
-```js
-import { Spear } from "tspace-spear";
-
-const spears = [
-  {
-    id : 1,
-    damage : 100
-  },
-  {
-    id : 2,
-    damage : 75
-  },
-  {
-    id : 3,
-    damage : 50
-  }
-]
-
-new Spear()
-// enable body payload
-.useBodyParser()
-.get('/' , () => spears)
-.get('/:id' , ({ params }) => spears.find(spear => spear.id === Number(params.id ?? 0)))
-.post('/' , ({ body }) =>  {
-    // please validation the your body 
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
-
-    const id = spears.reduce((max, spear) => spear.id > max ? spear.id : max, 0) + 1
-
-    spears.push({ id , damage })
-
-    return spears.find(spear => spear.id === id)
-})
-.patch('/:id' , ({ params , body , res }) =>  {
-    
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
-
-    const id = Number(params.id)
-
-    const spear = spears.find(spear => spear.id === id)
-
-    if (spear == null) return res.status(404).json({ message : 'Spear not found'})
-
-    spear.damage = damage;
-
-    return spears.find(spear => spear.id === id)
-})
-.delete('/:id', ({ params , res }) => {
-
-  const id = Number(params.id)
-
-  const spear = spears.find(spear => spear.id === id)
-
-  if (spear == null) return res.status(404).json({ message : 'Spear not found'})
-
-  spears.splice(spears.findIndex(spear => spear.id === Number(params.id ?? 0)), 1)
-
-  return res.status(204).json()
-})
-.listen(3000 , ({ server, port }) => 
-  console.log(`server listening on : http://localhost:${port}`)
-)
 ```
 
 ## Cluster
@@ -120,9 +60,96 @@ new Spear({
     message : 'Hello world!'
   }
 })
-.listen(3000 , ({ port }) => 
-  console.log(`server listening on : http://localhost:${port}`)
-)
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+```
+
+## Global Prefix
+```js
+const app = new Spear({
+  globalPrefix : '/api' // prefix all routes
+})
+.get('/' , () => 'Hello world!')
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+// http://localhost:3000/api => 'Hello world!'
+```
+
+## Logger
+```js
+const app = new Spear({
+  logger :  true
+})
+// or use this for logging
+.useLogger({
+    methods     : ['GET','POST'],
+    exceptPath  : /\/benchmark(\/|$)|\/favicon\.ico(\/|$)/ // or use Array ['/']
+})
+.get('/' , () => 'Hello world!')
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+```
+
+## Format Response
+
+### Notfound
+```js
+const app = new Spear()
+.get('/' , () => {
+  return { 
+    message: 'Hello world'
+  }
+})
+.notfound(({ res } : TContext) => {
+  return res.notFound('Not found!')
+})
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+// http://localhost:3000/notfound => { success: false , message : 'Not found!' , statusCode: 404 }
+
+```
+
+### Response
+```js
+const app = new Spear()
+.get('/' , () => {
+  return { 
+    message: 'Hello world'
+  }
+})
+.response((results, statusCode) => {
+
+  if(typeof results === 'string') return results
+  
+  /// ...
+  return {
+      success : statusCode < 400,
+      ...results,
+      statusCode
+  }
+})
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+// http://localhost:3000 => { success: true , message : 'Hello World' , statusCode: 200 }
+
+```
+
+### Catch
+```js
+const app = new Spear()
+.get('/' , () => {
+  throw new Error('Catching failed')
+})
+.catch((err : Error , { res } : TContext) => {
+
+  return res
+    .status(500)
+    .json({
+      success    : false,
+      message    : err?.message,
+      statusCode : 500
+  });
+}) 
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+// http://localhost:3000 => { success: false , message : 'Catching failed' , statusCode: 500 }
 
 ```
 
@@ -136,8 +163,74 @@ const app = new Spear()
     ],
     credentials: true
 })
+//.cors() allow *
 .listen(port , () => console.log(`Server is now allow cors localhost:* `))
 
+```
+
+## Body
+```js
+
+new Spear()
+// enable body payload
+.useBodyParser()
+.post('/' , ({ body }) =>  {
+  return {
+    yourBody : body
+  }
+})
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+```
+
+## File Upload
+
+```js
+
+import { Spear } from 'tspace-spear';
+import path from 'path'
+
+new Spear()
+// use this for enable file upload
+.useFileUpload({
+  limit : 1000 * 1000, // limit for file upload 1_000_000 bytes by default Infinity
+  tempFileDir : 'temp', // folder temporary directory by default tmp
+  removeTempFile : {
+    remove : true, // remove temporary files by default false
+    ms : 1000 * 60 // remove file temporary after 60 seconds
+  }
+})
+.post('/' , ({ files } : TContext) => {
+
+  // you can move the file from temporary to other folder
+  // for example please validate the your input file
+  const file     = files.file[0]
+  const folder   = 'uploads'
+
+  await file.write(path.join(path.resolve(),`${folder}/${+new Date()}.${file.extension}`))
+
+  // after writed the file you should remove the temporary file
+  await file.remove()
+
+  return {
+    files
+  }
+})
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+```
+
+## Cookie
+```js
+
+new Spear()
+.useCookiesParser()
+.post('/' , ({ cookies }) =>  {
+  return {
+    yourCookies : cookies
+  }
+})
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 ```
 
 ## Middleware
@@ -174,7 +267,7 @@ import CatMiddleware from './cat-middleware.ts'
     });
   })
 
-  app.listen(port , () => console.log(`Server is now listening http://localhost:${port}`))
+  app.listen(port , () => console.log(`Server is now listening http://localhost:3000`))
 
   // localhost:3000
 
@@ -295,9 +388,7 @@ import CatController from './cat-controller.ts'
     });
   })
 
-  const port = 3000
-
-  app.listen(port , () => console.log(`Server is now listening http://localhost:${port}`))
+  app.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
   // localhost:3000/cats 
   // localhost:3000/cats/41
@@ -342,7 +433,7 @@ app.get('/' , ({ res } : TContext) => {
 
 let port = 3000
 
-app.listen(port , () => console.log(`Server is now listening http://localhost:${port}`))
+app.listen(port , () => console.log(`Server is now listening http://localhost:3000`))
 
 // localhost:3000/my/cats
 // localhost:3000/cats
@@ -517,10 +608,10 @@ class CatController {
   await new Spear({
     controllers: [ CatController ]
   })
-  .get('/' , ({ res } : TContext) => {
-  return res.json({
-    message : 'hello world!'
-  });
+   .get('/' , ({ res } : TContext) => {
+    return res.json({
+      message : 'hello world!'
+    });
   })
   // .useSwagger() // by default path is "/api/docs"
   .useSwagger({
@@ -538,119 +629,69 @@ class CatController {
 
   // localhost:3000/docs
 })()
+
 ```
 
-## File Upload
-
+## Example CRUD
 ```js
+import { Spear } from "tspace-spear";
 
-import { Spear } from 'tspace-spear';
-import path from 'path'
+const spears = [
+  {
+    id : 1,
+    damage : 100
+  },
+  {
+    id : 2,
+    damage : 75
+  },
+  {
+    id : 3,
+    damage : 50
+  }
+]
 
 new Spear()
-// use this for enable file upload
-.useFileUpload({
-  limit : 1000 * 1000, // limit for file upload 1_000_000 bytes by default Infinity
-  tempFileDir : 'temp', // folder temporary directory by default tmp
-  removeTempFile : {
-    remove : true, // remove temporary files by default false
-    ms : 1000 * 60 // remove file temporary after 60 seconds
-  }
+// enable body payload
+.useBodyParser()
+.get('/' , () => spears)
+.get('/:id' , ({ params }) => spears.find(spear => spear.id === Number(params.id ?? 0)))
+.post('/' , ({ body }) =>  {
+    // please validation the your body 
+    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
+
+    const id = spears.reduce((max, spear) => spear.id > max ? spear.id : max, 0) + 1
+
+    spears.push({ id , damage })
+
+    return spears.find(spear => spear.id === id)
 })
-.post('/' , ({ files } : TContext) => {
-
-  // you can move the file from temporary to other folder
-  // for example please validate the your input file
-  const file     = files.file[0]
-  const folder   = 'uploads'
-
-  await file.write(path.join(path.resolve(),`${folder}/${+new Date()}.${file.extension}`))
-
-  // after writed the file you should remove the temporary file
-  await file.remove()
-
-  return {
-    files
-  }
-})
-
-```
-
-## Others
-
-```js
-
-const app = new Spear({
-  logger : true, // logging
-  globalPrefix : '/api' // prefix all routes
-})
-// or use this for logging
-app.useLogger({
-    methods     : ['GET','POST'],
-    exceptPath  : ['/']
-})
-
-app.useFileUpload()
-
-app.get('/' , ({ res } : TContext) => {
-  return res.json({
-    message : 'hello world!'
-  });
-})
-
-app.get('/bad-request' , ({ res } : TContext) => {
-  return res.status(400).json({
-    message : 'hello but bad request'
-  });
-})
-
-app.get('/not-found' , ({ res } : TContext) => {
-  return res.status(404).json({
-    message : 'hello but not found the world!'
-  });
-})
-
-app.get('/errors', () => {
-  throw new Error('testing Error handler')
-})
+.patch('/:id' , ({ params , body , res }) =>  {
     
-// every response should returns following this format response
-app.response((results : unknown , statusCode : number) => {
+    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
 
-  if(typeof results === 'string') return results
-  
-  /// ...
+    const id = Number(params.id)
 
-  return {
-      success : statusCode < 400,
-      ...results,
-      statusCode
-  }
+    const spear = spears.find(spear => spear.id === id)
+
+    if (spear == null) return res.status(404).json({ message : 'Spear not found'})
+
+    spear.damage = damage;
+
+    return spears.find(spear => spear.id === id)
 })
-  
-// every notfound page should returns following this format response
-app.notfound(({ res } : TContext) => {
-  return res.notFound();
+.delete('/:id', ({ params , res }) => {
+
+  const id = Number(params.id)
+
+  const spear = spears.find(spear => spear.id === id)
+
+  if (spear == null) return res.status(404).json({ message : 'Spear not found'})
+
+  spears.splice(spears.findIndex(spear => spear.id === Number(params.id ?? 0)), 1)
+
+  return res.status(204).json()
 })
-    
-// every errors page should returns following this format response
-app.catch((err : Error , { res } : TContext) => {
-
-  return res
-    .status(500)
-    .json({
-      success    : false,
-      message    : err?.message,
-      statusCode : 500
-  });
-}) 
-    
-const port = 3000
-
-app.listen(port , () => console.log(`Server is now listening http://localhost:${port}`))
-
-// localhost:3000/*********** // not found
-// localhost:3000/errors // errors
-// localhost:3000 // format response
+.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
 ```
