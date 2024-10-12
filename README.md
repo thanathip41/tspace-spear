@@ -18,6 +18,7 @@ npm install tspace-spear --save
 - [StartServer](#start-server)
   - [CRUD](#crud)
   - [Cluster](#cluster)
+- [Cors](#cors)
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Router](#router)
@@ -122,6 +123,20 @@ new Spear({
 .listen(3000 , ({ port }) => 
   console.log(`server listening on : http://localhost:${port}`)
 )
+
+```
+
+## Cors
+
+```js
+const app = new Spear()
+.cors({
+    origins: [
+      /^http:\/\/localhost:\d+$/
+    ],
+    credentials: true
+})
+.listen(port , () => console.log(`Server is now allow cors localhost:* `))
 
 ```
 
@@ -573,13 +588,6 @@ const app = new Spear({
 app.useLogger({
     methods     : ['GET','POST'],
     exceptPath  : ['/']
-})
-
-app.enableCors({
-    origins: [
-      /^http:\/\/localhost:\d+$/
-    ],
-    credentials: true
 })
 
 app.useFileUpload()

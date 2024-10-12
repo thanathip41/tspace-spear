@@ -55,6 +55,7 @@ class Spear {
     private readonly _cluster ?: number | boolean
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory()
+    private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void)
     private _swagger : {
         use : boolean
         path ?: `/${string}`
@@ -431,6 +432,63 @@ class Spear {
     }
 
     /**
+     * The 'cors' is used to enable the cors origins on the server.
+     * 
+     * @params {Object} 
+     * @property {(string | RegExp)[]} origins
+     * @property {boolean} credentials
+     * @returns 
+     */
+    cors({ origins , credentials } : {
+        origins ?: (string | RegExp)[] , 
+        credentials ?: boolean
+    } = {}) {
+
+        this._cors = ((req, res) => {
+
+            const origin = req.headers?.origin
+
+            if(origin == null) return
+
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+            if(origins == null) {
+                res.setHeader('Access-Control-Allow-Origin', '*')
+            }
+
+            if(Array.isArray(origins) && origins.length) {
+
+                for(const o of origins) {
+
+                    if(typeof o === 'string' && (o === origin || o === '*')) {
+                        res.setHeader('Access-Control-Allow-Origin', origin)
+                        continue
+                    }
+                    
+                    if(o instanceof RegExp && o.test(origin)) {
+                        res.setHeader('Access-Control-Allow-Origin', origin)
+                    }
+                }
+            }
+
+            if(credentials) {
+                res.setHeader('Access-Control-Allow-Credentials', 'true');
+            }
+
+            if (req.method === 'OPTIONS') {
+                res.writeHead(204)
+                res.end()
+                return
+            }
+            
+            return
+        })
+
+        return this
+    }
+
+    /**
      * The 'enableCors' is used to enable the cors origins on the server.
      * 
      * @params {Object} 
@@ -443,33 +501,7 @@ class Spear {
         credentials ?: boolean
     } = {}) {
 
-        this._globalMiddlewares.push(({ req , res } : TContext , next : TNextFunction) => {
-
-            const origin = req.headers?.origin
-
-            if(origin == null) return next()
-
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-            if(origins == null) {
-                res.setHeader('Access-Control-Allow-Origin', '*')
-            }
-
-            if(Array.isArray(origins) && origins.length) {
-                if(origins.includes(origin)) {
-                    res.setHeader('Access-Control-Allow-Origin', origin);
-                }
-            }
-
-            if(credentials) {
-                res.setHeader('Access-Control-Allow-Credentials', 'true');
-            }
-            
-            return next()
-        })
-
-        return this
+        return this.cors({origins, credentials})
     }
 
     /**
@@ -1296,6 +1328,9 @@ class Spear {
         await this._registerControllers()
 
         const server = http.createServer((req : IncomingMessage, res : ServerResponse) => {
+
+            if(this._cors) this._cors(req, res)
+
             return this._router.lookup(req, res)
         })
 

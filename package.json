@@ -1,6 +1,6 @@
 {
   "name": "tspace-spear",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server",
   "main": "./build/lib/index.js",
   "types": "./build/lib/index.d.ts",
