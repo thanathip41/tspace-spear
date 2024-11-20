@@ -134,6 +134,7 @@ export type TSwaggerDoc = {
 
 export type TSwagger = {
     staticUrl ?: string
+    summary ?: string
     description ?: string
     bearerToken ?: boolean
     tags        ?: string[]

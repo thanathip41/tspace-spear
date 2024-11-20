@@ -219,7 +219,7 @@ class Spear {
      * @property {array?} except the body parser with some methods
      * @returns {this}
      */
-    useBodyParser ({ except } : { except ?: ('GET' | 'POST' |'PUT' |'PATCH' | 'DELETE')[] } = {}): this {
+    useBodyParser ({ except } : { except ?: ('GET' | 'POST' | 'PUT' |'PATCH' | 'DELETE')[] } = {}): this {
 
         this._globalMiddlewares.push((ctx : TContext , next : TNextFunction) => {
 
@@ -452,10 +452,6 @@ class Spear {
 
             res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-            if(origins == null) {
-                res.setHeader('Access-Control-Allow-Origin', '*')
-            }
 
             if(Array.isArray(origins) && origins.length) {
 
@@ -724,6 +720,25 @@ class Spear {
         return this
     }
 
+    /**
+     * The 'any' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {function} next  - go to next function
+     * @returns {this}
+     */
+    any (path : string , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+        this._onListeners.push(() => {
+            return this._router.all(
+                this._normalizePath(this._globalPrefix, path), 
+                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+            );
+        })
+        return this
+    }
+
     private _clusterMode (server : Server , port : number , callback : (callback : { server : Server , port : number }) => void ) {
 
         if (cluster.isPrimary) {
@@ -906,6 +921,8 @@ class Spear {
 
         response.json = (results ?: Record<string,any>) => {
 
+            if (res.writableEnded) return;
+
             if(typeof results === 'string') {
 
                 if(!res.headersSent) {
@@ -946,6 +963,8 @@ class Spear {
 
         response.send = (results : string) => {
 
+            if (res.writableEnded) return;
+
             res.writeHead(res.statusCode, { 'Content-Type': 'text/plain' })
             
             return res.end(results)
@@ -953,12 +972,15 @@ class Spear {
 
         response.html = (results : string) => {
 
+            if (res.writableEnded) return;
+
             res.writeHead(res.statusCode, {'Content-Type': 'text/html'})
 
             return res.end(results)
         }
 
         response.error = (err ) => {
+
             let code =
                 +err.response?.data?.code ||
                 +err.code ||
@@ -1002,11 +1024,14 @@ class Spear {
         }
 
         response.noContent = () => {
-            response.status(202)
+            response.status(204)
             return res.end()
         }
 
         response.badRequest = (message ?: string) => {
+
+            if (res.writableEnded) return;
+            
             response.status(400)
 
             message = message ?? `The url '${req.url}' resulted in a bad request. Please review the data and try again.`
@@ -1243,6 +1268,8 @@ class Spear {
             }
 
             try {
+                if (res.writableEnded) return
+
                 runHandler()
             }
 
@@ -1271,6 +1298,8 @@ class Spear {
                 if (ctx.res.writableEnded) return;
 
                 if (result instanceof ServerResponse) return;
+
+                if(result == null) return;
 
                 if (typeof result === 'string') {
                     if (!ctx.res.headersSent) {
@@ -1329,15 +1358,16 @@ class Spear {
 
         const server = http.createServer((req : IncomingMessage, res : ServerResponse) => {
 
-            if(this._cors) this._cors(req, res)
+            if(this._cors != null) {
+                this._cors(req, res)
+            }
 
             return this._router.lookup(req, res)
         })
 
-        server.timeout = 0
-        server.keepAliveTimeout = 0
-        server.headersTimeout = 0
-        server.requestTimeout = 0
+        server.timeout = 0;         
+        server.requestTimeout = 0;
+       
        
         return server
     }

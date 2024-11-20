@@ -24,7 +24,7 @@ import {
 
 export class ParserFactory {
 
-    async files (req : IncomingMessage , options : {
+    files (req : IncomingMessage , options : {
         limit : number
         tempFileDir : string
         removeTempFile : {
@@ -330,8 +330,12 @@ export class ParserFactory {
                         spec.security = [{ "BearerToken": [] }]
                     }
 
+                    if(swagger.summary != null) {
+                        spec.summary = swagger.summary
+                    } 
+
                     if(swagger.description != null) {
-                        spec.summary = swagger.description
+                        spec.description= swagger.description
                     } 
                    
                     if(Array.isArray(r.params) && Array.from(r.params).length) {
@@ -345,36 +349,23 @@ export class ParserFactory {
                                 }
                             }
                         })
-
-                        if(swagger.query != null) {
-
-                            spec.parameters = [
-                                ...spec.parameters,
-                                Object.entries(swagger.query).map(([k , v]) => {
-                                    return {
-                                        name : k,
-                                        in : "query",
-                                        required: v.required == null ? false : true,
-                                        schema: {
-                                            type: v.type
-                                        }
-                                    }
-                                })
-                            ]
-                        }
                     }
 
                     if(swagger.query != null) {
-                        spec.parameters = Object.entries(swagger.query).map(([k , v]) => {
-                            return {
-                                name : k,
-                                in : "query",
-                                required: v.required == null ? false : true,
-                                schema: {
-                                    type: v.type
+
+                        spec.parameters = [
+                            ...spec.parameters,
+                            ...Object.entries(swagger.query).map(([k , v]) => {
+                                return {
+                                    name : k,
+                                    in : "query",
+                                    required: v.required == null ? false : true,
+                                    schema: {
+                                        type: v.type
+                                    }
                                 }
-                            }
-                        })
+                            })
+                        ]
                     }
 
                     if(swagger.cookies != null) {
