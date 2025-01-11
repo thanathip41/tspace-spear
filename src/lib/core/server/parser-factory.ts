@@ -46,7 +46,7 @@ export class ParserFactory {
          
             const fileWritePromises :any[] = [];
 
-            const bb = busboy({ headers: req.headers })
+            const bb = busboy({ headers: req.headers , defParamCharset: 'utf8' });
 
             const removeTemp = (fileTemp : string , ms : number) => {
                 const remove = () => {
