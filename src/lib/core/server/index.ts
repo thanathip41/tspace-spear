@@ -9,9 +9,7 @@ import http, {
     Server, 
     ServerResponse 
 } from 'http'
-import findMyWayRouter, { 
-    Instance 
-} from 'find-my-way'
+import findMyWayRouter, { Instance } from 'find-my-way'
 import { ParserFactory } from './parser-factory'
 import { Router } from './router'
 import type { 
@@ -52,9 +50,9 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
     private readonly _middlewares ?: TRequestFunction[] | { folder : string , name ?: RegExp}
     private readonly _globalPrefix : string
-    private readonly _cluster ?: number | boolean
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory()
+    private  _cluster ?: number | boolean
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void)
     private _swagger : {
         use : boolean
@@ -150,6 +148,17 @@ class Spear {
     }
 
     /**
+     * The 'useCluster' method is used cluster run the server
+     * 
+     * @param {boolean | number} cluster
+     * @returns {this}
+     */
+    useCluster (cluster ?: number ): this {
+        this._cluster  = cluster == null ? true : cluster;
+        return this
+    }
+
+    /**
      * The 'useLogger' method is used to add the middleware view logger response.
      * 
      * @callback {Function} middleware
@@ -224,17 +233,22 @@ class Spear {
         this._globalMiddlewares.push((ctx : TContext , next : TNextFunction) => {
 
             const { req } = ctx
-            const contentType = req?.headers['content-type'];
+            const contentType = req?.headers['content-type'] ?? '';
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
 
-            if(except != null && Array.isArray(except)) {
-                if(except.some(v => v.toLocaleLowerCase() === (req.method)?.toLocaleLowerCase())) {
-                    return next()
-                }
+            const isCanParserBody = contentType.includes('application/json') || contentType.includes('application/x-www-form-urlencoded')
+            
+            if(
+                except != null && 
+                Array.isArray(except) && 
+                except.some(v => v.toLocaleLowerCase() === (req.method)?.toLocaleLowerCase())) {
+                return next()
             }
 
             if(isFileUpload) return next()
+
+            if(!isCanParserBody) return next()
 
             if(req?.body != null) return next()
 
@@ -394,7 +408,7 @@ class Spear {
      * @param {function} callback 
      * @returns 
      */
-    async listen(port : number | (() => ServerResponse) = 3000, callback : (callback : { server : Server , port : number }) => void) {
+    async listen(port : number | (() => ServerResponse) = 3000, callback : (callback : { server : Server , port : number }) => void) : Promise<Server> {
 
         if(arguments.length === 1 && typeof port === 'function') {
             callback = port
@@ -408,7 +422,7 @@ class Spear {
             this._cluster || typeof this._cluster === 'number'
         ) {
             this._clusterMode(server , Number(port) , callback)
-            return
+            return server
         }
 
         server.listen(port == null ? 3000 : port , () => {
@@ -428,7 +442,7 @@ class Spear {
             server.listen(port)
         })
         
-        return
+        return server
     }
 
     /**
@@ -446,7 +460,7 @@ class Spear {
 
         this._cors = ((req, res) => {
 
-            const origin = req.headers?.origin
+            const origin = req.headers?.origin ?? null
 
             if(origin == null) return
 
@@ -473,7 +487,7 @@ class Spear {
             }
 
             if (req.method === 'OPTIONS') {
-                res.writeHead(204)
+                res.writeHead(204, { 'Content-Length': '0' });
                 res.end()
                 return
             }
@@ -1224,7 +1238,7 @@ class Spear {
 
         return (req : IncomingMessage, res : ServerResponse , params : Record<string,any>) => {
 
-            const runHandler = (index : number = 0) : any => {
+            const nextHandler = (index : number = 0) : any => {
 
                 const response = this._customizeResponse(req,res) as TResponse
                 
@@ -1247,7 +1261,7 @@ class Spear {
                     return Object.keys(data).length ? data : {}
                 }
                
-                const ctx : any = {
+                const ctx = {
                     req : request, 
                     res: response,
                     headers : RecordOrEmptyRecord(headers),
@@ -1259,21 +1273,28 @@ class Spear {
                 }
               
                 if(index === handlers.length - 1) {
-                    return this._wrapResponse(handlers[index].bind(handlers[index]))(ctx, this._nextFunction(ctx))
+                    return this._wrapResponse(
+                        handlers[index]
+                        .bind(handlers[index])
+                    )(
+                        ctx, 
+                        this._nextFunction(ctx)
+                    )
                 }
 
                 return handlers[index](ctx , () => {
-                    return runHandler(index + 1)
+                    return nextHandler(index + 1)
                 })
             }
 
             try {
                 if (res.writableEnded) return
 
-                runHandler()
+                return nextHandler()
             }
 
             catch(err) {
+
                 const ctx = {
                     req, 
                     res : this._customizeResponse(req,res), 
@@ -1356,7 +1377,7 @@ class Spear {
 
         await this._registerControllers()
 
-        const server = http.createServer((req : IncomingMessage, res : ServerResponse) => {
+        const server = http.createServer(( req : IncomingMessage, res : ServerResponse) => {
 
             if(this._cors != null) {
                 this._cors(req, res)
@@ -1365,10 +1386,6 @@ class Spear {
             return this._router.lookup(req, res)
         })
 
-        server.timeout = 0;         
-        server.requestTimeout = 0;
-       
-       
         return server
     }
 

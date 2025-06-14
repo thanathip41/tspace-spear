@@ -261,6 +261,15 @@ import CatMiddleware from './cat-middleware.ts'
     return next()
   })
 
+   app.get('/' ((ctx,next) => {
+    console.log('middleware on the crrent route')
+    return next()
+   }), ({ res } : TContext) => {
+    return res.json({
+      message : 'hello world!'
+    });
+  })
+
   app.get('/' , ({ res } : TContext) => {
     return res.json({
       message : 'hello world!'
