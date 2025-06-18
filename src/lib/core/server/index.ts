@@ -1105,7 +1105,22 @@ class Spear {
    
             response.status(404)
 
-            message = message ?? `The url '${req.url}' was not found. Please re-check the your url again`
+            message = message ?? `The url '${req.url}' was not found. Please re-check the your url again.`
+
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
+            }
+
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
+
+        response.tooManyRequests = (message ?: string) => {
+   
+            response.status(429)
+
+            message = message ?? `The url '${req.url}' is too many request. Please wait and try agian.`
 
             if(this._formatResponse != null) {
                 return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
