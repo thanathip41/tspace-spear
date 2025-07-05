@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from "http";
+import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 
 export type TContext= {
     req : TRequest
@@ -11,7 +11,7 @@ export type TContext= {
     cookies : TCookies
 }
 
-export type THeaders<T = Record<string, string>> = T
+export type THeaders<T = IncomingHttpHeaders> = T
 
 export type TQuery<T = Record<string, string>> = T
 
@@ -56,6 +56,7 @@ type THttpStatus = {
     unauthorized: (message?: string) => void;
     paymentRequired: (message?: string) => void;
     forbidden: (message?: string) => void;
+    tooManyRequests: (message?: string) => void;
     notFound: (message?: string) => void;
     serverError: (message: string) => void;
     forceStatus: (code : number) => void;

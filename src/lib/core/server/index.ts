@@ -408,11 +408,14 @@ class Spear {
      * @param {function} callback 
      * @returns 
      */
-    async listen(port : number | (() => ServerResponse) = 3000, callback : (callback : { server : Server , port : number }) => void) : Promise<Server> {
+    async listen(
+        port : number, 
+        hostname?: string | ((callback: { server: Server; port: number }) => void),
+        callback ?: (callback : { server : Server , port : number }) => void
+    ) : Promise<Server> {
 
-        if(arguments.length === 1 && typeof port === 'function') {
-            callback = port
-            port = 3000
+        if(arguments.length === 2 && typeof hostname === 'function') {
+            callback = hostname
         }
 
         const server = await this._createServer()
@@ -421,13 +424,20 @@ class Spear {
             this._cluster != null && 
             this._cluster || typeof this._cluster === 'number'
         ) {
-            this._clusterMode(server , Number(port) , callback)
+            this._clusterMode({
+                server,
+                port,
+                hostname,
+                callback
+            })
             return server
         }
 
-        server.listen(port == null ? 3000 : port , () => {
-            if(callback) callback({ server , port} as { server : Server , port : number })
-        })
+        const args: any[] = hostname
+            ? [port, hostname, () => callback?.({ server, port: port })]
+            : [port, () => callback?.({ server, port: port })];
+
+        server.listen(...args);
 
         server.on('listening', () => {
             this._onListeners.forEach(listener => listener())
@@ -753,7 +763,12 @@ class Spear {
         return this
     }
 
-    private _clusterMode (server : Server , port : number , callback : (callback : { server : Server , port : number }) => void ) {
+    private _clusterMode ({ server , port , hostname, callback} : {
+        server : Server;
+        port : number;
+        hostname?: string | ((callback: { server: Server; port: number }) => void),
+        callback ?: (callback : { server : Server , port : number }) => void 
+    }) {
 
         if (cluster.isPrimary) {
 
@@ -773,12 +788,12 @@ class Spear {
         } 
 
         if(cluster.isWorker) {
-            server.listen(port == null ? 3000 : port , () => {
-                if(callback) {
-                    callback({ server , port} as { server : Server , port : number })
-                }
-            })
-    
+            const args: any[] = hostname
+                ? [port, hostname, () => callback?.({ server, port: port })]
+                : [port, () => callback?.({ server, port: port })];
+
+            server.listen(...args);
+
             server.on('listening', () => {
                 this._onListeners.forEach(listener => listener())
     
@@ -1392,7 +1407,7 @@ class Spear {
 
         await this._registerControllers()
 
-        const server = http.createServer(( req : IncomingMessage, res : ServerResponse) => {
+        const server = http.createServer({ maxHeaderSize: 1024 * 1024 },( req : IncomingMessage, res : ServerResponse) => {
 
             if(this._cors != null) {
                 this._cors(req, res)
