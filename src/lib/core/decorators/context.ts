@@ -1,10 +1,10 @@
-import { TContext, TNextFunction } from '../types';
+import { type T } from '../types';
 
 export const Body = (...bodyParms : string[]) => {
     return function(target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
-        descriptor.value = async function(ctx : TContext , next :TNextFunction) {
+        descriptor.value = async function(ctx : T.Context , next :T.NextFunction) {
             const q = ctx?.body ?? {}
             const body = bodyParms.reduce((acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc), {})
             ctx.body = Object.keys(body).length ? body : {}
@@ -20,7 +20,7 @@ export const Files = (...filesParms : string[]) => {
     return function(target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
-        descriptor.value = async function(ctx : TContext , next :TNextFunction) {
+        descriptor.value = async function(ctx : T.Context , next :T.NextFunction) {
             const q = ctx?.files ?? {}
             const files = filesParms.reduce((acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc), {})
             ctx.files = Object.keys(files).length ? files : {}
@@ -36,7 +36,7 @@ export const Params = (...paramsData : string[]) => {
     return function(target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
-        descriptor.value = async function(ctx : TContext , next :TNextFunction) {
+        descriptor.value = async function(ctx : T.Context , next :T.NextFunction) {
             const q = ctx?.params ?? {}
             const params = paramsData.reduce((acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc), {})
             ctx.params = Object.keys(params).length ? params : {}
@@ -52,7 +52,7 @@ export const Query = (...queryParms : string[]) => {
     return function(target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
-        descriptor.value = async function(ctx : TContext , next :TNextFunction) {
+        descriptor.value = async function(ctx : T.Context , next :T.NextFunction) {
             const q = ctx?.query ?? {}
             const query = queryParms.reduce((acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc), {})
             ctx.query = Object.keys(query).length ? query : {}
@@ -69,7 +69,7 @@ export const Cookies = (...cookiesParms : string[]) => {
     return function(target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
-        descriptor.value = async function(ctx : TContext , next :TNextFunction) {
+        descriptor.value = async function(ctx : T.Context , next :T.NextFunction) {
             const q = ctx?.cookies ?? {}
             const cookies = cookiesParms.reduce((acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc), {})
             ctx.cookies = Object.keys(cookies).length ? cookies : {}

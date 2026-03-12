@@ -1,11 +1,11 @@
-import { TRouter , TMethods } from '../types'
+import { type T } from '../types'
 
-const methodDecorator = (method: TMethods) => {
-  return (path: `/${string}`): MethodDecorator => {
-    return (target, propertyKey) => {
+const methodDecorator = (method: T.Method) => {
+  return (path: `/${string}`) => {
+    return (target:any, propertyKey:any) => {
       const controller = target.constructor;
 
-      const routers: TRouter[] = Reflect.hasMetadata("routers", controller) 
+      const routers: T.Router[] = Reflect.hasMetadata("routers", controller) 
         ? Reflect.getMetadata("routers", controller) 
         : [];
 

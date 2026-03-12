@@ -1,4 +1,4 @@
-# tspace-spear
+# TspaceSpear
 
 [![NPM version](https://img.shields.io/npm/v/tspace-spear.svg)](https://www.npmjs.com)
 [![NPM downloads](https://img.shields.io/npm/dm/tspace-spear.svg)](https://www.npmjs.com)
@@ -6,35 +6,15 @@
 tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. 
 It utilizes the native HTTP server.
 
-## Install
+### Install
 
 Install with [npm](https://www.npmjs.com/):
 
 ```sh
 npm install tspace-spear --save
-
 ```
-## Basic Usage
-- [Start Server](#start-server)
-- [Cluster](#cluster)
-- [Global Prefix](#global-prefix)
-- [Logger](#logger)
-- [Format Response](#format-response)
-  - [Notfound](#notfound)
-  - [Response](#response)
-  - [Catch](#catch)
-- [Cors](#cors)
-- [Body](#body)
-- [File Upload](#file-upload)
-- [Cookie](#cookie)
-- [Middleware](#middleware)
-- [Controller](#controller)
-- [Router](#router)
-- [Swagger](#swagger)
-- [WebSocket](#web-socket)
-- [Example CRUD](#example-crud)
 
-## Start Server
+### Getting Started
 ```js
 import { Spear } from "tspace-spear";
 
@@ -49,7 +29,7 @@ new Spear()
 
 ```
 
-## Cluster
+### Cluster
 ```js
 import { Spear } from "tspace-spear";
 new Spear({
@@ -65,7 +45,7 @@ new Spear({
 
 ```
 
-## Global Prefix
+### Global Prefix
 ```js
 const app = new Spear({
   globalPrefix : '/api' // prefix all routes
@@ -76,7 +56,7 @@ const app = new Spear({
 // http://localhost:3000/api => 'Hello world!'
 ```
 
-## Logger
+### Logger
 ```js
 const app = new Spear({
   logger :  true
@@ -90,8 +70,6 @@ const app = new Spear({
 .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
 ```
-
-## Format Response
 
 ### Notfound
 ```js
@@ -154,7 +132,7 @@ const app = new Spear()
 
 ```
 
-## Cors
+### Cors
 
 ```js
 const app = new Spear()
@@ -169,7 +147,7 @@ const app = new Spear()
 
 ```
 
-## Body
+### Body
 ```js
 
 new Spear()
@@ -184,7 +162,7 @@ new Spear()
 
 ```
 
-## File Upload
+### File Upload
 
 ```js
 
@@ -221,7 +199,7 @@ new Spear()
 
 ```
 
-## Cookie
+### Cookie
 ```js
 
 new Spear()
@@ -234,7 +212,7 @@ new Spear()
 .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 ```
 
-## Middleware
+### Middleware
 ```js
 import { type T } from "tspace-spear"
 // file cat-middleware.ts
@@ -285,7 +263,7 @@ import CatMiddleware from './cat-middleware.ts'
 })()
 ```
 
-## Controller
+### Controller
 ```js
 import { 
   Controller , 
@@ -400,7 +378,7 @@ import CatController from './cat-controller.ts'
 })()
 ```
 
-## Router
+### Router
 
 ```js
 import { Spear, Router, type T } from "tspace-spear";
@@ -444,7 +422,7 @@ app.listen(port , () => console.log(`Server is now listening http://localhost:30
 
 ```
 
-## Swagger
+### Swagger
 ```js
 
 // file cat-controller.ts
@@ -636,7 +614,7 @@ class CatController {
 
 ```
 
-## WebSocket
+### Web Socket
 ```js
 import { Spear } from "tspace-spear";
 
@@ -683,7 +661,7 @@ new Spear()
 
 ```
 
-## Example CRUD
+### Example CRUD
 ```js
 import { Spear } from "tspace-spear";
 

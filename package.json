@@ -1,11 +1,11 @@
 {
   "name": "tspace-spear",
-  "version": "1.2.0",
+  "version": "1.2.1-beta.1",
   "description": "tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server",
-  "main": "./build/lib/index.js",
-  "types": "./build/lib/index.d.ts",
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
   "files": [
-    "build"
+    "dist"
   ],
   "type": "commonjs",
   "repository": {
@@ -30,9 +30,11 @@
     "build": "tsc",
     "prepare": "npm run build",
     "release": "npm run build && npm publish",
-    "test": "npm run build && node build/tests/benchmark.test.js",
-    "test:build": "node build/tests/benchmark.test.js",
-    "load": "autocannon -c 100 -d 40 -p 10 localhost:3000"
+    "beta": "npm run build && npm publish --tag beta",
+    "test": "npm run build && node dist/tests/benchmark.test.js",
+    "test:build": "node dist/tests/benchmark.test.js",
+    "load": "autocannon -c 100 -d 40 -p 10 localhost:3000",
+    "docs": "npx docsify-cli serve docs"
   },
   "dependencies": {
     "busboy": "1.6.0",
@@ -40,7 +42,7 @@
     "mime-types": "2.1.35",
     "on-finished": "2.4.1",
     "reflect-metadata": "0.1.14",
-    "swagger-ui-dist": "5.17.10"
+    "swagger-ui-dist": "5.32.0"
   },
   "devDependencies": {
     "@types/autocannon": "7.12.5",
@@ -56,8 +58,10 @@
     "express": "4.19.2",
     "fastify": "4.28.1",
     "ts-node": "10.9.2",
-    "typescript": "5.4.5",
+    "tspace-0spear": "*",
+    "typescript": "5.1.6",
     "ws": "^8.18.3",
-    "yargs": "17.7.2"
+    "yargs": "17.7.2",
+    "docsify-cli": "4.4.4"
   }
 }

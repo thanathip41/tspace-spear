@@ -1,6 +1,6 @@
-import { TSwagger } from "../types";
+import { type T } from "../types";
 
-export const Swagger = (data : TSwagger) => {
+export const Swagger = (data : T.Swagger.Spec) => {
     return (target: any, propertyKey: any) => {
         const controller = target.constructor;
         

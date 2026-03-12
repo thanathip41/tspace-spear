@@ -1,7 +1,8 @@
 build
+dist
 test
 public
-tspace-tmp
+temp
 tmp
 .npmignore
 node_modules

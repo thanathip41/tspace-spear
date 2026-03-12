@@ -1,10 +1,10 @@
-import { TContext , TNextFunction , TRequestFunction } from '../types';
+import { T } from '../types';
 
-export const Middleware = (middleware : TRequestFunction) => {
+export const Middleware = (middleware : T.RequestFunction): Function => {
   
   return (target: any, key: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
-    descriptor.value = function(ctx : TContext , next : TNextFunction) {
+    descriptor.value = function(ctx : T.Context , next : T.NextFunction) {
       try {
 
         Reflect.defineMetadata("middlewares", descriptor , target)

@@ -2,6 +2,7 @@ import autocannon , { Result } from 'autocannon'
 import Fastify from 'fastify'
 import express, { Request, Response } from 'express'
 import http from 'http'
+import ZeroSpear from 'tspace-0spear';
 import yargs from 'yargs';
 import Spear from "../lib"
 
@@ -14,7 +15,7 @@ let pipelining = argv.p || argv.pipelining
 
 connections = connections == null ? 100 : Number(connections)
 pipelining  = pipelining == null ? 10 : Number(pipelining)
-duration    = duration == null ? 40 : Number(duration)
+duration    = duration == null ? 10 : Number(duration)
 
 function runExpress () {
     
@@ -59,12 +60,22 @@ function runFastify () {
 }
 
 function runSpear () {
-    const port = 3999
+    const port = 3003
 
     new Spear()
     .get('/' , () => MESSAGE)
     .listen(port , () => 
         console.log(`server 'Spear' running at : http://localhost:${port}`)
+    )
+}
+
+function run0Spear () {
+    const port = 3004
+
+    new ZeroSpear()
+    .get('/' , () => MESSAGE)
+    .listen(port , () => 
+        console.log(`server '0Spear' running at : http://localhost:${port}`)
     )
 }
 
@@ -74,19 +85,33 @@ const urls = [
     { name: 'express',           url: url(3000)},
     { name: 'http',              url: url(3001)},
     { name: 'fastify',           url: url(3002)},
-    { name: 'tspace-spear',      url: url(3999)}
+    { name: 'tspace-spear',      url: url(3003)},
+    { name: 'tspace-0spear',     url: url(3004)}
 ];
 
 const sleep = (ms : number) => {
     return new Promise(resolve => setTimeout(resolve, ms,null));
 }
 
-const runBenchmark = async () : Promise<void> => {
+const runBenchmark = async (): Promise<void> => {
 
-    const results : any[] = [];
+    const results: any[] = []
+    const randomized = shuffle(urls)
 
-    for (const { name, url } of urls) {
-        const result : Result  = await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
+        autocannon({
+            url: randomized[0].url,
+            connections,
+            duration: 3
+        }, (err) => {
+            if (err) return reject(err)
+            resolve(null)
+        })
+    })
+
+    for (const { name, url } of randomized) {
+
+        const result: Result = await new Promise((resolve, reject) => {
             autocannon({
                 url,
                 connections,
@@ -94,21 +119,36 @@ const runBenchmark = async () : Promise<void> => {
                 pipelining
             }, (err, result) => {
 
-                if (err) return reject(err);
+                if (err) return reject(err)
+                
+                return resolve(result)
 
-                return resolve(result);
-
-            });
+            })
         })
 
-        results.push({ 
-            name,
+        const toMs = (v: number) => Number((v / 1000).toFixed(3))
+
+        const latency = result.latency
+
+        results.push({
+           name,
             url,
-            requests : result.requests.total, 
-            ['req/sec'] : result.requests.total / duration,
-            average  : result.latency.average
-        });
+
+            "req/sec": Number(result.requests.average.toFixed(0)),
+
+            "avg(ms)": toMs(latency.average),
+            "p50(ms)": toMs(latency.p50),
+            "p90(ms)": toMs(latency.p90),
+            "p97(ms)": toMs(latency.p97_5),
+            "p99(ms)": toMs(latency.p99),
+            "max(ms)": toMs(latency.max),
+            "stddev": Number(latency.stddev.toFixed(2)),
+            "requests": result.requests.total
+        })
     }
+
+    // sort ตาม performance
+    results.sort((a, b) => Number(b["req/sec"]) - Number(a["req/sec"]))
 
     console.log({
         connections,
@@ -116,8 +156,19 @@ const runBenchmark = async () : Promise<void> => {
         pipelining
     })
 
-    console.table(results);
+    console.table(results)
 }
+
+const shuffle = <T>(arr: T[]): T[] => {
+    const a = [...arr];
+
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+
+    return a;
+};
 
 async function runApps() {
 
@@ -125,10 +176,11 @@ async function runApps() {
         runSpear,
         runFastify,
         runExpress,
-        runHttp
+        runHttp,
+        run0Spear
     ].map(v => v()))
 
-    await sleep(3000)
+    await sleep(5000)
     console.log('benchmarking !!')
     await runBenchmark()
 

@@ -1,15 +1,11 @@
-import type { 
-    TContext, 
-    TMethods, 
-    TNextFunction 
-} from "../types"
+import type { T } from "../types"
 
 class Router {
 
     private _routes : {
         path : string;
-        method : TMethods
-        handlers : ((ctx : TContext , next : TNextFunction) => any)[]
+        method : T.Method
+        handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]
     }[] = []
 
     get routes () {
@@ -40,7 +36,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    get(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    get(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'get',
@@ -58,7 +54,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    post(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    post(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'post',
@@ -76,7 +72,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    put(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    put(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'put',
@@ -94,7 +90,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    patch(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    patch(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'patch',
@@ -112,7 +108,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    delete(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    delete(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'delete',
@@ -130,7 +126,7 @@ class Router {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    all(path : `/${string}` , ...handlers : ((ctx : TContext , next : TNextFunction) => any)[]): this {
+    all(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'all',

@@ -16,11 +16,7 @@ import {
     ServerResponse 
 } from "http"
 
-import { 
-    type TBody, 
-    type TFiles, 
-    type TSwaggerDoc 
-} from '../types'
+import { type T } from '../types'
 
 export class ParserFactory {
 
@@ -39,7 +35,7 @@ export class ParserFactory {
             try { fsSystem.mkdirSync(temp, { recursive: true })} catch (err) {}
         }
 
-        return new Promise<{ body : TBody , files : TFiles }>((resolve, reject) => {
+        return new Promise<{ body : T.Body , files : T.FileUpload }>((resolve, reject) => {
 
             const body  : Record<string,any> = {};
             const files : Record<string,any> = {};
@@ -228,7 +224,7 @@ export class ParserFactory {
         return cookies;
     }
 
-    swagger (doc : TSwaggerDoc) {
+    swagger (doc : T.Swagger.Doc) {
         
         const spec = {
             openapi : "3.1.0",
@@ -258,7 +254,7 @@ export class ParserFactory {
             paths: {},
         }
 
-        const specPaths = (routes : { method : string , path : string , params : string[] }[]) => {
+        const specPaths = (routes : T.Route[]) => {
 
             let paths : Record<string,any> = {}
 
@@ -268,6 +264,17 @@ export class ParserFactory {
 
                 const path = r.path.replace(/:(\w+)/g, "{$1}")
                 const method = r.method.toLocaleLowerCase()
+
+                const swagger = (doc.specs ?? []).find(s => {
+                    return s.path === r.path && 
+                    s.method.toLocaleLowerCase() === method
+                })
+
+                const decoratedOnly = doc.options?.decoratedOnly ?? false
+
+                if((swagger == null && decoratedOnly) || swagger?.disabled) {
+                    continue 
+                }
 
                 if(paths[path] == null) {
                     paths[path] = {
@@ -315,8 +322,6 @@ export class ParserFactory {
                         ...responses
                     }
                 }
-
-                const swagger = doc.options.find(s => (s.path === r.path) && (s.method.toLocaleLowerCase() === method))
 
                 if(swagger != null) {
 
@@ -476,7 +481,7 @@ export class ParserFactory {
             
         }
 
-        spec.paths = specPaths(doc.routes)
+        spec.paths = specPaths(doc.routes ?? [])
 
         const normalizePath = (...paths: string[]) : string => {
             const path = paths
@@ -486,7 +491,9 @@ export class ParserFactory {
     
             const normalizedPath = path.startsWith('/') ? path : `/${path}`
         
-            return /\/api\/api/.test(normalizedPath) ? normalizedPath.replace(/\/api\/api\//, "/api/") : normalizedPath
+            return /\/api\/api/.test(normalizedPath) 
+                ? normalizedPath.replace(/\/api\/api\//, "/api/") 
+                : normalizedPath
         }
 
         const STATIC_URL = '/swagger-ui'
@@ -504,6 +511,11 @@ export class ParserFactory {
                 <title>SwaggerUI</title>
                 <link rel="icon" href="${iconURL}">
                 <link rel="stylesheet" href="${cssURL}" />
+                <style>
+                    .swagger-ui .topbar .download-url-wrapper {
+                        visibility: hidden;
+                    }
+                </style>
             </head>
             <body>
                 <div id="swagger-ui"></div>
@@ -512,10 +524,18 @@ export class ParserFactory {
             <script src="${scriptStandalonePreset}"></script>
             <script>
                 window.onload = () => {
-                    window.ui = SwaggerUIBundle({ spec : ${JSON.stringify(spec)} , 
-                    dom_id: '#swagger-ui',
-                    withCredentials: true,
-                    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset], layout: "StandaloneLayout"});
+                    window.ui = SwaggerUIBundle({ 
+                        dom_id: '#swagger-ui',
+                        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset], 
+                        spec : ${JSON.stringify(spec)}, 
+                        withCredentials: ${doc.options?.withCredentials ?? "true"},
+                        layout: "${doc.options?.layout ?? 'StandaloneLayout'}",
+                        filter: "${doc.options?.filter ?? "false"}",
+                        docExpansion: "${doc.options?.docExpansion ?? "list"}",
+                        deepLinking: "${doc.options?.deepLinking ?? "true"}",
+                        displayOperationId: "${doc.options?.displayOperationId ?? "false"}",
+                        displayRequestDuration: "${doc.options?.displayRequestDuration ?? "false"}"
+                    });
                 };
             </script>
         </html>
