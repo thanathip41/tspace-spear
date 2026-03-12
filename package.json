@@ -50,12 +50,14 @@
     "@types/node": "16.4.0",
     "@types/on-finished": "2.3.4",
     "@types/swagger-ui-dist": "3.30.4",
+    "@types/ws": "^8.18.1",
     "@types/yargs": "17.0.32",
     "autocannon": "7.15.0",
     "express": "4.19.2",
     "fastify": "4.28.1",
     "ts-node": "10.9.2",
     "typescript": "5.4.5",
+    "ws": "^8.18.3",
     "yargs": "17.7.2"
   }
 }

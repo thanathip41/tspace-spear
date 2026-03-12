@@ -1,0 +1,10 @@
+build
+test
+public
+tspace-tmp
+tmp
+.npmignore
+node_modules
+package-lock.json
+test.sh
+uploads

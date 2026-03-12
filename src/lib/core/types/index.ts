@@ -1,4 +1,5 @@
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
+import WebSocket from "ws";
 
 export type TContext= {
     req : TRequest
@@ -179,4 +180,11 @@ export type TSwagger = {
         description : string,
         example ?: Record<string,any>
     }[]
+}
+
+export type TWSHandlers = {
+    connection : (ws: WebSocket) => void | string | Buffer;
+    message : (ws: WebSocket, data: WebSocket.Data) => void | string | Buffer;
+    close : (ws: WebSocket, code: number, reason: Buffer) => void;
+    error : (ws: WebSocket, error: Error) => void;
 }

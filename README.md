@@ -31,6 +31,7 @@ npm install tspace-spear --save
 - [Controller](#controller)
 - [Router](#router)
 - [Swagger](#swagger)
+- [WebSocket](#web-socket)
 - [Example CRUD](#example-crud)
 
 ## Start Server
@@ -638,6 +639,54 @@ class CatController {
 
   // localhost:3000/docs
 })()
+
+```
+
+## WebSocket
+```js
+import { Spear } from "tspace-spear";
+
+new Spear()
+.get('/', () => 'Hello wor1ld!1121')
+.post('/', ({ req , res , headers , query })=> {
+    
+    return res.tooManyRequests()
+})
+.ws(() => {
+  return {
+    connection: (ws) => {
+      ws.send(JSON.stringify({ type: 'welcome', message: 'Welcome to the server!' }));
+    },
+    message: (ws, msg) => {
+      const data = JSON.parse(msg.toString());
+
+      switch (data.type) {
+        case 'chat':
+          console.log('Chat message:', data.text);
+          ws.send(JSON.stringify({ type: 'chat_ack', message: 'Chat received!' }));
+          break;
+
+        case 'ping':
+          console.log('Ping received');
+          ws.send(JSON.stringify({ type: 'pong' }));
+          break;
+
+        default:
+          ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
+      }
+    },
+    close: (ws, code, reason) => {
+      console.log('Client disconnected');
+    },
+    error: (ws, error) => {
+      console.error('WebSocket error:', error);
+    }
+  }    
+})
+.listen(3000 , ({ port , server }) =>  {
+    console.log(`server listening on : http://localhost:${port}`)
+})
+
 
 ```
 

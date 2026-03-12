@@ -1,9 +1,10 @@
-import cluster      from 'cluster'
-import os           from 'os'
-import fs           from 'fs'
-import path         from 'path'
-import { parse }    from 'url'
-import onFinished   from "on-finished"
+import cluster             from 'cluster'
+import os                  from 'os'
+import fs                  from 'fs'
+import path                from 'path'
+import { parse }           from 'url'
+import onFinished          from "on-finished"
+import WebSocket           from 'ws';
 import http, { 
     IncomingMessage, 
     Server, 
@@ -26,7 +27,8 @@ import type {
     TQuery,
     TCookies,
     THeaders,
-    TSwagger
+    TSwagger,
+    TWSHandlers
 } from '../types'
 
 /**
@@ -79,7 +81,10 @@ class Spear {
             version : "1.0.0"
         }
     }
-    
+
+    private _wss ?: WebSocket.Server;
+    private _ws?: TWSHandlers;
+    private _wsOptions ?: WebSocket.ServerOptions
     private _swaggerAdditional : (TSwagger & { path : string , method : string })[] = []
     private _errorHandler : TErrorFunction | null = null
     private _globalMiddlewares : TRequestFunction[] = []
@@ -130,6 +135,19 @@ class Spear {
     get routers (): Instance<findMyWayRouter.HTTPVersion.V1> {
 
         return this._router;
+    }
+
+    /**
+     * The 'ws' method is used to creates the WebSocket server.
+     * 
+     * @callback {Function} WebSocketServer
+     * @param {WebSocketServer} wss - WebSocketServer
+     * @returns {this}
+     */
+    ws(handlers: () => TWSHandlers, options ?: WebSocket.ServerOptions): this {
+        this._ws = handlers()
+        this._wsOptions = options ?? {};
+        return this;
     }
 
     /**
@@ -436,6 +454,8 @@ class Spear {
         const args: any[] = hostname
             ? [port, hostname, () => callback?.({ server, port: port })]
             : [port, () => callback?.({ server, port: port })];
+
+        
 
         server.listen(...args);
 
@@ -1415,6 +1435,35 @@ class Spear {
 
             return this._router.lookup(req, res)
         })
+
+        if (this._ws) {
+            this._wss = new WebSocket.Server({ server , ...this._wsOptions });
+
+            this._wss.on('connection', (ws) => {
+
+                if (this._ws?.connection) {
+                    this._ws!.connection(ws);
+                }
+
+                ws.on('message', (data) => {
+                    if (this._ws?.message) {
+                        this._ws!.message(ws, data);
+                    }
+                });
+
+                ws.on('close', (code, reason) => {
+                    if (this._ws?.close) {
+                        this._ws!.close(ws, code, reason);
+                    }
+                });
+
+                ws.on('error', (err) => {
+                    if (this._ws?.error) {
+                        this._ws!.error(ws, err);
+                    }
+                });
+            });
+        }
 
         return server
     }
