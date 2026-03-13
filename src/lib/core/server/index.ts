@@ -1,3 +1,13 @@
+import http, { 
+    IncomingMessage, 
+    Server, 
+    ServerResponse 
+} from 'http';
+
+import findMyWayRouter, { 
+    type Instance 
+} from 'find-my-way';
+
 import cluster             from 'cluster';
 import os                  from 'os';
 import fsSystem            from 'fs';
@@ -5,15 +15,9 @@ import pathSystem          from 'path';
 import { URL }             from 'url';
 import onFinished          from "on-finished";
 import WebSocket           from 'ws';
-import http, { 
-    IncomingMessage, 
-    Server, 
-    ServerResponse 
-} from 'http';
-import findMyWayRouter, { type Instance } from 'find-my-way';
-import { ParserFactory } from './parser-factory';
-import { Router } from './router';
-import type { T } from '../types';
+import { ParserFactory }   from './parser-factory';
+import { Router }          from './router';
+import type { T }          from '../types';
 
 /**
  * 
@@ -56,10 +60,10 @@ class Spear {
         }
     }
 
+    private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
     private _wss ?: WebSocket.Server;
     private _ws?: T.WebSocketHandler;
     private _wsOptions ?: WebSocket.ServerOptions
-    private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
     private _errorHandler : T.ErrorFunction | null = null
     private _globalMiddlewares : T.RequestFunction[] = []
     private _formatResponse : Function | null = null
@@ -1484,17 +1488,27 @@ class Spear {
 
         const normalizedPath = path.startsWith('/') ? path : `/${path}`
     
-        return /\/api\/api/.test(normalizedPath) ? normalizedPath.replace(/\/api\/api\//, "/api/") : normalizedPath
+        return /\/api\/api/.test(normalizedPath) 
+            ? normalizedPath.replace(/\/api\/api\//, "/api/") 
+            : normalizedPath
     }
 
     private _swaggerHandler () {
 
         const routes = (this.routers as unknown as { routes : any[]})
-        .routes.filter(r => ["GET","POST","PUT","PATCH","DELETE"].includes(r.method))
+        .routes
+        .filter(r => {
+            return [
+                "GET","POST",
+                "PUT","PATCH",
+                "DELETE",
+                "HEAD","OPTIONS"
+            ].includes(r.method)
+        })
        
         const { 
-            path  , 
-            html , 
+            path, 
+            html, 
             staticSwaggerHandler, 
             staticUrl 
         } = this._parser.swagger({
@@ -1505,11 +1519,11 @@ class Spear {
 
         this._router.get(staticUrl, staticSwaggerHandler)
 
-        this._router.get(String(path) , (req, res) => {
+        this._router.get(path as string , (_, res) => {
 
-            res.writeHead(200, {'Content-Type': 'text/html'})
+            res.writeHead(200, {'Content-Type': 'text/html'});
 
-            res.write(html)
+            res.write(html);
 
             return res.end()
         })

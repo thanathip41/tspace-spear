@@ -20,11 +20,11 @@ import { type T } from '../types'
 
 export class ParserFactory {
 
-    files (req : IncomingMessage , options : {
+    public files (req : IncomingMessage , options : {
         limit : number
         tempFileDir : string
         removeTempFile : {
-            remove :  boolean,
+            remove  :  boolean,
             ms      : number
         }
     }) {
@@ -162,7 +162,7 @@ export class ParserFactory {
         })
     }
     
-    body (req : IncomingMessage) {
+    public body (req : IncomingMessage) {
 
         return new Promise((resolve, reject) => {
 
@@ -199,7 +199,7 @@ export class ParserFactory {
         });
     }
 
-    cookies (req : IncomingMessage) {
+    public cookies (req : IncomingMessage) {
         const cookies: Record<string,any> = {}
 
         const cookieString = req.headers?.cookie
@@ -224,7 +224,7 @@ export class ParserFactory {
         return cookies;
     }
 
-    swagger (doc : T.Swagger.Doc) {
+    public swagger (doc : T.Swagger.Doc) {
         
         const spec = {
             openapi : "3.1.0",
