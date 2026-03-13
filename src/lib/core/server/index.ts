@@ -1,19 +1,19 @@
-import cluster             from 'cluster'
-import os                  from 'os'
-import fs                  from 'fs'
-import path                from 'path'
-import { parse, URL }           from 'url'
-import onFinished          from "on-finished"
+import cluster             from 'cluster';
+import os                  from 'os';
+import fsSystem            from 'fs';
+import pathSystem          from 'path';
+import { URL }             from 'url';
+import onFinished          from "on-finished";
 import WebSocket           from 'ws';
 import http, { 
     IncomingMessage, 
     Server, 
     ServerResponse 
-} from 'http'
-import findMyWayRouter, { Instance } from 'find-my-way'
-import { ParserFactory } from './parser-factory'
-import { Router } from './router'
-import type { T } from '../types'
+} from 'http';
+import findMyWayRouter, { type Instance } from 'find-my-way';
+import { ParserFactory } from './parser-factory';
+import { Router } from './router';
+import type { T } from '../types';
 
 /**
  * 
@@ -59,7 +59,7 @@ class Spear {
     private _wss ?: WebSocket.Server;
     private _ws?: T.WebSocketHandler;
     private _wsOptions ?: WebSocket.ServerOptions
-    private _swaggerAdditional : (T.Swagger.Spec & { path : string , method : string })[] = []
+    private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
     private _errorHandler : T.ErrorFunction | null = null
     private _globalMiddlewares : T.RequestFunction[] = []
     private _formatResponse : Function | null = null
@@ -86,7 +86,6 @@ class Spear {
     } : T.Application = {}) {
         if(logger) this.useLogger()
         if(cluster) this.useCluster(cluster)
-        this._cluster       = cluster;
         this._controllers   = controllers;
         this._middlewares   = middlewares;
         this._globalPrefix  = globalPrefix == null ? '' : globalPrefix;
@@ -119,7 +118,7 @@ class Spear {
      * @param {WebSocketServer} wss - WebSocketServer
      * @returns {this}
      */
-    ws(handlers: () => T.WebSocketHandler, options ?: WebSocket.ServerOptions): this {
+    public ws(handlers: () => T.WebSocketHandler, options ?: WebSocket.ServerOptions): this {
         this._ws = handlers()
         this._wsOptions = options ?? {};
         return this;
@@ -133,7 +132,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    use (middleware : (ctx : T.Context , next : T.NextFunction) =>  void): this {
+    public use (middleware : (ctx : T.Context , next : T.NextFunction) =>  void): this {
 
         this._globalMiddlewares.push(middleware)
 
@@ -146,7 +145,7 @@ class Spear {
      * @param {boolean | number} cluster
      * @returns {this}
      */
-    useCluster (cluster ?: number | boolean ): this {
+    public useCluster (cluster ?: number | boolean ): this {
         if (cluster === false) return this;
         this._cluster = cluster ?? true;
         return this;
@@ -160,7 +159,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    useLogger ({ methods , exceptPath } : { methods ?: ('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE')[] , exceptPath ?: string[] | RegExp } = {}): this  {
+    public useLogger ({ methods , exceptPath } : { methods ?: T.MethodInput[] , exceptPath ?: string[] | RegExp } = {}): this  {
         
         this._globalMiddlewares.push(({ req , res } : T.Context , next : T.NextFunction) => {
            
@@ -222,11 +221,12 @@ class Spear {
      * @property {array?} except the body parser with some methods
      * @returns {this}
      */
-    useBodyParser ({ except } : { except ?: ('GET' | 'POST' | 'PUT' |'PATCH' | 'DELETE')[] } = {}): this {
+    public useBodyParser ({ except } : { except ?: T.MethodInput[] } = {}): this {
 
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
-            const { req } = ctx
+            const { req } = ctx;
+
             const contentType = req?.headers['content-type'] ?? '';
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
@@ -250,10 +250,10 @@ class Spear {
             Promise.resolve(this._parser.body(req))
             .then(r => {
                 req.body = r 
-                return next()
+                return next();
             })
             .catch(err => {
-                return this._nextFunction(ctx)(err)
+                return this._nextFunction(ctx)(err);
             })
         })
 
@@ -271,7 +271,7 @@ class Spear {
      * @property {number} removeTempFile.ms
      * @returns 
      */
-    useFileUpload ({ limit, tempFileDir , removeTempFile } : {
+    public useFileUpload ({ limit, tempFileDir , removeTempFile } : {
         limit ?: number
         tempFileDir ?: string
         removeTempFile ?: {
@@ -295,13 +295,14 @@ class Spear {
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
             const { req } = ctx
-            const contentType = req?.headers['content-type'];
-
-            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
-
+          
             if(req.method === 'GET') {
                 return next()
             }
+
+            const contentType = req?.headers['content-type'];
+
+            const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
 
             if(!isFileUpload) return next()
 
@@ -327,7 +328,7 @@ class Spear {
      *
      * @returns {this}
      */
-    useCookiesParser (): this {
+    public useCookiesParser (): this {
 
         this._globalMiddlewares.push(({ req } : T.Context , next : T.NextFunction) => {
 
@@ -348,7 +349,7 @@ class Spear {
      * @property  {Function} router - get() , post() , put() , patch() , delete() 
      * @returns {this}
      */
-    useRouter (router : Router): this {
+    public useRouter (router : Router): this {
 
         const routes = router.routes
 
@@ -365,7 +366,7 @@ class Spear {
      * @param {?Object} doc
      * @returns 
      */
-    useSwagger(doc: T.Swagger.Doc = {}) {
+    public useSwagger(doc: T.Swagger.Doc = {}) {
         const { path , servers , tags , info , options } = doc;
 
         this._swagger = {
@@ -387,7 +388,7 @@ class Spear {
      * @param {function} callback 
      * @returns 
      */
-    async listen(
+    public async listen(
         port : number, 
         hostname?: string | ((callback: { server: Server; port: number }) => void),
         callback ?: (callback : { server : Server , port : number }) => void
@@ -442,7 +443,7 @@ class Spear {
      * @property {boolean} credentials
      * @returns 
      */
-    cors({ origins , credentials } : {
+    public cors({ origins , credentials } : {
         origins ?: (string | RegExp)[] , 
         credentials ?: boolean
     } = {}) {
@@ -453,7 +454,7 @@ class Spear {
 
             if(origin == null) return
 
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS')
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
             if(Array.isArray(origins) && origins.length) {
@@ -488,53 +489,13 @@ class Spear {
     }
 
     /**
-     * The 'enableCors' is used to enable the cors origins on the server.
-     * 
-     * @params {Object} 
-     * @property {(string | RegExp)[]} origins
-     * @property {boolean} credentials
-     * @returns 
-     */
-    enableCors({ origins , credentials } : {
-        origins ?: (string | RegExp)[] , 
-        credentials ?: boolean
-    } = {}) {
-
-        return this.cors({origins, credentials})
-    }
-
-    /**
-     * The 'formaT.Response' method is used to format the response
-     * 
-     * @param {function} format 
-     * @returns 
-     */
-    formatResponse (format : (r : unknown , statusCode : number) => any) {
-        this._formatResponse = format
-        return this
-    }
-
-    /**
      * The 'response' method is used to format the response
      * 
      * @param {function} format 
      * @returns 
      */
-    response (format : (r : unknown , statusCode : number) => any) {
+    public response (format : (r : unknown , statusCode : number) => any) {
         this._formatResponse = format
-        return this
-    }
-
-    /**
-     * The 'errorHandler' method is middleware that is specifically designed to handle errors.
-     * 
-     * that occur during the processing of requests
-     * 
-     * @param {function} error 
-     * @returns 
-     */
-    errorHandler (error : (err : Error , ctx : T.Context) =>  any) {
-        this._errorHandler = error
         return this
     }
 
@@ -546,46 +507,18 @@ class Spear {
      * @param {function} error 
      * @returns 
      */
-    catch (error : (err : Error , ctx : T.Context) =>  any) {
+    public catch (error : (err : any , ctx : T.Context) => any) {
         this._errorHandler = error
-        return this
-    }
-
-    /**
-     * The 'notFoundHandler' method is middleware that is specifically designed to handle errors notfound that occur during the processing of requests
-     * 
-     * @param {function} notfound 
-     * @returns 
-     */
-    notFoundHandler (fn : (ctx : T.Context) =>  any) {
-
-        const handler = ({ req , res } : T.Context) =>{
-            return fn({ 
-                req, 
-                res     : this._customizeResponse(req,res),
-                headers : {},
-                query   : {},
-                files   : {},
-                body    : {},
-                params  : {},
-                cookies : {}
-            })
-        }
-    
-        this._onListeners.push(() => {
-            return this.all('*', ...this._globalMiddlewares, handler)
-        })
-
         return this
     }
 
     /**
      * The 'notfound' method is middleware that is specifically designed to handle errors notfound that occur during the processing of requests
      * 
-     * @param {function} notfound 
+     * @param {function} fn
      * @returns 
      */
-    notfound (fn : (ctx : T.Context) =>  any) {
+    public notfound (fn : (ctx : T.Context) =>  any) {
 
         const handler = ({ req , res } : T.Context) =>{
             return fn({ 
@@ -616,7 +549,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    get (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public get (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
 
         this._onListeners.push(() => {
             return this._router.get(
@@ -637,7 +570,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    post (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public post (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.post(
                 this._normalizePath(this._globalPrefix, path),  
@@ -656,7 +589,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    put (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public put (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.put(
                 this._normalizePath(this._globalPrefix, path), 
@@ -675,7 +608,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    patch (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public patch (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.patch(
                 this._normalizePath(this._globalPrefix, path),  
@@ -694,7 +627,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    delete (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public delete (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.delete(
                 this._normalizePath(this._globalPrefix, path), 
@@ -705,7 +638,7 @@ class Spear {
     }
 
     /**
-     * The 'all' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
+     * The 'head' method is used to add the request handler to the router for 'HEAD' methods.
      * 
      * @param {string} path
      * @callback {...Function[]} handlers of the middlewares
@@ -713,7 +646,45 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    all (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public head (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+        this._onListeners.push(() => {
+            return this._router.head(
+                this._normalizePath(this._globalPrefix, path), 
+                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+            );
+        })
+        return this
+    }
+
+    /**
+     * The 'head' method is used to add the request handler to the router for 'HEAD' methods.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {function} next  - go to next function
+     * @returns {this}
+     */
+    public options (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+        this._onListeners.push(() => {
+            return this._router.options(
+                this._normalizePath(this._globalPrefix, path), 
+                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+            );
+        })
+        return this
+    }
+
+    /**
+     * The 'any' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' 'HEAD' 'OPTIONS' methods.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {function} next  - go to next function
+     * @returns {this}
+     */
+    public any (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._globalPrefix, path), 
@@ -723,8 +694,8 @@ class Spear {
         return this
     }
 
-    /**
-     * The 'any' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
+     /**
+     * The 'all' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' 'HEAD' 'OPTIONS' methods.
      * 
      * @param {string} path
      * @callback {...Function[]} handlers of the middlewares
@@ -732,7 +703,7 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    any (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public all (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._globalPrefix, path), 
@@ -791,10 +762,10 @@ class Spear {
     }
 
     private async _import (dir: string , pattern ?: RegExp): Promise<string[]> {
-        const directories = fs.readdirSync(dir, { withFileTypes: true });
+        const directories = fsSystem.readdirSync(dir, { withFileTypes: true });
         const files: any[] = (await Promise.all(
           directories.map((directory) => {
-            const newDir = path.resolve(String(dir), directory.name);
+            const newDir = pathSystem.resolve(String(dir), directory.name);
             if(pattern == null) {
                 return directory.isDirectory() ? this._import(newDir) : newDir;
             }
@@ -858,8 +829,8 @@ class Spear {
                     const find = Array.from(swaggers).find(s => s.handler === handler)
 
                     if(find != null) {
-                        this._swaggerAdditional = [
-                            ...this._swaggerAdditional , 
+                        this._swaggerSpecs = [
+                            ...this._swaggerSpecs , 
                             {
                                 ...find,
                                 path : this._normalizePath(this._globalPrefix , prefixPath, path),
@@ -895,8 +866,8 @@ class Spear {
                 const find = Array.from(swaggers).find(s => s.handler === handler)
 
                 if(find != null) {
-                    this._swaggerAdditional = [
-                        ...this._swaggerAdditional , 
+                    this._swaggerSpecs = [
+                        ...this._swaggerSpecs , 
                         {
                             ...find,
                             path : this._normalizePath(this._globalPrefix , prefixPath, path),
@@ -938,11 +909,11 @@ class Spear {
                     maybeMiddleware = entry?.[1];
                 }
                 
-                const middleware = maybeMiddleware
+                const middleware = maybeMiddleware;
 
                 if (typeof middleware !== "function") {
                     console.log(
-                        `\x1b[31m[ControllerLoader ERROR]\x1b[0m \x1b[36m${file}\x1b[0m must export a controller class`
+                        `\x1b[31m[MiddlewareLoader ERROR]\x1b[0m \x1b[36m${file}\x1b[0m must export a middleware`
                     );
                     continue;
                 }
@@ -966,398 +937,369 @@ class Spear {
 
         const response = res as unknown as T.Response
 
-        // response.json = (results ?: Record<string,any>) => {
+        response.json = (results ?: Record<string,any>) => {
 
-        //     if (res.writableEnded) return;
+            if (res.writableEnded) return;
 
-        //     if(typeof results === 'string') {
+            if(typeof results === 'string') {
 
-        //         if(!res.headersSent) {
-        //             res.writeHead(200, { 'Content-Type': 'text/plain' })
-        //         }
+                if(!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': 'text/plain' })
+                }
 
-        //         return res.end(results)
-        //     }
+                return res.end(results)
+            }
 
-        //     if(!res.headersSent) {
-        //         res.writeHead(200, { 'Content-Type': 'application/json' })
-        //     }
+            if(!res.headersSent) {
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+            }
 
-        //     if(results == null) {
+            if(results == null) {
 
-        //         if(this._formatResponse != null) {
-        //             return res.end(JSON.stringify(this._formatResponse(null, res.statusCode),null,2))
-        //         }
+                if(this._formatResponse != null) {
+                    return res.end(JSON.stringify(this._formatResponse(null, res.statusCode),null,2))
+                }
     
-        //         return res.end()
+                return res.end()
 
-        //     }
+            }
             
 
-        //     if(this._formatResponse != null) {
+            if(this._formatResponse != null) {
                 
-        //         return res.end(JSON.stringify(
-        //             this._formatResponse({ 
-        //                 ...results
-        //             }, res.statusCode) ,null, 2)
-        //         )
-        //     }
+                return res.end(JSON.stringify(
+                    this._formatResponse({ 
+                        ...results
+                    }, res.statusCode) ,null, 2)
+                )
+            }
 
-        //     return res.end(JSON.stringify({
-        //         ...results,
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                ...results,
+            },null,2))
+        }
 
-        // response.send = (results : string) => {
+        response.send = (results : string) => {
 
-        //     if (res.writableEnded) return;
+            if (res.writableEnded) return;
 
-        //     res.writeHead(res.statusCode, { 'Content-Type': 'text/plain' })
+            res.writeHead(res.statusCode, { 'Content-Type': 'text/plain' })
             
-        //     return res.end(results)
-        // }
+            return res.end(results)
+        }
 
-        // response.html = (results : string) => {
+        response.html = (results : string) => {
 
-        //     if (res.writableEnded) return;
+            if (res.writableEnded) return;
 
-        //     res.writeHead(res.statusCode, {'Content-Type': 'text/html'})
+            res.writeHead(res.statusCode, {'Content-Type': 'text/html'})
 
-        //     return res.end(results)
-        // }
+            return res.end(results)
+        }
 
-        // response.error = (err ) => {
+        response.error = (err: any) => {
 
-        //     let code =
-        //         +err.response?.data?.code ||
-        //         +err.code ||
-        //         +err.status ||
-        //         +err.statusCode ||
-        //         +err.response?.data?.statusCode ||
-        //         500;
+            const statusCandidates = [
+                err?.response?.data?.code,
+                err?.code,
+                err?.status,
+                err?.statusCode,
+                err?.response?.data?.statusCode
+            ]
 
-        //     code = (code == null || typeof code !== 'number') ? 500 : Number.isNaN(code) ? 500 : code < 400 ? 500 : code
+            let code = statusCandidates
+                .map(v => Number(v))
+                .find(v => Number.isFinite(v) && v >= 400) ?? 500
 
-        //     const message =
-        //         err.response?.data?.errorMessage ||
-        //         err.response?.data?.message ||
-        //         err.message ||
-        //         `The url '${req.url}' resulted in a server error. Please investigate.`
-        //         ;
+            const message =
+                err?.response?.data?.errorMessage ??
+                err?.response?.data?.message ??
+                err?.message ??
+                `The request '${req.url}' resulted in a server error.`
+
+            response.status(code as T.StatusCode)
+
+            const payload = { message }
+
+            if (this._formatResponse) {
+                return res.end(
+                    JSON.stringify(this._formatResponse(payload, code))
+                )
+            }
+
+            return res.end(JSON.stringify(payload))
+        }
+
+        response.ok = (results ?: Record<string,any> ) => {
+            return response.json(results == null ? {} : results)
+        }
+
+        response.created = (results ?: Record<string,any>) => {
+            response.status(201)
+            return response.json(results == null ? {} : results)
+        }
+
+        response.accepted = (results ?: Record<string,any>) => {
+            response.status(202)
+            return response.json(results == null ? {} : results)
+        }
+
+        response.noContent = () => {
+            response.status(204)
+            return res.end()
+        }
+
+        response.badRequest = (message ?: string) => {
+
+            if (res.writableEnded) return;
             
-        //     response.status(code as any)
+            response.status(400)
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, code) ,null,2))
-        //     }
+            message = message ?? `The request '${req.url}' resulted in a bad request. Please review the data and try again.`
 
-        //     return res.end(JSON.stringify({
-        //         message : message 
-        //     },null,2))
-        // }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 400) ,null,2))
+            }
 
-        // response.ok = (results ?: Record<string,any> ) => {
-        //     return response.json(results == null ? {} : results)
-        // }
+            return res.end(JSON.stringify({
+                message : message 
+            },null,2))
+        }
 
-        // response.created = (results ?: Record<string,any>) => {
-        //     response.status(201)
-        //     return response.json(results == null ? {} : results)
-        // }
+        response.unauthorized = (message ?: string) => {
+            response.status(401)
 
-        // response.accepted = (results ?: Record<string,any>) => {
-        //     response.status(202)
-        //     return response.json(results == null ? {} : results)
-        // }
+            message = message ?? `The request '${req.url}' is unauthorized. Please verify.`
 
-        // response.noContent = () => {
-        //     response.status(204)
-        //     return res.end()
-        // }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 401) ,null,2))
+            }
 
-        // response.badRequest = (message ?: string) => {
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
 
-        //     if (res.writableEnded) return;
-            
-        //     response.status(400)
+        response.paymentRequired = (message ?: string) => {
+            response.status(402)
 
-        //     message = message ?? `The url '${req.url}' resulted in a bad request. Please review the data and try again.`
+            message = message ?? `The request '${req.url}' requires payment. Please proceed with payment.`
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 400) ,null,2))
-        //     }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 402) ,null,2))
+            }
 
-        //     return res.end(JSON.stringify({
-        //         message : message 
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
 
-        // response.unauthorized = (message ?: string) => {
-        //     response.status(401)
+        response.forbidden = (message ?: string) => {
+            response.status(403)
 
-        //     message = message ?? `The url '${req.url}' is unauthorized. Please verify.`
+            message = message ?? `The request '${req.url}' is forbidden. Please check the permissions or access rights.`
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 401) ,null,2))
-        //     }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 403) ,null,2))
+            }
 
-        //     return res.end(JSON.stringify({
-        //         message
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
 
-        // response.paymentRequired = (message ?: string) => {
-        //     response.status(402)
-
-        //     message = message ?? `The url '${req.url}' requires payment. Please proceed with payment.`
-
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 402) ,null,2))
-        //     }
-
-        //     return res.end(JSON.stringify({
-        //         message
-        //     },null,2))
-        // }
-
-        // response.forbidden = (message ?: string) => {
-        //     response.status(403)
-
-        //     message = message ?? `The url '${req.url}' is forbidden. Please check the permissions or access rights.`
-
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 403) ,null,2))
-        //     }
-
-        //     return res.end(JSON.stringify({
-        //         message
-        //     },null,2))
-        // }
-
-        // response.notFound = (message ?: string) => {
+        response.notFound = (message ?: string) => {
    
-        //     response.status(404)
+            response.status(404)
 
-        //     message = message ?? `The url '${req.url}' was not found. Please re-check the your url again.`
+            message = message ?? `The request '${req.url}' was not found. Please re-check the your url again.`
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
-        //     }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
+            }
 
-        //     return res.end(JSON.stringify({
-        //         message
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
 
-        // response.tooManyRequests = (message ?: string) => {
+        response.unprocessable = (message ?: string) => {
    
-        //     response.status(429)
+            response.status(422)
 
-        //     message = message ?? `The url '${req.url}' is too many request. Please wait and try agian.`
+            message = message ?? `The request to '${req.url}' failed validation.`
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
-        //     }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 422) ,null,2))
+            }
 
-        //     return res.end(JSON.stringify({
-        //         message
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
 
-        // response.serverError = (message ?: string) => {
+        response.tooManyRequests = (message ?: string) => {
+   
+            response.status(429)
+
+            message = message ?? `The request '${req.url}' is too many request. Please wait and try agian.`
+
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 429) ,null,2))
+            }
+
+            return res.end(JSON.stringify({
+                message
+            },null,2))
+        }
+
+        response.serverError = (message ?: string) => {
            
-        //     response.status(500)
+            response.status(500)
 
-        //     message = message ?? `The url '${req.url}' resulted in a server error. Please investigate.`
+            message = message ?? `The request '${req.url}' resulted in a server error. Please investigate.`
 
-        //     if(this._formatResponse != null) {
-        //         return res.end(JSON.stringify(this._formatResponse({ message }, 500) ,null,2))
-        //     }
+            if(this._formatResponse != null) {
+                return res.end(JSON.stringify(this._formatResponse({ message }, 500) ,null,2))
+            }
 
-        //     return res.end(JSON.stringify({
-        //         message 
-        //     },null,2))
-        // }
+            return res.end(JSON.stringify({
+                message 
+            },null,2))
+        }
 
-        // response.status = (code : number) => {
+        response.status = (code : number) => {
 
-        //     res.writeHead(code, { 'Content-Type': 'application/json' })
+            res.writeHead(code, { 'Content-Type': 'application/json' })
             
-        //     return res as unknown as {
-        //         json : (data?: { [key: string]: any }) => void;
-        //         send : (message : string) => void;
-        //     }
-        // }
+            return res as unknown as {
+                json : (data?: { [key: string]: any }) => void;
+                send : (message : string) => void;
+            }
+        }
 
-        // response.setCookies = (cookies : Record<string,string | { 
-        //     value      : string
-        //     sameSite   ?: 'Strict' | 'Lax' | 'None'
-        //     domain     ?: string
-        //     secure     ?: boolean
-        //     httpOnly   ?: boolean
-        //     expires    ?: Date
-        // }> ) => {
+        response.setCookies = (cookies : Record<string,string | { 
+            value      : string
+            sameSite   ?: 'Strict' | 'Lax' | 'None'
+            domain     ?: string
+            secure     ?: boolean
+            httpOnly   ?: boolean
+            expires    ?: Date
+        }> ) => {
 
-        //     for(const [key,v] of Object.entries(cookies)) {
-        //         if(typeof v === 'string') {
-        //             res.setHeader('Set-Cookie', `${key}=${v}`);
-        //             continue
-        //         }
+            for(const [key,v] of Object.entries(cookies)) {
+                if(typeof v === 'string') {
+                    res.setHeader('Set-Cookie', `${key}=${v}`);
+                    continue
+                }
 
-        //         if(v.value === '' || v.value ==  null) continue
+                if(v.value === '' || v.value ==  null) continue
 
-        //         let str = `${key}=${v.value}`
+                let str = `${key}=${v.value}`
 
-        //         if(v.sameSite != null) {
-        //             str += ` ;SameSite=${v.sameSite}`
-        //         }
+                if(v.sameSite != null) {
+                    str += ` ;SameSite=${v.sameSite}`
+                }
 
-        //         if(v.domain != null) {
-        //             str += ` ;Domain=${v.domain}`
-        //         }
+                if(v.domain != null) {
+                    str += ` ;Domain=${v.domain}`
+                }
 
-        //         if(v.httpOnly != null) {
-        //             str += ` ;HttpOnly`
-        //         }
+                if(v.httpOnly != null) {
+                    str += ` ;HttpOnly`
+                }
 
-        //         if(v.secure != null) {
-        //             str += ` ;Secure`
-        //         }
+                if(v.secure != null) {
+                    str += ` ;Secure`
+                }
 
-        //         if(v.expires != null) {
-        //             str += ` ;Expires=${v.expires.toUTCString()}`
-        //         }
+                if(v.expires != null) {
+                    str += ` ;Expires=${v.expires.toUTCString()}`
+                }
 
-        //         res.setHeader('Set-Cookie', str);
-        //     }
-        // }
+                res.setHeader('Set-Cookie', str);
+            }
+        }
 
         return response
     }
    
-    private _nextFunction (ctx : T.Context) {
-
-        const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
-        
-        return (err ?: any) => {
-            
-            if(err != null) {
-
-                if(this._errorHandler != null) {
-                    return this._errorHandler(err,ctx)
-                }
-
-                ctx.res.writeHead(500, { 'Content-Type': 'application/json' })
-
-                if(this._formatResponse != null) {
-                    return ctx.res.end(JSON.stringify(
-                        this._formatResponse({ 
-                            message : err?.message,
-                        }, ctx.res.statusCode) ,null, 2)
-                    )
-                }
-
-                return ctx.res.end(JSON.stringify({
-                    message : err?.message,
-                },null,2));  
-            }
-
-            if(this._errorHandler != null) {
-                return this._errorHandler(new Error(NEXT_MESSAGE), ctx)
-            }
-
-            ctx.res.writeHead(500, { 'Content-Type': 'application/json' })
-
-            if(this._formatResponse != null) {
-                return ctx.res.end(JSON.stringify(
-                    this._formatResponse({ 
-                        message : NEXT_MESSAGE
-                    }, ctx.res.statusCode) ,null, 2)
-                )
-            }
-            
-            return ctx.res.end(JSON.stringify({
-                message : NEXT_MESSAGE
-            },null,2));  
-        } 
-    }
-
-    private _wrapHandlers = (...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]) : any => {
+    private _wrapHandlers (...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]) {
 
         return (req : IncomingMessage, res : ServerResponse , params : Record<string,any>) => {
 
             const nextHandler = (index : number = 0) : any => {
 
-                const response = this._customizeResponse(req,res) as T.Response
+                try {
+
+                    const response = this._customizeResponse(req,res) as T.Response
                 
-                const request = req as T.Request
+                    const request = req as T.Request
 
-                request.params = params
+                    request.params = params as T.Params
+                    
+                    const body = request.body as T.Body
+                    
+                    const files = request.files as T.FileUpload
+
+                    const cookies = request.cookies as T.Cookies
+
+                    const headers = request.headers as T.Headers
+                    
+                    const url = new URL(req.url!, "http://localhost")
+
+                    const query = Object.fromEntries(url.searchParams)  as T.Query
+
+                    const RecordOrEmptyRecord = (data : any) => {
+                        if(data == null) return {}
+                        return Object.keys(data).length ? data : {}
+                    }
                 
-                const body = request.body as T.Body
+                    const ctx = {
+                        req : request, 
+                        res: response,
+                        headers : RecordOrEmptyRecord(headers),
+                        params  : RecordOrEmptyRecord(params),
+                        query   : RecordOrEmptyRecord(query),
+                        body    : RecordOrEmptyRecord(body),
+                        files   : RecordOrEmptyRecord(files),
+                        cookies : RecordOrEmptyRecord(cookies) 
+                    }
                 
-                const files = request.files as T.FileUpload
+                    if(index === handlers.length - 1) {
+                    
+                        return this._wrapResponse(
+                            handlers[index]
+                            .bind(handlers[index])
+                        )(
+                            ctx, 
+                            this._nextFunction(ctx)
+                        )
+                    }
 
-                const cookies = request.cookies as T.Cookies
+                    return handlers[index](ctx , () => {
+                        return nextHandler(index + 1)
+                    })
 
-                const headers = request.headers as T.Headers
-                
-                const url = new URL(req.url!, "http://localhost")
+                } catch (err) {
+                    const ctx = {
+                        req, 
+                        res : this._customizeResponse(req,res), 
+                        params : Object.keys(params).length ? params : {},
+                        headers : {},
+                        query : {},
+                        body: {},
+                        files: {},
+                        cookies: {}
+                    }
 
-                const query = Object.fromEntries(url.searchParams)  as T.Query
-
-                const RecordOrEmptyRecord = (data : any) => {
-                    if(data == null) return {}
-                    return Object.keys(data).length ? data : {}
+                    return this._nextFunction(ctx)(err)
                 }
-               
-                const ctx = {
-                    req : request, 
-                    res: response,
-                    headers : RecordOrEmptyRecord(headers),
-                    params  : RecordOrEmptyRecord(params),
-                    query   : RecordOrEmptyRecord(query),
-                    body    : RecordOrEmptyRecord(body),
-                    files   : RecordOrEmptyRecord(files),
-                    cookies : RecordOrEmptyRecord(cookies) 
-                }
-              
-                if(index === handlers.length - 1) {
-                    return this._wrapResponse(
-                        handlers[index]
-                        .bind(handlers[index])
-                    )(
-                        ctx, 
-                        this._nextFunction(ctx)
-                    )
-                }
-
-                return handlers[index](ctx , () => {
-                    return nextHandler(index + 1)
-                })
             }
 
-            try {
-                if (res.writableEnded) return
+            if (res.writableEnded) return;
 
-                return nextHandler()
-            }
-
-            catch(err) {
-
-                const ctx = {
-                    req, 
-                    res : this._customizeResponse(req,res), 
-                    params : Object.keys(params).length ? params : {},
-                    headers : {},
-                    query : {},
-                    body: {},
-                    files: {},
-                    cookies: {}
-                }
-
-                return this._nextFunction(ctx)(err)
-            }
+            return nextHandler();
         }
     }
 
@@ -1368,15 +1310,26 @@ class Spear {
 
                 if (ctx.res.writableEnded) return;
 
-                if (result instanceof ServerResponse) return;
-
-                if(result == null) return;
+                if (result instanceof ServerResponse) {
+                    if (result?.end) {
+                        result.end()
+                    }
+                    return;
+                }
+                    
+                if (result == null) {
+                    if (!ctx.res.headersSent) {
+                        ctx.res.writeHead(204, { 'Content-Type': 'text/plain' });
+                    }
+                    ctx.res.end();
+                    return;
+                }
 
                 if (typeof result === 'string') {
                     if (!ctx.res.headersSent) {
                         ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
                     }
-                    ctx.res.end(result);
+                    ctx.res.end(result ?? '');
                     return;
                 }
 
@@ -1395,7 +1348,7 @@ class Spear {
                         ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
                     }
 
-                    ctx.res.end(JSON.stringify(formattedResult, null, 2));
+                    ctx.res.end(JSON.stringify(formattedResult));
                     return;
                 }
 
@@ -1403,22 +1356,71 @@ class Spear {
                     ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
                 }
 
-                ctx.res.end(result == null ? undefined : JSON.stringify(result, null, 2));
+                ctx.res.end(JSON.stringify(result));
                 return;
             })
             .catch(err => {
-
-                if (ctx.res.writableEnded) return;
-
-                if (!ctx.res.headersSent) {
-                    ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
-                }
-
-                ctx.res.end(JSON.stringify({ message: err?.message || 'Internal Server Error' }));
-
-                return;
+                return this._nextFunction(ctx)(err)
             })
         };
+    }
+
+    private _nextFunction (ctx : T.Context) {
+
+        const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
+        
+        return (err ?: any) => {
+      
+            if(err != null) {
+
+                if(this._errorHandler != null) {
+                    const callback = this._errorHandler(err,ctx);
+
+                    if(callback == null || !(callback instanceof ServerResponse)) {
+
+                        ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
+
+                        return ctx.res.end(JSON.stringify({
+                            message : err?.message
+                        },null,2));  
+                    }
+
+                    return callback
+                }
+
+                ctx.res.writeHead(500, { 'Content-Type': 'application/json' })
+
+                if(this._formatResponse != null) {
+                    return ctx.res.end(JSON.stringify(
+                        this._formatResponse({ 
+                            message : err?.message,
+                        }, ctx.res.statusCode) ,null, 2)
+                    )
+                }
+
+                return ctx.res.end(JSON.stringify({
+                    message : err?.message
+                },null,2));  
+            }
+
+            if(this._errorHandler != null) {
+                return this._errorHandler(new Error(NEXT_MESSAGE), ctx);
+            }
+
+            ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
+
+            if(this._formatResponse != null) {
+                return ctx.res.end(JSON.stringify(
+                    this._formatResponse({ 
+                        message : NEXT_MESSAGE
+                    }, ctx.res.statusCode) ,null, 2)
+                );
+            }
+            
+            return ctx.res.end(JSON.stringify({
+                message : NEXT_MESSAGE
+            },null,2));  
+        } 
     }
 
     private async _createServer () : Promise<Server> {
@@ -1435,10 +1437,10 @@ class Spear {
             cors
             ? (req: IncomingMessage, res: ServerResponse) => {
                 cors(req, res)
-                lookup(req, res)
+                return lookup(req, res)
             }
             : (req: IncomingMessage, res: ServerResponse) => {
-                lookup(req, res)
+                return lookup(req, res)
             }
         )
        
@@ -1497,7 +1499,7 @@ class Spear {
             staticUrl 
         } = this._parser.swagger({
             ...this._swagger,
-            specs : this._swaggerAdditional,
+            specs : this._swaggerSpecs,
             routes
         })
 

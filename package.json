@@ -1,6 +1,6 @@
 {
   "name": "tspace-spear",
-  "version": "1.2.1-beta.1",
+  "version": "1.2.1",
   "description": "tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. It utilizes the native HTTP server",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
@@ -32,7 +32,6 @@
     "release": "npm run build && npm publish",
     "beta": "npm run build && npm publish --tag beta",
     "test": "npm run build && node dist/tests/benchmark.test.js",
-    "test:build": "node dist/tests/benchmark.test.js",
     "load": "autocannon -c 100 -d 40 -p 10 localhost:3000",
     "docs": "npx docsify-cli serve docs"
   },
@@ -52,16 +51,16 @@
     "@types/node": "16.4.0",
     "@types/on-finished": "2.3.4",
     "@types/swagger-ui-dist": "3.30.4",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "8.18.1",
     "@types/yargs": "17.0.32",
     "autocannon": "7.15.0",
+    "docsify-cli": "4.4.4",
     "express": "4.19.2",
     "fastify": "4.28.1",
     "ts-node": "10.9.2",
-    "tspace-0spear": "*",
     "typescript": "5.1.6",
-    "ws": "^8.18.3",
+    "ws": "8.18.3",
     "yargs": "17.7.2",
-    "docsify-cli": "4.4.4"
+    "zod": "4.3.6"
   }
 }

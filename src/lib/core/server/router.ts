@@ -19,7 +19,7 @@ class Router {
      * @param {Router} router
      * @returns {void}
      */
-    groups (prefix : `/${string}`, router : (router : Router) => Router): void {
+    public groups (prefix : `/${string}`, router : (router : Router) => Router): void {
         const routes =  router(new Router())
         for(const route of routes._routes) {
             route.path = `${prefix}${route.path}`.replace(/^\/+/, '/')
@@ -36,7 +36,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    get(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public get(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'get',
@@ -54,7 +54,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    post(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public post(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'post',
@@ -72,7 +72,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    put(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public put(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'put',
@@ -90,7 +90,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    patch(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public patch(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'patch',
@@ -108,7 +108,7 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    delete(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public delete(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'delete',
@@ -126,10 +126,46 @@ class Router {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    all(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public all(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
         this._routes.push({
             path,
             method : 'all',
+            handlers
+        })
+        return this
+    }
+
+    /**
+     * The 'head' method is used to add the request handler to the router for the 'HEAD' method.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {Object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {Function} next  - go to next function
+     * @returns {this}
+     */
+    public head(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+        this._routes.push({
+            path,
+            method : 'head',
+            handlers
+        })
+        return this
+    }
+
+    /**
+     * The 'options' method is used to add the request handler to the router for the 'OPTIONS' method.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {Object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {Function} next  - go to next function
+     * @returns {this}
+     */
+    public options(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+        this._routes.push({
+            path,
+            method : 'options',
             handlers
         })
         return this

@@ -111,6 +111,8 @@ const app = new Spear()
 
 ### Response
 ```js
+import { Spear } from "tspace-spear";
+
 const app = new Spear()
 .get('/' , () => {
   return { 
@@ -119,14 +121,29 @@ const app = new Spear()
 })
 .response((results, statusCode) => {
 
-  if(typeof results === 'string') return results
-  
-  /// ...
-  return {
-      success : statusCode < 400,
-      ...results,
-      statusCode
-  }
+    if (typeof results === 'string') return results
+
+    if (Array.isArray(results)) {
+        return {
+          success: statusCode < 400,
+          data: results,
+          statusCode
+        }
+    }
+
+    if (typeof results === 'object' && results !== null) {
+        return {
+          success: statusCode < 400,
+          ...results,
+          statusCode
+        }
+    }
+
+    return {
+        success: statusCode < 400,
+        data: results,
+        statusCode
+    }
 })
 .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 // http://localhost:3000 => { success: true , message : 'Hello World' , statusCode: 200 }
@@ -135,15 +152,28 @@ const app = new Spear()
 
 ### Catch
 ```js
+import { Spear } from "tspace-spear";
+import { z } from "zod";
 const app = new Spear()
 .get('/' , () => {
   throw new Error('Catching failed')
 })
-.catch((err : Error , { res } : T.Context) => {
+.catch((err, { res } : T.Context) => {
+
+  if(err instanceof z.ZodError) {
+      return res
+      .status(422)
+      .json({
+          success    : false,
+          message: "Validation failed",
+          issues    : err?.issues,
+          statusCode : 422
+      });
+  }
 
   return res
-    .status(500)
-    .json({
+  .status(500)
+  .json({
       success    : false,
       message    : err?.message,
       statusCode : 500

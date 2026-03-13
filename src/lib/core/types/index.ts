@@ -5,22 +5,34 @@ import {
 } from "http";
 import WebSocket from "ws";
 
+type TDeepExpand<T> = T extends Date
+    ? T
+    : T extends Function
+        ? T
+        : T extends (infer U)[]
+        ? TDeepExpand<U>[]
+        : T extends object
+            ? { [K in keyof T]: TDeepExpand<T[K]> }
+            : T;
+
 type TContext = {
-    req : TRequest
-    res : TResponse
+    req     : TRequest
+    res     : TResponse
     headers : THeaders 
-    query : TQuery
-    params : TParams
-    body  : TBody
-    files : TFileUpload
+    query   : TQuery
+    params  : TParams
+    body    : TBody
+    files   : TFileUpload
     cookies : TCookies
 }
 
-type THeaders<T = IncomingHttpHeaders> = T
+type THeaders<T = IncomingHttpHeaders> = {
+   [K in keyof T]: T[K]
+}
 
-type TQuery<T = Record<string, string>> = T
+type TQuery<T = Record<string, string | undefined>> = T
 
-type TParams<T = Record<string, string>> = T
+type TParams<T = Record<string, string | undefined>> = T
 
 type TBody<T = Record<string,any>> = T
 
@@ -43,51 +55,62 @@ type TFile = {
     remove : () => Promise<void>;
 }
 
-type TFileUpload<T = Record<string, TFile[]>> = T
+type TFileUpload = Record<string, TDeepExpand<TFile>[] | undefined>
 
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
-type TRequest<T = any> = IncomingMessage & Partial<T>
+type TRequest = IncomingMessage & Partial<any>
 
-type THttpStatus = {
-    json : (data?: Record<string,any>) => void;
-    error: (err: any) => void;
-    ok: (data ?: Record<string,any>) => void;
-    created: (data ?: Record<string,any>) => void; 
-    accepted: (data ?: Record<string,any>) => void;
-    noContent: (message?: string) => void;
-    badRequest: (message?: string) => void;
-    unauthorized: (message?: string) => void;
-    paymentRequired: (message?: string) => void;
-    forbidden: (message?: string) => void;
-    tooManyRequests: (message?: string) => void;
-    notFound: (message?: string) => void;
-    serverError: (message: string) => void;
-    forceStatus: (code : number) => void;
-    setCookies : (cookies : Record<string,string | { 
-        value      : string
-        sameSite   ?: 'Strict' | 'Lax' | 'None'
-        domain     ?: string
-        secure     ?: boolean
-        httpOnly   ?: boolean
-        expires    ?: Date
-    }>) => void
+type THttpResponder = {
+    /**200+ */
+    ok              : (data ?: Record<string,any>) => any;
+    created         : (data ?: Record<string,any>) => any; 
+    accepted        : (data ?: Record<string,any>) => any;
+
+    /**400+ */
+    noContent       : (message?: string) => any;
+    badRequest      : (message?: string) => any;
+    unauthorized    : (message?: string) => any;
+    paymentRequired : (message?: string) => any;
+    forbidden       : (message?: string) => any;
+    unprocessable   : (message?: string) => any;
+    tooManyRequests : (message?: string) => any;
+    notFound        : (message?: string) => any;
+
+    /**500+ */
+    serverError     : (message?: string) => any;
+    badGateway      : (message?: string) => any;
+    unavailable     : (message?: string) => any;
+    gatewayTimeout  : (message?: string) => any;
+
+    /**helper */
+    json            : (data?: Record<string,any>) => any;
+    error           : (err: any) => any;
+    send            : (message : string) => any;
+    html            : (html : string) => any;
+    status          : (code : TStatusCode) => {
+        json : (data?: Record<string,any>) => any;
+        send : (message : string) => any;
+    };
+    setCookies      : (cookies : Record<string, string | { 
+        value       : string
+        sameSite    ?: 'Strict' | 'Lax' | 'None'
+        domain      ?: string
+        secure      ?: boolean
+        httpOnly    ?: boolean
+        expires     ?: Date
+    }>) => any
 }
 
-type TCode = | 200 | 201 | 202 | 203 | 204
+type TStatusCode = 
+| 200 | 201 | 202 | 203 | 204
 | 300 | 301 | 302 | 303 | 304
 | 400 | 401 | 402 | 403 | 404 | 405 | 406 | 407 | 408 | 409
-| 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418
-| 421 | 422 | 423 | 424 | 425 | 426 | 428 | 429 | 431 | 451
+| 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418 | 421 
+| 422 | 423 | 424 | 425 | 426 | 428 | 429 | 431 | 451
 | 500 | 501 | 502 | 503 | 504 | 505
 
-type TResponse<T = any> = ServerResponse & {
-    status : (code : TCode
-    ) => {
-        json : (data?: Record<string,any>) => void;
-        send : (message : string) => void;
-    }
-} & THttpStatus & Partial<T>
+type TResponse = ServerResponse & THttpResponder;
 
 type TRouter = {
     method: TMethod;
@@ -96,26 +119,31 @@ type TRouter = {
 }
 
 type TRoute = {
-    path: string;
-    method: string;
-    params: string[];
+    path   : string;
+    method : string;
+    params : string[];
 }
 
-type TMethod = 'get' | 'post' | 'patch' | 'put' | 'delete' | 'all'
+type TMethod = |'get' | 'post' | 'patch' | 'put' | 'delete' | 'all' | 'head' | 'options';
+
+type TMethodInput = Uppercase<TMethod>;
 
 type TApplication = {
-    controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
-    middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp}
-    globalPrefix  ?: string
-    logger       ?: boolean
-    cluster      ?: boolean | number 
+    controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp };
+    middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp };
+    globalPrefix ?: string;
+    logger       ?: boolean;
+    cluster      ?: boolean | number; 
 }
 
-type TRequestFunction = (ctx : T.Context , next : TNextFunction) => any
+type TRequestFunction = (ctx : TContext , next : TNextFunction) => any
   
-type TErrorFunction = (err : Error, ctx : T.Context) => any
+type TErrorFunction = (err : Error, ctx : TContext) => any
 
-type TSwaggerFormat = "string" | "number" | "integer" | "boolean" | "object" | "array" | "date" | "date-time" | "password" | "int32" | "int64" | "float" | "double" | "byte" | "binary" | "base64" | "email" | "uuid" | "uri" | "hostname" | "ipv4" | "ipv6" | "json" | "xml";
+type TSwaggerFormat = 
+| "string" | "number" | "integer" | "boolean" | "object" | "array" 
+| "date" | "date-time" | "password" | "int32" | "int64" | "float" | "double" | "byte" 
+| "binary" | "base64" | "email" | "uuid" | "uri" | "hostname" | "ipv4" | "ipv6" | "json" | "xml";
 
 type TSwaggerType = "string" | "number" | "integer" | "boolean" | "object" | "array" | "date" | "date-time" | "file"
 
@@ -217,22 +245,23 @@ export declare namespace T {
     type Route            = TRoute
     type Method           = TMethod
     type ErrorFunction    = TErrorFunction
-    type HttpStatus       = THttpStatus
+    type HttpStatus       = THttpResponder
     type RequestFunction  = TRequestFunction
     type WebSocketHandler = TWSHandler
-    type Code             = TCode
+    type StatusCode       = TStatusCode
+    type MethodInput      = TMethodInput
+    type Response         = TResponse
+    type Request          = TRequest
 
-    type Response<T = any>                       = TResponse<T>
-    type Request<T = any>                        = TRequest<T>
-    type FileUpload<T = Record<string, TFile[]>> = TFileUpload<T>
-    type Cookies<T = Record<string, any>>        = TCookies<T>
-    type Params<T = Record<string, string>>      = TParams<T>
-    type Query<T = Record<string, string>>       = TQuery<T>
-    type Body<T = Record<string, any>>           = TBody<T>
-    type Headers<T = IncomingHttpHeaders>        = THeaders<T>
+    type FileUpload                          = TFileUpload
+    type Cookies<T = Record<string, any>>    = TCookies<T>
+    type Params<T = Record<string, string>>  = TParams<T>
+    type Query<T = Record<string, string>>   = TQuery<T>
+    type Body<T = Record<string, any>>       = TBody<T>
+    type Headers<T = IncomingHttpHeaders>    = THeaders<T>
     namespace Swagger {
-        export type Spec = TSwagger
+        export type Spec   = TSwagger
         export type Format = TSwaggerFormat
-        export type Doc = TSwaggerDoc
+        export type Doc    = TSwaggerDoc
     }
 }
