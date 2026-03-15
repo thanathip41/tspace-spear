@@ -567,7 +567,7 @@ class CatController {
         file : {
           type : 'array',
           items: {
-            type:"file",
+            type  :"string",
             format:"binary"
           }
         },

@@ -258,6 +258,24 @@ export class ParserFactory {
 
             let paths : Record<string,any> = {}
 
+            const defaultSpecResponse = {
+                "200": {
+                    description: "OK", 
+                    content: {
+                        "application/json": {
+                            schema : {
+                                type: 'object', 
+                                properties: {
+                                    message : { 
+                                        example : "success" 
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             for(const r of routes) {
 
                 if(r.path === '*') continue
@@ -407,7 +425,7 @@ export class ParserFactory {
                     if(swagger.files != null) {
                         spec.requestBody = {
                             description: swagger.files?.description == null ? "description" : swagger.files.description,
-                            required: swagger.files?.required == null ? false : true,
+                            required: swagger.files?.required ?? false,
                             content : {
                                 "multipart/form-data" : {
                                     schema : {
@@ -418,6 +436,7 @@ export class ParserFactory {
                             }
                         }
                     }
+                    
 
                     if(swagger.responses != null) {
                         const responses : Record<string,any> = {}
@@ -449,6 +468,10 @@ export class ParserFactory {
                             
                         }
                     }
+
+                    if(!Object.keys(spec.responses).length) {
+                        spec.responses = defaultSpecResponse
+                    }
                 
                     paths[path][method] = spec       
 
@@ -471,6 +494,10 @@ export class ParserFactory {
                             }
                         }
                     })
+                }
+
+                if(!Object.keys(spec.responses).length) {
+                    spec.responses = defaultSpecResponse
                 }
 
                 paths[path][method] = spec           
