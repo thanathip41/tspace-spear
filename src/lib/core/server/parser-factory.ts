@@ -54,6 +54,10 @@ export class ParserFactory {
             bb.on('file', (fieldName : string, fileData : Readable, info : FileInfo) => {
                 
                 const { filename, mimeType } = info;
+
+                const extension = mime.extension(mimeType) 
+                || pathSystem.extname(filename).replace('.', '') 
+                || 'bin'
                 
                 const tempFilename = crypto.randomBytes(16).toString('hex')
 
@@ -87,7 +91,7 @@ export class ParserFactory {
                             tempFilePath : filePath,
                             tempFileName : tempFilename,
                             mimetype     : mimeType,
-                            extension    : String(mime.extension(String(mimeType))),
+                            extension    : extension,
                             size         : fileSize,
                             sizes : {
                                 bytes : fileSize,
