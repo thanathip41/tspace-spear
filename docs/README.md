@@ -29,6 +29,35 @@ new Spear()
 
 ```
 
+## Adapter
+tspace-spear supports multiple server adapters, 
+including the native Node.js HTTP server and uWebSockets.js for high performance.
+
+⚠️ Requirements for uWebSockets.js
+Node.js 18 or higher is required
+Installation is done via GitHub (no official npm release)
+
+```js
+import { Spear } from "tspace-spear";
+import uWS from "uWebSockets.js";
+
+// Install via package.json
+// "dependencies": {
+//   "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.45.0"
+// }
+
+new Spear({ adapter: uWS })
+.get("/", () => "Hello world!")
+.get("/json", () => {
+  return {
+    message: "Hello world!",
+  };
+})
+.listen(3000, () =>
+  console.log("uWS server is running at http://localhost:3000")
+);
+```
+
 ### Cluster
 ```js
 import { Spear } from "tspace-spear";
@@ -70,6 +99,8 @@ const app = new Spear({
 .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
 ```
+
+## Format Response
 
 ### Notfound
 ```js

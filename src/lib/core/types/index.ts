@@ -1,19 +1,9 @@
-import { 
+import http, { 
     IncomingHttpHeaders, 
     IncomingMessage, 
     ServerResponse 
 } from "http";
 import WebSocket from "ws";
-
-type TDeepExpand<T> = T extends Date
-    ? T
-    : T extends Function
-        ? T
-        : T extends (infer U)[]
-        ? TDeepExpand<U>[]
-        : T extends object
-            ? { [K in keyof T]: TDeepExpand<T[K]> }
-            : T;
 
 type TContext = {
     req     : TRequest
@@ -24,7 +14,10 @@ type TContext = {
     body    : TBody
     files   : TFileUpload
     cookies : TCookies
+    ip      : TIp
 }
+
+type TIp = string | null
 
 type THeaders<T = IncomingHttpHeaders> = {
    [K in keyof T]: T[K]
@@ -55,7 +48,7 @@ type TFile = {
     remove : () => Promise<void>;
 }
 
-type TFileUpload = Record<string, TDeepExpand<TFile>[] | undefined>
+type TFileUpload = Record<string, TFile[] | undefined>
 
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
@@ -128,12 +121,35 @@ type TMethod = |'get' | 'post' | 'patch' | 'put' | 'delete' | 'all' | 'head' | '
 
 type TMethodInput = Uppercase<TMethod>;
 
+type Handler = (res: unknown, req: unknown) => void | Promise<void>;
+
+type UWS = {
+  App: () => {
+    get: (path: string, handler: Handler) => any;
+    post: (path: string, handler: Handler) => any;
+    patch: (path: string, handler: Handler) => any;
+    put: (path: string, handler: Handler) => any;
+    del: (path: string, handler: Handler) => any;
+    any: (path: string, handler: Handler) => any;
+    options: (path: string, handler: Handler) => any;
+    listen: (...args: any[]) => any;
+    ws : (path: string, options: {
+        open?: (ws: any) => void;
+        message?: (ws: any, message: ArrayBuffer, isBinary: boolean) => void;
+        close?: (ws: any, code: number, message: ArrayBuffer) => void;
+    }) => any;
+  }
+};
+
+type TAdapter = UWS | typeof http
+
 type TApplication = {
     controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp };
     middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp };
     globalPrefix ?: string;
     logger       ?: boolean;
     cluster      ?: boolean | number; 
+    adapter      ?: TAdapter
 }
 
 type TRequestFunction = (ctx : TContext , next : TNextFunction) => any
@@ -236,7 +252,7 @@ type TWSHandler = {
 }
 
 export declare namespace T {
-
+    type Adapter          = TAdapter
     type Application      = TApplication
     type NextFunction     = TNextFunction
     type File             = TFile

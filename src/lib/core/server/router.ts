@@ -1,5 +1,4 @@
 import type { T } from "../types"
-
 class Router {
 
     private _routes : {
@@ -133,6 +132,19 @@ class Router {
             handlers
         })
         return this
+    }
+
+    /**
+     * The 'any' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
+     * 
+     * @param {string} path
+     * @callback {...Function[]} handlers of the middlewares
+     * @property  {object} ctx - context { req , res , query , params , cookies , files , body}
+     * @property  {function} next  - go to next function
+     * @returns {this}
+     */
+    public any(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+        return this.all(path,...handlers)
     }
 
     /**

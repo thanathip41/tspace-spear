@@ -41,7 +41,8 @@ class Spear {
     private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp}
     private readonly _globalPrefix : string
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
-    private readonly _parser = new ParserFactory()
+    private readonly _parser = new ParserFactory();
+    private _adapter : T.Adapter = http;
     private  _cluster ?: number | boolean
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void)
     private _swagger : { use : boolean } & T.Swagger.Doc = {
@@ -86,13 +87,16 @@ class Spear {
         middlewares,
         globalPrefix,
         logger,
-        cluster
+        cluster,
+        adapter
     } : T.Application = {}) {
-        if(logger) this.useLogger()
+        if(logger)  this.useLogger()
         if(cluster) this.useCluster(cluster)
+        if(adapter) this.useAdater(adapter)
         this._controllers   = controllers;
         this._middlewares   = middlewares;
         this._globalPrefix  = globalPrefix == null ? '' : globalPrefix;
+        
     }
 
     /**
@@ -141,6 +145,19 @@ class Spear {
         this._globalMiddlewares.push(middleware)
 
         return this
+    }
+
+    /**
+     * The 'useAdater' method is used to switch between different server implementations,
+     * such as the native Node.js HTTP server or uWebSockets.js (uWS).
+     *
+     * @param {T.Adapter} adapter - The adapter instance (e.g., HTTP or uWS).
+     * @returns {this} Returns the current instance for chaining
+     */
+    public useAdater (adapter :  T.Adapter): this {
+        this._adapter = adapter;
+        this._parser.useAdater(adapter);
+        return this;
     }
 
     /**
@@ -200,6 +217,7 @@ class Spear {
 
             const startTime = process.hrtime()
     
+            
             onFinished(res, (): void => {
             console.log(
                 [
@@ -212,6 +230,7 @@ class Spear {
                 ].join(" ")
             );
             });
+            
         
             return next();
         })
@@ -229,7 +248,7 @@ class Spear {
 
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
-            const { req } = ctx;
+            const { req, res } = ctx;
 
             const contentType = req?.headers['content-type'] ?? '';
 
@@ -251,7 +270,7 @@ class Spear {
 
             if(req?.body != null) return next()
 
-            Promise.resolve(this._parser.body(req))
+            Promise.resolve(this._parser.body(req, res))
             .then(r => {
                 req.body = r 
                 return next();
@@ -298,7 +317,7 @@ class Spear {
  
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
-            const { req } = ctx
+            const { req , res } = ctx
           
             if(req.method === 'GET') {
                 return next()
@@ -313,7 +332,7 @@ class Spear {
             if(req?.files != null) return next()
 
             Promise
-            .resolve(this._parser.files(req , this._fileUploadOptions ))
+            .resolve(this._parser.files({ req , res, options : this._fileUploadOptions}))
             .then(r => {
                 req.files = r.files
                 req.body = r.body
@@ -402,8 +421,8 @@ class Spear {
             callback = hostname
         }
 
-        const server = await this._createServer()
-        
+        const server = await this._createServer();
+
         if(
             this._cluster != null && 
             this._cluster || typeof this._cluster === 'number'
@@ -416,10 +435,31 @@ class Spear {
             })
             return server
         }
+ 
+        if ('App' in this._adapter) {
+
+            const handler = () => {
+                this._onListeners.forEach(listener => listener());
+
+                if (this._swagger.use) {
+                    this._swaggerHandler();
+                }
+
+                callback?.({ server, port });
+            };
+
+            if (hostname) {
+                server.listen(port, String(hostname), handler);
+            } else {
+                server.listen(port, handler);
+            }
+
+            return server;
+        }
 
         const args: any[] = hostname
-            ? [port, hostname, () => callback?.({ server, port: port })]
-            : [port, () => callback?.({ server, port: port })];
+        ? [port, hostname, () => callback?.({ server, port: port })]
+        : [port, () => callback?.({ server, port: port })];
 
         server.listen(...args);
 
@@ -431,11 +471,6 @@ class Spear {
             }
         })
 
-        server.on('error', (_: NodeJS.ErrnoException) => {
-            port = Math.floor(Math.random() * 8999) + 1000
-            server.listen(port)
-        })
-        
         return server
     }
 
@@ -533,7 +568,8 @@ class Spear {
                 files   : {},
                 body    : {},
                 params  : {},
-                cookies : {}
+                cookies : {},
+                ip      : null
             })
         }
     
@@ -716,55 +752,6 @@ class Spear {
         })
         return this
     }
-
-    private _clusterMode ({ server , port , hostname, callback} : {
-        server : Server;
-        port : number;
-        hostname?: string | ((callback: { server: Server; port: number }) => void),
-        callback ?: (callback : { server : Server , port : number }) => void 
-    }) {
-
-        if (cluster.isPrimary) {
-
-            const numCPUs = os.cpus().length
-
-            const maxWorkers = typeof this._cluster === 'boolean' || this._cluster == null
-            ? numCPUs
-            : this._cluster
-
-            for (let i = 0; i < maxWorkers; i++) {
-                cluster.fork()
-            }
-
-            cluster.on('exit', () => {
-                cluster.fork()
-            })
-        } 
-
-        if(cluster.isWorker) {
-            const args: any[] = hostname
-                ? [port, hostname, () => callback?.({ server, port: port })]
-                : [port, () => callback?.({ server, port: port })];
-
-            server.listen(...args);
-
-            server.on('listening', () => {
-                this._onListeners.forEach(listener => listener())
-    
-                if(this._swagger.use) {
-                    this._swaggerHandler()
-                }
-            })
-    
-            server.on('error', (_: NodeJS.ErrnoException) => {
-                port = Math.floor(Math.random() * 8999) + 1000
-                server.listen(port)
-            })
-        }
-
-        return
-    }
-
     private async _import (dir: string , pattern ?: RegExp): Promise<string[]> {
         const directories = fsSystem.readdirSync(dir, { withFileTypes: true });
         const files: any[] = (await Promise.all(
@@ -928,7 +915,7 @@ class Spear {
             return
         }
         
-        const middlewares : any[] = this._middlewares
+        const middlewares = this._middlewares
 
         for(const middleware of middlewares) {
             this.use(middleware);
@@ -961,7 +948,7 @@ class Spear {
             if(results == null) {
 
                 if(this._formatResponse != null) {
-                    return res.end(JSON.stringify(this._formatResponse(null, res.statusCode),null,2))
+                    return res.end(JSON.stringify(this._formatResponse(null, res.statusCode)))
                 }
     
                 return res.end()
@@ -974,13 +961,13 @@ class Spear {
                 return res.end(JSON.stringify(
                     this._formatResponse({ 
                         ...results
-                    }, res.statusCode) ,null, 2)
+                    }, res.statusCode))
                 )
             }
 
             return res.end(JSON.stringify({
                 ...results,
-            },null,2))
+            }))
         }
 
         response.send = (results : string) => {
@@ -1062,12 +1049,12 @@ class Spear {
             message = message ?? `The request '${req.url}' resulted in a bad request. Please review the data and try again.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 400) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 400) ))
             }
 
             return res.end(JSON.stringify({
                 message : message 
-            },null,2))
+            }))
         }
 
         response.unauthorized = (message ?: string) => {
@@ -1076,12 +1063,12 @@ class Spear {
             message = message ?? `The request '${req.url}' is unauthorized. Please verify.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 401) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 401) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.paymentRequired = (message ?: string) => {
@@ -1090,12 +1077,12 @@ class Spear {
             message = message ?? `The request '${req.url}' requires payment. Please proceed with payment.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 402) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 402) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.forbidden = (message ?: string) => {
@@ -1104,12 +1091,12 @@ class Spear {
             message = message ?? `The request '${req.url}' is forbidden. Please check the permissions or access rights.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 403) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 403) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.notFound = (message ?: string) => {
@@ -1119,12 +1106,12 @@ class Spear {
             message = message ?? `The request '${req.url}' was not found. Please re-check the your url again.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 404) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 404) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.unprocessable = (message ?: string) => {
@@ -1134,12 +1121,12 @@ class Spear {
             message = message ?? `The request to '${req.url}' failed validation.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 422) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 422) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.tooManyRequests = (message ?: string) => {
@@ -1149,12 +1136,12 @@ class Spear {
             message = message ?? `The request '${req.url}' is too many request. Please wait and try agian.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 429) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 429) ))
             }
 
             return res.end(JSON.stringify({
                 message
-            },null,2))
+            }))
         }
 
         response.serverError = (message ?: string) => {
@@ -1164,12 +1151,12 @@ class Spear {
             message = message ?? `The request '${req.url}' resulted in a server error. Please investigate.`
 
             if(this._formatResponse != null) {
-                return res.end(JSON.stringify(this._formatResponse({ message }, 500) ,null,2))
+                return res.end(JSON.stringify(this._formatResponse({ message }, 500) ))
             }
 
             return res.end(JSON.stringify({
                 message 
-            },null,2))
+            }))
         }
 
         response.status = (code : number) => {
@@ -1230,80 +1217,68 @@ class Spear {
    
     private _wrapHandlers (...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]) {
 
-        return (req : IncomingMessage, res : ServerResponse , params : Record<string,any>) => {
-
-            const nextHandler = (index : number = 0) : any => {
-
-                try {
-
-                    const response = this._customizeResponse(req,res) as T.Response
-                
-                    const request = req as T.Request
-
-                    request.params = params as T.Params
-                    
-                    const body = request.body as T.Body
-                    
-                    const files = request.files as T.FileUpload
-
-                    const cookies = request.cookies as T.Cookies
-
-                    const headers = request.headers as T.Headers
-                    
-                    const url = new URL(req.url!, "http://localhost")
-
-                    const query = Object.fromEntries(url.searchParams)  as T.Query
-
-                    const RecordOrEmptyRecord = (data : any) => {
-                        if(data == null) return {}
-                        return Object.keys(data).length ? data : {}
-                    }
-                
-                    const ctx = {
-                        req : request, 
-                        res: response,
-                        headers : RecordOrEmptyRecord(headers),
-                        params  : RecordOrEmptyRecord(params),
-                        query   : RecordOrEmptyRecord(query),
-                        body    : RecordOrEmptyRecord(body),
-                        files   : RecordOrEmptyRecord(files),
-                        cookies : RecordOrEmptyRecord(cookies) 
-                    }
-                
-                    if(index === handlers.length - 1) {
-                    
-                        return this._wrapResponse(
-                            handlers[index]
-                            .bind(handlers[index])
-                        )(
-                            ctx, 
-                            this._nextFunction(ctx)
-                        )
-                    }
-
-                    return handlers[index](ctx , () => {
-                        return nextHandler(index + 1)
-                    })
-
-                } catch (err) {
-                    const ctx = {
-                        req, 
-                        res : this._customizeResponse(req,res), 
-                        params : Object.keys(params).length ? params : {},
-                        headers : {},
-                        query : {},
-                        body: {},
-                        files: {},
-                        cookies: {}
-                    }
-
-                    return this._nextFunction(ctx)(err)
-                }
-            }
+        return (req : IncomingMessage, res : ServerResponse , ps : Record<string,any>) => {
 
             if (res.writableEnded) return;
 
-            return nextHandler();
+            const request = req as T.Request;
+
+            const response = this._customizeResponse(req,res) as T.Response;
+            
+            const params = ps as T.Params;
+
+            const headers = req.headers as T.Headers;
+
+            const query = this._parser.queryString(req.url!) as T.Query;
+
+            const xff = headers['x-forwarded-for'];
+
+            const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() 
+            || (Array.isArray(headers['x-real-ip']) ? headers['x-real-ip'][0] : headers['x-real-ip']) 
+            || (Array.isArray(headers['cf-connecting-ip']) ? headers['cf-connecting-ip'][0] : headers['cf-connecting-ip'])
+            || null;
+
+            const dispatch = (index: number = 0) => {
+
+                const body    = request.body as T.Body
+                
+                const files   = request.files as T.FileUpload
+
+                const cookies = request.cookies as T.Cookies
+
+                const ctx = {
+                    req     : request, 
+                    res     : response,
+                    headers : headers ?? {},
+                    params  : params ?? {},
+                    query   : query ?? {},
+                    body    : body ?? {},
+                    files   : files ?? {},
+                    cookies : cookies ?? {},
+                    ip      : ip ?? null
+                }
+
+                try {
+                    const handler = handlers[index];
+
+                    if (!handler) return;
+
+                    if (index === handlers.length - 1) {
+                        return Promise.resolve(
+                            this._wrapResponse(handler)(ctx, this._nextFunction(ctx))
+                        ).catch(err => this._nextFunction(ctx)(err));
+                    }
+
+                    return Promise.resolve(
+                        handler(ctx, () => dispatch(index + 1))
+                    ).catch(err => this._nextFunction(ctx)(err));
+
+                } catch (err) {
+                    return this._nextFunction(ctx)(err);
+                }
+            };
+
+            return dispatch();
         }
     }
 
@@ -1318,6 +1293,7 @@ class Spear {
                     if (result?.end) {
                         result.end()
                     }
+                   
                     return;
                 }
                     
@@ -1326,14 +1302,14 @@ class Spear {
                         ctx.res.writeHead(204, { 'Content-Type': 'text/plain' });
                     }
                     ctx.res.end();
+
                     return;
                 }
 
                 if (typeof result === 'string') {
-                    if (!ctx.res.headersSent) {
-                        ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
-                    }
+                    
                     ctx.res.end(result ?? '');
+                    
                     return;
                 }
 
@@ -1345,6 +1321,7 @@ class Spear {
                             ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
                         }
                         ctx.res.end(formattedResult);
+                    
                         return;
                     }
 
@@ -1353,6 +1330,7 @@ class Spear {
                     }
 
                     ctx.res.end(JSON.stringify(formattedResult));
+                   
                     return;
                 }
 
@@ -1361,6 +1339,7 @@ class Spear {
                 }
 
                 ctx.res.end(JSON.stringify(result));
+               
                 return;
             })
             .catch(err => {
@@ -1386,7 +1365,7 @@ class Spear {
 
                         return ctx.res.end(JSON.stringify({
                             message : err?.message
-                        },null,2));  
+                        }));  
                     }
 
                     return callback
@@ -1398,13 +1377,15 @@ class Spear {
                     return ctx.res.end(JSON.stringify(
                         this._formatResponse({ 
                             message : err?.message,
-                        }, ctx.res.statusCode) ,null, 2)
+                        }, ctx.res.statusCode))
                     )
                 }
 
-                return ctx.res.end(JSON.stringify({
+                ctx.res.end(JSON.stringify({
                     message : err?.message
-                },null,2));  
+                }));  
+
+                return;
             }
 
             if(this._errorHandler != null) {
@@ -1414,40 +1395,142 @@ class Spear {
             ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
 
             if(this._formatResponse != null) {
-                return ctx.res.end(JSON.stringify(
+                ctx.res.end(JSON.stringify(
                     this._formatResponse({ 
                         message : NEXT_MESSAGE
-                    }, ctx.res.statusCode) ,null, 2)
+                    }, ctx.res.statusCode))
                 );
+
+                return;
             }
             
-            return ctx.res.end(JSON.stringify({
+            ctx.res.end(JSON.stringify({
                 message : NEXT_MESSAGE
-            },null,2));  
+            }));  
+
+            return;
         } 
+    }
+
+    private _clusterMode ({ server , port , hostname, callback} : {
+        server : Server;
+        port : number;
+        hostname?: string | ((callback: { server: Server; port: number }) => void),
+        callback ?: (callback : { server : Server , port : number }) => void 
+    }) {
+
+        if (cluster.isPrimary) {
+
+            const numCPUs = os.cpus().length
+
+            const maxWorkers = typeof this._cluster === 'boolean' || this._cluster == null
+            ? numCPUs
+            : this._cluster
+
+            for (let i = 0; i < maxWorkers; i++) {
+                cluster.fork()
+            }
+
+            cluster.on('exit', () => {
+                cluster.fork()
+            })
+        } 
+
+        if(cluster.isWorker) {
+            
+            if ('App' in this._adapter) {
+
+                const handler = () => {
+                    this._onListeners.forEach(listener => listener());
+
+                    if (this._swagger.use) {
+                        this._swaggerHandler();
+                    }
+
+                    callback?.({ server, port });
+                };
+
+                if (hostname) {
+                    server.listen(port, hostname as string, handler);
+                    return server;
+                }
+
+                server.listen(port, handler);
+                
+                return server;
+            }
+
+            const args: any[] = hostname
+            ? [port, hostname, () => callback?.({ server, port: port })]
+            : [port, () => callback?.({ server, port: port })];
+
+            server.listen(...args);
+
+            server.on('listening', () => {
+                this._onListeners.forEach(listener => listener())
+    
+                if(this._swagger.use) {
+                    this._swaggerHandler()
+                }
+            })
+    
+            server.on('error', (_: NodeJS.ErrnoException) => {
+                port = Math.floor(Math.random() * 8999) + 1000
+                server.listen(port)
+            })
+        }
+
+        return
     }
 
     private async _createServer () : Promise<Server> {
        
-        await this._registerMiddlewares()
+        await this._registerMiddlewares();
 
-        await this._registerControllers()
+        await this._registerControllers();
 
         const lookup = this._router.lookup.bind(this._router);
+
         const cors = this._cors;
 
-        const server = http.createServer(
-            { maxHeaderSize: 1024 * 1024 },
-            cors
-            ? (req: IncomingMessage, res: ServerResponse) => {
-                cors(req, res)
-                return lookup(req, res)
+        const adapter = this._adapter
+
+        if ('App' in adapter) {
+            const server = adapter.App();
+
+            server.any('/*', (uwsRes, uwsReq) => {
+
+                const { req , res } = this._uWSRequestResponse(uwsReq, uwsRes);
+                
+                if(cors) cors(req, res);
+                
+                return lookup(req, res);
+            })
+
+            if (this._ws) {
+                server.ws('/*', {
+                    open: (ws) => {
+                        this._ws?.connection?.(ws);
+                    },
+
+                    message: (ws, message) => {
+                        this._ws?.message?.(ws, Buffer.from(message));
+                    },
+
+                    close: (ws, code, message) => {
+                        this._ws?.close?.(ws, code, Buffer.from(message));
+                    }
+                });
             }
-            : (req: IncomingMessage, res: ServerResponse) => {
-                return lookup(req, res)
-            }
-        )
-       
+
+            return server as unknown as Server;
+        } 
+
+        const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
+            if (cors) cors(req, res);
+            return lookup(req, res);
+        })
+
         if (this._ws) {
             this._wss = new WebSocket.Server({ server , ...this._wsOptions });
 
@@ -1458,9 +1541,7 @@ class Spear {
                 }
 
                 ws.on('message', (data) => {
-                    if (this._ws?.message) {
-                        this._ws!.message(ws, data);
-                    }
+                    this._ws?.message?.(ws, data);
                 });
 
                 ws.on('close', (code, reason) => {
@@ -1476,8 +1557,159 @@ class Spear {
                 });
             });
         }
+        
+        return server as Server
+    }
 
-        return server
+    private _uWSRequestResponse(uwsReq : any , uwsRes : any) {
+
+        const req  : Record<string,any> = {
+          method: String(uwsReq.getMethod()).toLocaleUpperCase(),
+          url: uwsReq.getUrl() + (uwsReq.getQuery() ? `?${uwsReq.getQuery()}` : ''),
+          headers: {}
+        }
+
+        uwsReq.forEach((key: string | number, value: any) => req.headers[key] = value)
+      
+        const res = {
+            writeHeader: (key : string, value : string) => {
+            if (!res.aborted) {
+                uwsRes.writeHeader(key, value);
+            }
+            return res;
+            },
+            setHeader : (key : string, value : string) => {
+                if (!res.aborted) {
+                    uwsRes.writeHeader(key, value);
+                }
+                return res;
+            },
+            writeHead(status : number , context : Record<string,string>){
+                
+                res.writeHeaders = {
+                    ...res.writeHeaders,
+                    [status] : context
+                }
+
+                res.headersSent = true
+
+                res.statusCode = status
+
+                return res
+            },
+            _writeHead(status : number , context : Record<string,string>){
+            
+                const statusMessages : Record<number,string> = {
+                    100: 'Continue',
+                    101: 'Switching Protocols',
+                    102: 'Processing',
+                    200: 'OK',
+                    201: 'Created',
+                    202: 'Accepted',
+                    203: 'Non-Authoritative Information',
+                    204: 'No Content',
+                    205: 'Reset Content',
+                    206: 'Partial Content',
+                    207: 'Multi-Status',
+                    208: 'Already Reported',
+                    226: 'IM Used',
+                    300: 'Multiple Choices',
+                    301: 'Moved Permanently',
+                    302: 'Found',
+                    303: 'See Other',
+                    304: 'Not Modified',
+                    305: 'Use Proxy',
+                    306: '(Unused)',
+                    307: 'Temporary Redirect',
+                    308: 'Permanent Redirect',
+                    400: 'Bad Request',
+                    401: 'Unauthorized',
+                    402: 'Payment Required',
+                    403: 'Forbidden',
+                    404: 'Not Found',
+                    405: 'Method Not Allowed',
+                    406: 'Not Acceptable',
+                    407: 'Proxy Authentication Required',
+                    408: 'Request Timeout',
+                    409: 'Conflict',
+                    410: 'Gone',
+                    411: 'Length Required',
+                    412: 'Precondition Failed',
+                    413: 'Payload Too Large',
+                    414: 'URI Too Long',
+                    415: 'Unsupported Media Type',
+                    416: 'Range Not Satisfiable',
+                    417: 'Expectation Failed',
+                    418: 'I\'m a teapot',
+                    421: 'Misdirected Request',
+                    422: 'Unprocessable Entity',
+                    423: 'Locked',
+                    424: 'Failed Dependency',
+                    425: 'Too Early',
+                    426: 'Upgrade Required',
+                    428: 'Precondition Required',
+                    429: 'Too Many Requests',
+                    431: 'Request Header Fields Too Large',
+                    451: 'Unavailable For Legal Reasons',
+                    500: 'Internal Server Error',
+                    501: 'Not Implemented',
+                    502: 'Bad Gateway',
+                    503: 'Service Unavailable',
+                    504: 'Gateway Timeout',
+                    505: 'HTTP Version Not Supported',
+                    506: 'Variant Also Negotiates',
+                    507: 'Insufficient Storage',
+                    508: 'Loop Detected',
+                    510: 'Not Extended',
+                    511: 'Network Authentication Required'
+                };
+
+                const statusMessage = statusMessages[status] || statusMessages[500]
+
+                res.uwsRes.writeStatus(`${status} ${statusMessage}`)
+
+                res.uwsRes.writeHeader(Object.keys(context)[0], Object.values(context)[0])
+
+                return res
+            },
+            writeStatus: (status : string) => {
+                if (!res.aborted) {
+                    res.uwsRes.writeStatus(status as any);
+                }
+                return res;
+            },
+            end: (str : string) => {
+                if(res.aborted) {
+                    return;
+                }
+                
+                uwsRes.cork(() => {
+                    if(!res.aborted) {
+                        res.aborted = true
+        
+                        for(const h in res.writeHeaders) {
+                            //@ts-ignore
+                            res._writeHead(h , res.writeHeaders[h])
+                        }
+
+                        uwsRes.end(str)
+
+                        return
+                    }
+                })
+            },
+            aborted: false,
+            writeHeaders : {},
+            headersSent: false,
+            statusCode : 200,
+            uwsRes,
+        };
+      
+        uwsRes.onAborted(() => {
+          res.aborted = true;
+        });
+      
+        return { req, res } as unknown as { req : T.Request, res : T.Response }
     }
 
     private _normalizePath (...paths: string[]) : string {
@@ -1522,10 +1754,10 @@ class Spear {
         this._router.get(path as string , (_, res) => {
 
             res.writeHead(200, {'Content-Type': 'text/html'});
+            
+            res.end(html);
 
-            res.write(html);
-
-            return res.end()
+            return;
         })
 
         return

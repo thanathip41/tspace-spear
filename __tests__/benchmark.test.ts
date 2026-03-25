@@ -3,7 +3,7 @@ import Fastify from 'fastify'
 import express, { Request, Response } from 'express'
 import http from 'http'
 import yargs from 'yargs';
-import Spear from "../lib"
+import Spear from "../dist/lib"
 
 const MESSAGE = 'Hello world!'
 
@@ -68,13 +68,27 @@ function runSpear () {
     )
 }
 
+function runSpearUWS () {
+    try {
+        const port = 3004
+        const uWS  = require('uWebSockets.js');
+        
+        new Spear({ adapter : uWS })
+        .get('/' , () => MESSAGE)
+        .listen(port , () => 
+            console.log(`server 'Spear uWs' running at : http://localhost:${port}`)
+        )
+    } catch (err) {}
+}
+
 const url = (port : number) => `http://localhost:${port}`
 
 const urls = [
     { name: 'express',           url: url(3000)},
     { name: 'http',              url: url(3001)},
     { name: 'fastify',           url: url(3002)},
-    { name: 'tspace-spear',      url: url(3003)}
+    { name: 'tspace-spear',      url: url(3003)},
+    { name: 'tspace-spear(uWs)', url: url(3004)}
 ];
 
 const sleep = (ms : number) => {
@@ -86,20 +100,9 @@ const runBenchmark = async (): Promise<void> => {
     const results: any[] = []
     const randomized = shuffle(urls)
 
-    await new Promise((resolve, reject) => {
-        autocannon({
-            url: randomized[0].url,
-            connections,
-            duration: 3
-        }, (err) => {
-            if (err) return reject(err)
-            resolve(null)
-        })
-    })
-
     for (const { name, url } of randomized) {
 
-        const result: Result = await new Promise((resolve, reject) => {
+        const result = await new Promise((resolve, reject) => {
             autocannon({
                 url,
                 connections,
@@ -113,6 +116,9 @@ const runBenchmark = async (): Promise<void> => {
 
             })
         })
+        .catch(() => null) as unknown as Result;
+
+        if(result == null) continue;
 
         const toMs = (v: number) => Number((v / 1000).toFixed(3))
 
@@ -121,9 +127,7 @@ const runBenchmark = async (): Promise<void> => {
         results.push({
            name,
             url,
-
             "req/sec": Number(result.requests.average.toFixed(0)),
-
             "avg(ms)": toMs(latency.average),
             "p50(ms)": toMs(latency.p50),
             "p90(ms)": toMs(latency.p90),
@@ -131,11 +135,10 @@ const runBenchmark = async (): Promise<void> => {
             "p99(ms)": toMs(latency.p99),
             "max(ms)": toMs(latency.max),
             "stddev": Number(latency.stddev.toFixed(2)),
-            "requests": result.requests.total
+            [`requests(${duration}s)`]: result.requests.total
         })
     }
 
-    // sort ตาม performance
     results.sort((a, b) => Number(b["req/sec"]) - Number(a["req/sec"]))
 
     console.log({
@@ -162,6 +165,7 @@ async function runApps() {
 
     await Promise.all([
         runSpear,
+        runSpearUWS,
         runFastify,
         runExpress,
         runHttp

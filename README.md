@@ -3,8 +3,10 @@
 [![NPM version](https://img.shields.io/npm/v/tspace-spear.svg)](https://www.npmjs.com)
 [![NPM downloads](https://img.shields.io/npm/dm/tspace-spear.svg)](https://www.npmjs.com)
 
-tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. 
-It utilizes the native HTTP server.
+tspace-spear is a lightweight and high-performance API framework for Node.js, 
+built on the native HTTP server with optional support for uWebSockets.js (C++) to achieve maximum speed and efficiency. 
+
+It is designed with a strong focus on delivering an excellent developer experience.
 
 ## Install
 
@@ -16,6 +18,7 @@ npm install tspace-spear --save
 ```
 ## Basic Usage
 - [Start Server](#start-server)
+- [Adapter](#adapter)
 - [Cluster](#cluster)
 - [Global Prefix](#global-prefix)
 - [Logger](#logger)
@@ -31,7 +34,7 @@ npm install tspace-spear --save
 - [Controller](#controller)
 - [Router](#router)
 - [Swagger](#swagger)
-- [WebSocket](#web-socket)
+- [WebSocket](#websocket)
 - [Example CRUD](#example-crud)
 
 ## Start Server
@@ -47,6 +50,35 @@ new Spear()
 })
 .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
 
+```
+
+## Adapter
+tspace-spear supports multiple server adapters, 
+including the native Node.js HTTP server and uWebSockets.js for high performance.
+
+⚠️ Requirements for uWebSockets.js
+Node.js 18 or higher is required
+Installation is done via GitHub (no official npm release)
+
+```js
+import { Spear } from "tspace-spear";
+import uWS from "uWebSockets.js";
+
+// Install via package.json
+// "dependencies": {
+//   "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.45.0"
+// }
+
+new Spear({ adapter: uWS })
+.get("/", () => "Hello world!")
+.get("/json", () => {
+  return {
+    message: "Hello world!",
+  };
+})
+.listen(3000, () =>
+  console.log("uWS server is running at http://localhost:3000")
+);
 ```
 
 ## Cluster
