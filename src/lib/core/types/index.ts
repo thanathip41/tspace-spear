@@ -87,6 +87,7 @@ type THttpResponder = {
     };
     setCookies      : (cookies : Record<string, string | { 
         value       : string
+        path        ?: string
         sameSite    ?: 'Strict' | 'Lax' | 'None'
         domain      ?: string
         secure      ?: boolean

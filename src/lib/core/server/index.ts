@@ -12,7 +12,6 @@ import cluster             from 'cluster';
 import os                  from 'os';
 import fsSystem            from 'fs';
 import pathSystem          from 'path';
-import { URL }             from 'url';
 import onFinished          from "on-finished";
 import WebSocket           from 'ws';
 import { ParserFactory }   from './parser-factory';
@@ -42,6 +41,9 @@ class Spear {
     private readonly _globalPrefix : string
     private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
     private readonly _parser = new ParserFactory();
+    private _isEnabledBodyParser = false;
+    private _isEnabledFileUpload = false;
+    private _isEnabledCookieParser = false;
     private _adapter : T.Adapter = http;
     private  _cluster ?: number | boolean
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void)
@@ -62,9 +64,11 @@ class Spear {
     }
 
     private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
-    private _wss ?: WebSocket.Server;
-    private _ws?: T.WebSocketHandler;
-    private _wsOptions ?: WebSocket.ServerOptions
+    private _ws !: {
+        handler ?: T.WebSocketHandler;
+        server  ?: WebSocket.Server;
+        options ?: WebSocket.ServerOptions;
+    }
     private _errorHandler : T.ErrorFunction | null = null
     private _globalMiddlewares : T.RequestFunction[] = []
     private _formatResponse : Function | null = null
@@ -127,8 +131,8 @@ class Spear {
      * @returns {this}
      */
     public ws(handlers: () => T.WebSocketHandler, options ?: WebSocket.ServerOptions): this {
-        this._ws = handlers()
-        this._wsOptions = options ?? {};
+        this._ws.handler = handlers()
+        this._ws.options = options ?? {};
         return this;
     }
 
@@ -210,9 +214,9 @@ class Spear {
             if(
                 methods != null && 
                 methods.length && 
-                !methods.some(v => v.toLocaleLowerCase() === String(req.method).toLocaleLowerCase())
+                !methods.some(v => v.toLowerCase() === String(req.method).toLowerCase())
             ) {
-                return next()
+                return next();
             }
 
             const startTime = process.hrtime()
@@ -246,33 +250,33 @@ class Spear {
      */
     public useBodyParser ({ except } : { except ?: T.MethodInput[] } = {}): this {
 
+        this._isEnabledBodyParser = true;
+
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
             const { req, res } = ctx;
 
-            const contentType = req?.headers['content-type'] ?? '';
+            if(
+                Array.isArray(except) && 
+                except.some(v => v.toLowerCase() === (req.method!).toLowerCase())
+            ) {
+                return next();
+            }
+
+            const contentType = req?.headers['content-type'] ?? null;
+
+            if(contentType == null) return next();
 
             const isFileUpload = contentType && contentType.startsWith('multipart/form-data');
 
-            const isCanParserBody = contentType.includes('application/json') || 
-            contentType.includes('application/x-www-form-urlencoded')
-            
-            if(
-                except != null && 
-                Array.isArray(except) && 
-                except.some(v => v.toLocaleLowerCase() === (req.method)?.toLocaleLowerCase())) {
-                return next()
-            }
+            if(isFileUpload) return next();
 
-            if(isFileUpload) return next()
-
-            if(!isCanParserBody) return next()
-
-            if(req?.body != null) return next()
+            if(req?.body != null) return next();
 
             Promise.resolve(this._parser.body(req, res))
-            .then(r => {
-                req.body = r 
+            .then(body => {
+                req.body = body;
+
                 return next();
             })
             .catch(err => {
@@ -287,11 +291,11 @@ class Spear {
      * The 'useFileUpload' method is a middleware used to handler file uploads. It adds a file upload of incoming HTTP requests.
      * 
      * @param {?Object} 
-     * @property {?number} limits
+     * @property {?number} limits // bytes. default Infinity
      * @property {?string} tempFileDir
      * @property {?Object} removeTempFile
      * @property {boolean} removeTempFile.remove
-     * @property {number} removeTempFile.ms
+     * @property {number}  removeTempFile.ms
      * @returns 
      */
     public useFileUpload ({ limit, tempFileDir , removeTempFile } : {
@@ -302,6 +306,8 @@ class Spear {
             ms : number
         }
     } = {}) {
+
+        this._isEnabledFileUpload = true;
 
         if(limit != null) {
             this._fileUploadOptions.limit = limit
@@ -352,6 +358,8 @@ class Spear {
      * @returns {this}
      */
     public useCookiesParser (): this {
+
+        this._isEnabledCookieParser = true;
 
         this._globalMiddlewares.push(({ req } : T.Context , next : T.NextFunction) => {
 
@@ -559,17 +567,27 @@ class Spear {
      */
     public notfound (fn : (ctx : T.Context) =>  any) {
 
-        const handler = ({ req , res } : T.Context) =>{
+        const handler = ({ req , res } : T.Context) => {
+
+            const {
+                request,
+                response,
+                params,
+                headers,
+                query,
+                ip
+            } = this._createContext({ req , res , ps: {} });
+
             return fn({ 
-                req, 
-                res     : this._customizeResponse(req,res),
-                headers : {},
-                query   : {},
+                req     : request ,
+                res     : response,
+                params  : params,
+                headers : headers,
+                query   : query,
+                ip      : ip,
                 files   : {},
                 body    : {},
-                params  : {},
-                cookies : {},
-                ip      : null
+                cookies : {}
             })
         }
     
@@ -1171,6 +1189,7 @@ class Spear {
 
         response.setCookies = (cookies : Record<string,string | { 
             value      : string
+            path       ?: string
             sameSite   ?: 'Strict' | 'Lax' | 'None'
             domain     ?: string
             secure     ?: boolean
@@ -1178,38 +1197,35 @@ class Spear {
             expires    ?: Date
         }> ) => {
 
-            for(const [key,v] of Object.entries(cookies)) {
-                if(typeof v === 'string') {
-                    res.setHeader('Set-Cookie', `${key}=${v}`);
-                    continue
+           const cookieLists: string[] = []
+
+            for (const [key, v] of Object.entries(cookies)) {
+                let str = `${key}=${typeof v === 'string' ? v : v.value}`
+
+                if (typeof v !== 'string') {
+                    if (v.sameSite) str += `; SameSite=${v.sameSite}`
+                    str += `; Path=${v.path ?? '/'}`
+
+                    if (v.domain) str += `; Domain=${v.domain}`
+                    if (v.httpOnly) str += `; HttpOnly`
+                    if (v.secure) str += `; Secure`
+
+                    if (v.expires) {
+                        const maxAge = Math.floor((v.expires.getTime() - Date.now()) / 1000)
+                        str += `; Max-Age=${maxAge}`
+                    }
                 }
 
-                if(v.value === '' || v.value ==  null) continue
-
-                let str = `${key}=${v.value}`
-
-                if(v.sameSite != null) {
-                    str += ` ;SameSite=${v.sameSite}`
-                }
-
-                if(v.domain != null) {
-                    str += ` ;Domain=${v.domain}`
-                }
-
-                if(v.httpOnly != null) {
-                    str += ` ;HttpOnly`
-                }
-
-                if(v.secure != null) {
-                    str += ` ;Secure`
-                }
-
-                if(v.expires != null) {
-                    str += ` ;Expires=${v.expires.toUTCString()}`
-                }
-
-                res.setHeader('Set-Cookie', str);
+                cookieLists.push(str)
             }
+
+            if('App' in this._adapter) {
+                for(const cookie of cookieLists) {
+                    res.setHeader('Set-Cookie', cookie)
+                }
+                return;
+            }
+            res.setHeader('Set-Cookie', cookieLists)
         }
 
         return response
@@ -1221,29 +1237,20 @@ class Spear {
 
             if (res.writableEnded) return;
 
-            const request = req as T.Request;
-
-            const response = this._customizeResponse(req,res) as T.Response;
-            
-            const params = ps as T.Params;
-
-            const headers = req.headers as T.Headers;
-
-            const query = this._parser.queryString(req.url!) as T.Query;
-
-            const xff = headers['x-forwarded-for'];
-
-            const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() 
-            || (Array.isArray(headers['x-real-ip']) ? headers['x-real-ip'][0] : headers['x-real-ip']) 
-            || (Array.isArray(headers['cf-connecting-ip']) ? headers['cf-connecting-ip'][0] : headers['cf-connecting-ip'])
-            || null;
+            const {
+                request,
+                response,
+                params,
+                headers,
+                query,
+                ip
+            } = this._createContext({ req , res , ps });
 
             const dispatch = (index: number = 0) => {
 
+                const self    = this
                 const body    = request.body as T.Body
-                
                 const files   = request.files as T.FileUpload
-
                 const cookies = request.cookies as T.Cookies
 
                 const ctx = {
@@ -1252,26 +1259,44 @@ class Spear {
                     headers : headers ?? {},
                     params  : params ?? {},
                     query   : query ?? {},
-                    body    : body ?? {},
-                    files   : files ?? {},
-                    cookies : cookies ?? {},
-                    ip      : ip ?? null
+                    ip      : ip ?? null,
+                    get body () {
+                        if(!self._isEnabledBodyParser){
+                            console.warn(
+                                `\x1b[33m[BodyParser WARNING]\x1b[0m \x1b[36mBody parser is not enabled.\x1b[0m Call .useBodyParser() before accessing body.`
+                            );
+                        }
+                        return body ?? {}
+                    },
+                    get files () {
+                        if(!self._isEnabledFileUpload){
+                            console.warn(
+                                `\x1b[33m[FileUpload WARNING]\x1b[0m \x1b[36mFile Upload is not enabled.\x1b[0m Call .useFileUpload() before accessing files.`
+                            );
+                        }
+                        return files ?? {}
+                    },
+                    get cookies () {
+                        if(!self._isEnabledCookieParser){
+                            console.warn(
+                                `\x1b[33m[CookieParser WARNING]\x1b[0m \x1b[36mCookie parser is not enabled.\x1b[0m Call .useBodyParser() before accessing cookies.`
+                            );
+                        }
+                        return cookies ?? {}
+                    },
                 }
 
                 try {
+                    
                     const handler = handlers[index];
 
                     if (!handler) return;
 
-                    if (index === handlers.length - 1) {
-                        return Promise.resolve(
-                            this._wrapResponse(handler)(ctx, this._nextFunction(ctx))
-                        ).catch(err => this._nextFunction(ctx)(err));
-                    }
+                    const result = index === handlers.length - 1
+                    ? this._wrapResponse(handler)(ctx, this._nextFunction(ctx))
+                    : handler(ctx, () => dispatch(index + 1));
 
-                    return Promise.resolve(
-                        handler(ctx, () => dispatch(index + 1))
-                    ).catch(err => this._nextFunction(ctx)(err));
+                    return Promise.resolve(result);
 
                 } catch (err) {
                     return this._nextFunction(ctx)(err);
@@ -1507,18 +1532,18 @@ class Spear {
                 return lookup(req, res);
             })
 
-            if (this._ws) {
+            if (this._ws?.handler) {
                 server.ws('/*', {
                     open: (ws) => {
-                        this._ws?.connection?.(ws);
+                        this._ws.handler?.connection?.(ws);
                     },
 
                     message: (ws, message) => {
-                        this._ws?.message?.(ws, Buffer.from(message));
+                        this._ws.handler?.message?.(ws, Buffer.from(message));
                     },
 
                     close: (ws, code, message) => {
-                        this._ws?.close?.(ws, code, Buffer.from(message));
+                        this._ws.handler?.close?.(ws, code, Buffer.from(message));
                     }
                 });
             }
@@ -1531,28 +1556,28 @@ class Spear {
             return lookup(req, res);
         })
 
-        if (this._ws) {
-            this._wss = new WebSocket.Server({ server , ...this._wsOptions });
+        if (this._ws?.handler) {
+            this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
 
-            this._wss.on('connection', (ws) => {
+            this._ws.server.on('connection', (ws) => {
 
-                if (this._ws?.connection) {
-                    this._ws!.connection(ws);
+                if (this._ws.handler?.connection) {
+                    this._ws.handler.connection(ws);
                 }
 
                 ws.on('message', (data) => {
-                    this._ws?.message?.(ws, data);
+                    this._ws.handler?.message?.(ws, data);
                 });
 
                 ws.on('close', (code, reason) => {
-                    if (this._ws?.close) {
-                        this._ws!.close(ws, code, reason);
+                    if (this._ws.handler?.close) {
+                        this._ws.handler?.close(ws, code, reason);
                     }
                 });
 
                 ws.on('error', (err) => {
-                    if (this._ws?.error) {
-                        this._ws!.error(ws, err);
+                    if (this._ws.handler?.error) {
+                        this._ws.handler!.error(ws, err);
                     }
                 });
             });
@@ -1561,10 +1586,43 @@ class Spear {
         return server as Server
     }
 
+    private _createContext ({ req, res, ps } : { 
+        req: IncomingMessage;
+        res: ServerResponse;
+        ps : Record<string,any>}
+    ) {
+
+        const request = req as T.Request;
+
+        const response = this._customizeResponse(req,res) as T.Response;
+        
+        const params = ps as T.Params;
+
+        const headers = req.headers as T.Headers;
+
+        const query = this._parser.queryString(req.url!) as T.Query;
+
+        const xff = headers['x-forwarded-for'];
+
+        const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() 
+        || (Array.isArray(headers['x-real-ip']) ? headers['x-real-ip'][0] : headers['x-real-ip']) 
+        || (Array.isArray(headers['cf-connecting-ip']) ? headers['cf-connecting-ip'][0] : headers['cf-connecting-ip'])
+        || null;
+
+        return {
+            request,
+            response,
+            params,
+            headers,
+            query,
+            ip
+        }
+    }
+
     private _uWSRequestResponse(uwsReq : any , uwsRes : any) {
 
         const req  : Record<string,any> = {
-          method: String(uwsReq.getMethod()).toLocaleUpperCase(),
+          method: String(uwsReq.getMethod()).toUpperCase(),
           url: uwsReq.getUrl() + (uwsReq.getQuery() ? `?${uwsReq.getQuery()}` : ''),
           headers: {}
         }

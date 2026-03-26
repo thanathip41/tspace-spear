@@ -1,11 +1,12 @@
-import fsSystem          from 'fs'
-import pathSystem        from 'path'
-import mime              from 'mime-types'
-import crypto            from 'crypto'
-import swaggerUiDist     from 'swagger-ui-dist'
-import querystring       from 'querystring'
-import { Readable }      from 'stream'
-import { StringDecoder } from "string_decoder"
+import fsSystem          from 'fs';
+import pathSystem        from 'path';
+import mime              from 'mime-types';
+import crypto            from 'crypto';
+import swaggerUiDist     from 'swagger-ui-dist';
+import querystring       from 'querystring';
+import { Readable }      from 'stream';
+import { StringDecoder } from "string_decoder";
+import xml2js            from 'xml2js';
 
 import busboy, { 
     type FileInfo 
@@ -17,7 +18,6 @@ import {
 } from "http"
 
 import { type T } from '../types'
-
 export class ParserFactory {
 
     private isUWS = false;
@@ -219,7 +219,7 @@ export class ParserFactory {
     public async body (req : T.Request , res: T.Response) {
 
         if(this.isUWS) {
-            return await this.uWSBody(res)
+            return await this.uWSBody(req , res as T.Response & { uwsRes : any })
         }
 
         return new Promise((resolve, reject) => {
@@ -231,22 +231,20 @@ export class ParserFactory {
                 payload += decoder.write(data);
             });
     
-            req.on('end', () => {
+            req.on('end', async () => {
+                payload += decoder.end();
+
+                const contentType = req.headers['content-type']?.toLowerCase() || null;
+
                 try {
 
-                    const isUrlEncoded = req.headers['content-type']?.includes('x-www-form-urlencoded');
+                    const body = await this.transformBody({ contentType , payload });
 
-                    if (isUrlEncoded) {
-                        return resolve(querystring.parse(payload));
-                    }
+                    return resolve(body);
 
-                    payload += decoder.end();
+                } catch (err) {
 
-                    return resolve(JSON.parse(payload));
-                   
-                } catch (e) {
-                    
-                    return resolve({});
+                    return reject(err);
                 }
             });
     
@@ -339,11 +337,11 @@ export class ParserFactory {
                 if(r.path === '*') continue
 
                 const path = r.path.replace(/:(\w+)/g, "{$1}")
-                const method = r.method.toLocaleLowerCase()
+                const method = r.method.toLowerCase()
 
                 const swagger = (doc.specs ?? []).find(s => {
                     return s.path === r.path && 
-                    s.method.toLocaleLowerCase() === method
+                    s.method.toLowerCase() === method
                 })
 
                 const decoratedOnly = doc.options?.decoratedOnly ?? false
@@ -906,26 +904,78 @@ export class ParserFactory {
         })
     }
 
-    private uWSBody (res : T.Response) {
-
+    private uWSBody(req : T.Request, res: T.Response & { uwsRes : any }) {
         return new Promise((resolve, reject) => {
-            
-            let buffer: any[] = [];
-            
-            //@ts-ignore
-            res.uwsRes.onData((chunk: WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>, isLast: any) => {
-                buffer.push(Buffer.from(chunk));
-                if (isLast) {
-                    const body = Buffer.concat(buffer).toString();
 
-                    try {
-                        const json = JSON.parse(body)
-                        return resolve(json);
-                    } catch (err) {
-                        return reject(err);
-                    }
+            let buffer: Buffer[] = [];
+
+            res.uwsRes.onAborted(() => {
+                reject(new Error("Request aborted"));
+            });
+
+            res.uwsRes.onData(async (chunk: ArrayBuffer, isLast: boolean) => {
+
+                buffer.push(Buffer.from(chunk));
+
+                if (!isLast) return;
+
+                const payload = Buffer.concat(buffer as any).toString("utf-8");
+
+                const contentType = req.headers['content-type']?.toLowerCase() ?? null;
+
+                try {
+
+                    const body = await this.transformBody({ contentType , payload });
+
+                    return resolve(body);
+
+                } catch (err) {
+
+                    return reject(err)
                 }
-            })
+                
+            });
         });
+    }
+
+    private async transformBody ({ contentType , payload } : { contentType : string | null , payload : any }) {
+   
+        if(contentType == null || payload == null || payload === '') {
+            return {};
+        }
+
+        if (contentType.includes('x-www-form-urlencoded')) {
+            return querystring.parse(payload)
+        }
+
+        if (contentType.includes("application/json")) {
+            try {
+                return JSON.parse(payload);
+            } catch (err) {
+                throw new Error('Invalid JSON format in request body.')
+            }
+        }
+
+        if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+            try {
+
+                const result = await xml2js.parseStringPromise(payload, { explicitArray: false });
+                return result;
+
+            } catch (err) {
+                throw new Error('Invalid XML format in request body.')
+            }
+        }
+
+        if (
+            contentType.includes('text/plain') ||
+            contentType.includes('text/javascript') ||
+            contentType.includes('application/javascript') ||
+            contentType.includes('application/x-javascript')
+        ) {
+            return { contentType , text: payload };
+        }
+
+        return {};
     }
 }
