@@ -1,10 +1,8 @@
+src
 build
-dist
 test
-public
-temp
-tmp
+.gitignore
 node_modules
+tsconfig.json
 package-lock.json
-test.sh
-uploads
+docs

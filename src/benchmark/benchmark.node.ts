@@ -8,6 +8,7 @@ import {
     AppSpearUWS 
 } from './apps/spear'
 import { AppElysiaNode } from './apps/elysia';
+import { AppUWS } from './apps/uWS';
 
 const runApps = async () => {
 
@@ -17,7 +18,8 @@ const runApps = async () => {
         { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
         { name: 'tspace-spear(uWS)', app : AppSpearUWS },
-        { name: 'elysia(node)',      app : AppElysiaNode }
+        { name: 'elysia(node)',      app : AppElysiaNode },
+        { name: 'uWS' ,              app : AppUWS }
     ].map((s,i) => {
         return {
             ...s,

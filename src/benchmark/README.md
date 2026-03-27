@@ -25,6 +25,7 @@ The goal is to provide a fair and reproducible comparison between popular framew
 - **tspace-spear** — custom HTTP implementation
 - **Node.js HTTP (native)** — baseline performance
 - **Fastify** — fast and production-ready framework
+- **Elysia** — Bun-first framework
 - **Elysia (Node adapter)** — Bun-first framework running on Node
 - **Express** — widely used traditional framework
 

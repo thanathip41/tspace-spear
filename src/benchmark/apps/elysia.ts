@@ -1,10 +1,10 @@
-import { Elysia } from 'elysia'
-
 export const AppElysia = ({ name , port , message }: { 
     name   : string; 
     port   : number; 
     message: string;
 }) => {
+
+    const { Elysia } = require('elysia');
 
     const server = new Elysia()
     server.get('/', () => message)
@@ -19,6 +19,9 @@ export const AppElysiaNode = ({ name , port , message }: {
     port   : number; 
     message: string;
 }) => {
+
+    const { Elysia } = require('elysia');
+    
     const { node } =  require('@elysiajs/node');
 
     const server = new Elysia({ adapter : node() })
