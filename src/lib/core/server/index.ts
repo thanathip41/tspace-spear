@@ -36,17 +36,17 @@ import type { T }          from '../types';
  */
 class Spear {
 
-    private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp}
-    private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp}
-    private readonly _globalPrefix : string
-    private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter()
+    private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp};
+    private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp};
+    private readonly _globalPrefix : string;
+    private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter();
     private readonly _parser = new ParserFactory();
     private _isEnabledBodyParser = false;
     private _isEnabledFileUpload = false;
     private _isEnabledCookieParser = false;
     private _adapter : T.Adapter = http;
-    private  _cluster ?: number | boolean
-    private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void)
+    private  _cluster ?: number | boolean;
+    private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
     private _swagger : { use : boolean } & T.Swagger.Doc = {
         use : false,
         path : '/api/docs',
@@ -119,7 +119,7 @@ class Spear {
      * @returns {Instance<findMyWayRouter.HTTPVersion.V1>}
      */
     get routers (): Instance<findMyWayRouter.HTTPVersion.V1> {
-
+        //@ts-ignore
         return this._router;
     }
 
@@ -569,26 +569,9 @@ class Spear {
 
         const handler = ({ req , res } : T.Context) => {
 
-            const {
-                request,
-                response,
-                params,
-                headers,
-                query,
-                ip
-            } = this._createContext({ req , res , ps: {} });
+            const ctx = this._createContext({ req , res , ps: {} });
 
-            return fn({ 
-                req     : request ,
-                res     : response,
-                params  : params,
-                headers : headers,
-                query   : query,
-                ip      : ip,
-                files   : {},
-                body    : {},
-                cookies : {}
-            })
+            return fn(ctx)
         }
     
         this._onListeners.push(() => {
@@ -1237,54 +1220,9 @@ class Spear {
 
             if (res.writableEnded) return;
 
-            const {
-                request,
-                response,
-                params,
-                headers,
-                query,
-                ip
-            } = this._createContext({ req , res , ps });
-
+            const  ctx = this._createContext({ req , res , ps });
+           
             const dispatch = (index: number = 0) => {
-
-                const self    = this
-                const body    = request.body as T.Body
-                const files   = request.files as T.FileUpload
-                const cookies = request.cookies as T.Cookies
-
-                const ctx = {
-                    req     : request, 
-                    res     : response,
-                    headers : headers ?? {},
-                    params  : params ?? {},
-                    query   : query ?? {},
-                    ip      : ip ?? null,
-                    get body () {
-                        if(!self._isEnabledBodyParser){
-                            console.warn(
-                                `\x1b[33m[BodyParser WARNING]\x1b[0m \x1b[36mBody parser is not enabled.\x1b[0m Call .useBodyParser() before accessing body.`
-                            );
-                        }
-                        return body ?? {}
-                    },
-                    get files () {
-                        if(!self._isEnabledFileUpload){
-                            console.warn(
-                                `\x1b[33m[FileUpload WARNING]\x1b[0m \x1b[36mFile Upload is not enabled.\x1b[0m Call .useFileUpload() before accessing files.`
-                            );
-                        }
-                        return files ?? {}
-                    },
-                    get cookies () {
-                        if(!self._isEnabledCookieParser){
-                            console.warn(
-                                `\x1b[33m[CookieParser WARNING]\x1b[0m \x1b[36mCookie parser is not enabled.\x1b[0m Call .useBodyParser() before accessing cookies.`
-                            );
-                        }
-                        return cookies ?? {}
-                    },
-                }
 
                 try {
                     
@@ -1378,7 +1316,7 @@ class Spear {
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
         return (err ?: any) => {
-      
+            
             if(err != null) {
 
                 if(this._errorHandler != null) {
@@ -1518,7 +1456,7 @@ class Spear {
 
         const cors = this._cors;
 
-        const adapter = this._adapter
+        const adapter = this._adapter;
 
         if ('App' in adapter) {
             const server = adapter.App();
@@ -1553,7 +1491,7 @@ class Spear {
 
         const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
             if (cors) cors(req, res);
-            return lookup(req, res);
+            this._router.lookup(req,res)
         })
 
         if (this._ws?.handler) {
@@ -1600,22 +1538,71 @@ class Spear {
 
         const headers = req.headers as T.Headers;
 
-        const query = this._parser.queryString(req.url!) as T.Query;
+        const isEnabledFileUpload   = this._isEnabledFileUpload;
+        const isEnabledBodyParser   = this._isEnabledBodyParser;
+        const isEnabledCookieParser = this._isEnabledCookieParser;
 
-        const xff = headers['x-forwarded-for'];
+        const getIps = () : T.Ips => {
+            const addr = req?.socket?.remoteAddress ?? null;
+            const xff  = headers['x-forwarded-for'];
+            const xrip = headers['x-real-ip'];
+            const cfip = headers['cf-connecting-ip'];
 
-        const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() 
-        || (Array.isArray(headers['x-real-ip']) ? headers['x-real-ip'][0] : headers['x-real-ip']) 
-        || (Array.isArray(headers['cf-connecting-ip']) ? headers['cf-connecting-ip'][0] : headers['cf-connecting-ip'])
-        || null;
+            const value = cfip ?? xff ?? xrip;
 
+            if (!value)  return addr ? [addr] : [];
+        
+            const ips = Array.isArray(value) ? value : [value];
+            
+            return ips
+        }
+
+        const getQueryString = (url : string) => this._parser.queryString(url);
+        
         return {
-            request,
-            response,
-            params,
-            headers,
-            query,
-            ip
+            req     : request, 
+            res     : response,
+            headers : headers ?? {},
+            params  : params ?? {},
+            get query () {
+                const query = getQueryString(req.url!);
+                return (query ?? {}) as T.Query;
+            },
+            get body () {
+                if(!isEnabledBodyParser){
+                    console.warn(
+                        `\x1b[33m[BodyParser WARNING]\x1b[0m \x1b[36mBody parser is not enabled.\x1b[0m Call .useBodyParser() before accessing body.`
+                    );
+                }
+                return (request.body ?? {}) as T.Body;
+            },
+            get files () {
+                if(!isEnabledFileUpload){
+                    console.warn(
+                        `\x1b[33m[FileUpload WARNING]\x1b[0m \x1b[36mFile Upload is not enabled.\x1b[0m Call .useFileUpload() before accessing files.`
+                    );
+                }
+                return (request.files ?? {}) as T.FileUpload;
+            },
+            get cookies () {
+                if(!isEnabledCookieParser){
+                    console.warn(
+                        `\x1b[33m[CookieParser WARNING]\x1b[0m \x1b[36mCookie parser is not enabled.\x1b[0m Call .useBodyParser() before accessing cookies.`
+                    );
+                }
+                return (request.cookies ?? {}) as T.Cookies;
+            },
+            get ip() {
+                
+                const ips = getIps();
+
+                const ip = ips.length ? ips[0] : null;
+
+                return ip as T.Ip;
+            },
+            get ips () {
+                return getIps() as T.Ips;
+            },
         }
     }
 
@@ -1809,7 +1796,7 @@ class Spear {
 
         this._router.get(staticUrl, staticSwaggerHandler)
 
-        this._router.get(path as string , (_, res) => {
+        this._router.get(path as string , (req: IncomingMessage, res: ServerResponse) => {
 
             res.writeHead(200, {'Content-Type': 'text/html'});
             

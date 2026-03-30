@@ -25,7 +25,7 @@ const runApps = async () => {
         { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
         { name: 'elysia(node)',      app : AppElysiaNode },
-        { name: 'hono(node)',        app: AppHonoNode },
+        { name: 'hono(node)',        app : AppHonoNode },
         { name: '0http',             app : App0Http }
     ].map((s,i) => {
         return {

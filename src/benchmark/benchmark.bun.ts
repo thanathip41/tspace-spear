@@ -11,13 +11,16 @@ import { App0Http }   from './apps/0http';
 const runApps = async () => {
 
     const apps = [
+        // base on node
         { name: 'express',           app : AppExpress },
         { name: 'http',              app : AppHttp },
         { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
+        { name: '0http',             app : App0Http },
+
+        // base on bun
         { name: 'elysia',            app : AppElysia },
-        { name: 'hono',              app: AppHono },
-        { name: '0http',             app : App0Http }
+        { name: 'hono',              app : AppHono },
     ].map((s,i) => {
         return {
             ...s,

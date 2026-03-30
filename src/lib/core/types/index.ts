@@ -15,9 +15,11 @@ type TContext = {
     files   : TFileUpload
     cookies : TCookies
     ip      : TIp
+    ips     : TIps
 }
 
 type TIp = string | null
+type TIps = string[]
 
 type THeaders<T = IncomingHttpHeaders> = {
    [K in keyof T]: T[K]
@@ -276,6 +278,8 @@ export declare namespace T {
     type Query<T = Record<string, string>>   = TQuery<T>
     type Body<T = Record<string, any>>       = TBody<T>
     type Headers<T = IncomingHttpHeaders>    = THeaders<T>
+    type Ip                                  = TIp
+    type Ips                                 = TIps
     namespace Swagger {
         export type Spec   = TSwagger
         export type Format = TSwaggerFormat
