@@ -1,11 +1,12 @@
 import { runBenchmark, sleep } from './utils';
 
-import { AppExpress } from './apps/express'
-import { AppFastify } from './apps/fastify'
-import { AppHttp }    from './apps/http'
-import { AppElysia }  from './apps/elysia';
-import { AppSpear }   from './apps/spear'
-
+import { AppExpress } from './apps/express';
+import { AppFastify } from './apps/fastify';
+import { AppHttp }    from './apps/http';
+import { AppElysia}   from './apps/elysia';
+import { AppSpear }   from './apps/spear';
+import { AppHono }    from './apps/hono';
+import { App0Http }   from './apps/0http';
 
 const runApps = async () => {
 
@@ -14,7 +15,9 @@ const runApps = async () => {
         { name: 'http',              app : AppHttp },
         { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
-        { name: 'elysia',            app : AppElysia }
+        { name: 'elysia',            app : AppElysia },
+        { name: 'hono',              app: AppHono },
+        { name: '0http',             app : App0Http }
     ].map((s,i) => {
         return {
             ...s,

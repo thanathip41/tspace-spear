@@ -9,16 +9,13 @@ export const AppUWS = ({ name , port , message }: {
         
         const app = uWS.App();
 
-        app.get('/', (res:any) => {
+        //@ts-ignore
+        app.get('/', (res) => {
             res.end(message);
             return;
         });
 
-        app.listen(port, (token : string) => {
-            if (token) {
-                console.log(`Server '${name}' running at : http://localhost:${port}`);
-            }
-        });
+        app.listen(port, () => console.log(`Server '${name}' running at : http://localhost:${port}`));
 
         return app;
 

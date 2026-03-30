@@ -1,10 +1,10 @@
 import autocannon , { Result } from 'autocannon'
 
-const connections =  100
+const connections = 100
 const pipelining  = 10
 const duration    = 10
 
-export const getURL = (port : number) => `http://localhost:${port}`
+export const getFullURL = (port : number) => `http://localhost:${port}`
 
 export const sleep = (ms : number) => {
     return new Promise(resolve => setTimeout(resolve, ms,null));
@@ -41,25 +41,21 @@ export const runBenchmark = async (
 
     for (const { name, port } of randomized) {
 
-        const url = getURL(port)
+        const url = getFullURL(port)
 
         await new Promise((resolve, reject) => {
             autocannon({
                 url,
-                connections: Math.max(1, Math.floor(connections / 2)),
-                duration: Math.max(2, Math.floor(duration / 5)),
+                connections: 2,
+                duration: 2,
                 pipelining: 1,
-                workers: 1,
-                headers: {
-                    connection: 'close'
-                }
             }, (err) => {
                 if (err) return reject(err)
                 resolve(true)
             })
         }).catch(() => null)
 
-        await sleep(500)
+        await sleep(1000)
 
         const result = await new Promise((resolve, reject) => {
             autocannon({
@@ -67,10 +63,6 @@ export const runBenchmark = async (
                 connections,
                 duration,
                 pipelining,
-                workers: 1,
-                headers: {
-                    connection: 'close'
-                }
             }, (err, result) => {
                 if (err) return reject(err);
                 return resolve(result);

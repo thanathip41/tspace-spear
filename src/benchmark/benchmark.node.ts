@@ -1,25 +1,32 @@
-import { runBenchmark, sleep } from './utils';
+import { runBenchmark, sleep }   from './utils';
 
-import { AppExpress } from './apps/express'
-import { AppFastify } from './apps/fastify'
-import { AppHttp }    from './apps/http'
-import { 
-    AppSpear, 
-    AppSpearUWS 
-} from './apps/spear'
-import { AppElysiaNode } from './apps/elysia';
-import { AppUWS } from './apps/uWS';
+import { AppSpear }        from './apps/spear';
+import { AppSpearUWS }     from './apps/spear';
+import { AppExpress }      from './apps/express';
+import { AppFastify }      from './apps/fastify';
+import { AppHttp }         from './apps/http';
+import { AppElysiaNode }   from './apps/elysia';
+import { AppUWS }          from './apps/uWS';
+import { AppHyperExpress } from './apps/hyper-express';
+import { AppHonoNode }     from './apps/hono';
+import { App0Http }        from './apps/0http';
 
 const runApps = async () => {
 
     const apps = [
+        // bese on uWS
+        { name: 'tspace-spear(uWS)', app : AppSpearUWS }, // but return like http
+        { name: 'uWS' ,              app : AppUWS },
+        { name: 'hyper-express',     app : AppHyperExpress },
+
+        // base on http
         { name: 'express',           app : AppExpress },
         { name: 'http',              app : AppHttp },
         { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
-        { name: 'tspace-spear(uWS)', app : AppSpearUWS },
         { name: 'elysia(node)',      app : AppElysiaNode },
-        { name: 'uWS' ,              app : AppUWS }
+        { name: 'hono(node)',        app: AppHonoNode },
+        { name: '0http',             app : App0Http }
     ].map((s,i) => {
         return {
             ...s,
