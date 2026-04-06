@@ -15,6 +15,7 @@ import pathSystem          from 'path';
 import onFinished          from "on-finished";
 import WebSocket           from 'ws';
 import { ParserFactory }   from './parser-factory';
+import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import type { T }          from '../types';
 
@@ -39,7 +40,8 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp};
     private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp};
     private readonly _globalPrefix : string;
-    private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter();
+    // private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter();
+    private readonly _router : FastRouter = new FastRouter();
     private readonly _parser = new ParserFactory();
     private _isEnabledBodyParser = false;
     private _isEnabledFileUpload = false;
@@ -1213,14 +1215,14 @@ class Spear {
 
         return response
     }
-   
+
     private _wrapHandlers (...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]) {
 
         return (req : IncomingMessage, res : ServerResponse , ps : Record<string,any>) => {
 
             if (res.writableEnded) return;
 
-            const  ctx = this._createContext({ req , res , ps });
+            const ctx = this._createContext({ req , res , ps });
            
             const dispatch = (index: number = 0) => {
 
