@@ -1253,10 +1253,6 @@ class Spear {
                 if (ctx.res.writableEnded) return;
 
                 if (result instanceof ServerResponse) {
-                    if (result?.end) {
-                        result.end()
-                    }
-                   
                     return;
                 }
                     
