@@ -19,115 +19,136 @@ const METHODS = [
   "DELETE", "OPTIONS", "HEAD"
 ] as const
 
-type Method = typeof METHODS[number]
+type Method = typeof METHODS[number];
 
 export class FastRouter {
-  private trees: Record<string, Node> = Object.create(null)
+  private trees: Record<string, Node> = {}
 
   constructor() {
     for (const m of METHODS) {
-      this.trees[m] = this.createNode()
+      this.trees[m] = this._createNode();
     }
   }
 
-  private createNode(): Node {
-    return { static: Object.create(null) }
+  private _createNode(): Node {
+    return { static: {} }
   }
 
-  private add(method: Method, path: string, handler: Handler) {
-    let node = this.trees[method]
+  private _add(method: Method, path: string, handler: Handler) {
+    let node = this.trees[method];
 
-    let i = 1
-    let start = 1
+    let start = 1;
 
-    for (; i <= path.length; i++) {
+    for (let i = 1; i <= path.length; i++) {
       if (path[i] === "/" || i === path.length) {
-        const part = path.slice(start, i)
+        const part = path.slice(start, i);
 
         if (!part) {
           start = i + 1
-          continue
+          continue;
         }
 
         if (part[0] === ":") {
+
           if (!node.param) {
-            node.param = this.createNode()
-            node.param.paramName = part.slice(1)
+            node.param = this._createNode();
+            node.param.paramName = part.slice(1);
           }
-          node = node.param
-        } else if (part === "*") {
+
+          node = node.param;
+        } 
+        
+        else if (part === "*") {
+
           if (!node.wildcard) {
-            node.wildcard = this.createNode()
+            node.wildcard = this._createNode();
           }
-          node = node.wildcard
+          node = node.wildcard;
+
           break
-        } else {
+        } 
+        
+        else {
+
           if (!node.static[part]) {
-            node.static[part] = this.createNode()
+            node.static[part] = this._createNode();
           }
-          node = node.static[part]
+
+          node = node.static[part];
         }
 
-        start = i + 1
+        start = i + 1;
       }
     }
 
-    node.handler = handler
+    node.handler = handler;
+
+    return;
   }
 
   public get(path: string, handler: Handler) {
-    this.add("GET", path, handler)
+    this._add("GET", path, handler);
+    return this;
   }
 
   public post(path: string, handler: Handler) {
-    this.add("POST", path, handler)
+    this._add("POST", path, handler);
+    return this;
   }
 
   public put(path: string, handler: Handler) {
-    this.add("PUT", path, handler)
+    this._add("PUT", path, handler);
+    return this;
   }
 
   public patch(path: string, handler: Handler) {
-    this.add("PATCH", path, handler)
+    this._add("PATCH", path, handler);
+    return this;
   }
 
   public delete(path: string, handler: Handler) {
-    this.add("DELETE", path, handler)
+    this._add("DELETE", path, handler);
+    return this;
   }
 
   public options(path: string, handler: Handler) {
-    this.add("OPTIONS", path, handler)
+    this._add("OPTIONS", path, handler);
+    return this;
   }
 
   public head(path: string, handler: Handler) {
-    this.add("HEAD", path, handler)
+    this._add("HEAD", path, handler);
+    return this;
   }
 
   public all(path: string, handler: Handler) {
     for(const method of METHODS) {
-       this.add(method, path, handler)
+      this._add(method, path, handler);
     }
+    return this;
   }
 
   public lookup(req: IncomingMessage, res: ServerResponse) {
-    const method = req.method!
-    let node = this.trees[method]
+    const method = req.method!;
+    
+    let node = this.trees[method];
 
     if (!node) {
-      res.statusCode = 405
-      return res.end("Method Not Allowed")
+      res.statusCode = 405;
+      return res.end("Method Not Allowed");
     }
 
-    let url = req.url || "/"
-    let q = url.indexOf("?")
-    if (q !== -1) url = url.slice(0, q)
+    let url = req.url || "/";
+    let q = url.indexOf("?");
+    if (q !== -1) url = url.slice(0, q);
 
-    const params: Record<string, string> = Object.create(null)
+    const params: Record<string, string> = {};
 
-    let i = 1
-    let start = 1
+    const rootWildcard = node.wildcard;
 
-    for (; i <= url.length; i++) {
+    let start = 1;
+    
+    for (let i = 1; i <= url.length; i++) {
       if (url[i] === "/" || i === url.length) {
         const part = url.slice(start, i)
 
@@ -136,7 +157,8 @@ export class FastRouter {
           continue
         }
 
-        let next = node.static[part]
+        let next = node.static[part];
+
         if (next) {
           node = next
           start = i + 1
@@ -151,18 +173,29 @@ export class FastRouter {
         }
 
         if (node.wildcard) {
-          node = node.wildcard
+          node = node.wildcard;
           break
         }
+        
+        if (rootWildcard?.handler) {
+          return rootWildcard.handler(req, res, params)
+        }
 
-        res.statusCode = 404
-        return res.end("Not Found")
+        res.statusCode = 404;
+
+        return res.end("Not Found");
       }
     }
 
-    if (!node.handler) {
-      res.statusCode = 404
-      return res.end("Not Found")
+     if (!node.handler) {
+
+      if (rootWildcard?.handler) {
+        return rootWildcard.handler(req, res, params)
+      }
+
+      res.statusCode = 404;
+
+      return res.end("Not Found");
     }
 
     return node.handler(req, res, params)

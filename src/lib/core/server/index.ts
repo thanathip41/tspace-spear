@@ -4,10 +4,6 @@ import http, {
     ServerResponse 
 } from 'http';
 
-import findMyWayRouter, { 
-    type Instance 
-} from 'find-my-way';
-
 import cluster             from 'cluster';
 import os                  from 'os';
 import fsSystem            from 'fs';
@@ -40,12 +36,8 @@ class Spear {
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp};
     private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp};
     private readonly _globalPrefix : string;
-    // private readonly _router : Instance<findMyWayRouter.HTTPVersion.V1> = findMyWayRouter();
     private readonly _router : FastRouter = new FastRouter();
     private readonly _parser = new ParserFactory();
-    private _isEnabledBodyParser = false;
-    private _isEnabledFileUpload = false;
-    private _isEnabledCookieParser = false;
     private _adapter : T.Adapter = http;
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
@@ -118,10 +110,9 @@ class Spear {
     /**
      * The get 'routers' method is used get the all routers.
      * 
-     * @returns {Instance<findMyWayRouter.HTTPVersion.V1>}
+     * @returns {FastRouter}
      */
-    get routers (): Instance<findMyWayRouter.HTTPVersion.V1> {
-        //@ts-ignore
+    get routers (): FastRouter {
         return this._router;
     }
 
@@ -209,14 +200,14 @@ class Spear {
                 : `\x1b[31m${statusCode}\x1b[0m`
             }
             
-            if(exceptPath instanceof RegExp && exceptPath.test(String(req.url))) return next()
+            if(exceptPath instanceof RegExp && exceptPath.test(req.url!)) return next()
         
-            if(Array.isArray(exceptPath) && exceptPath.some(v => String(req.url) === v)) return next()
+            if(Array.isArray(exceptPath) && exceptPath.some(v => req.url! === v)) return next()
 
             if(
                 methods != null && 
                 methods.length && 
-                !methods.some(v => v.toLowerCase() === String(req.method).toLowerCase())
+                !methods.some(v => v.toLowerCase() === req.method!.toLowerCase())
             ) {
                 return next();
             }
@@ -229,8 +220,8 @@ class Spear {
                 [
                 `[\x1b[1m\x1b[34mINFO\x1b[0m]`,
                 `\x1b[34m${new Date().toJSON()}\x1b[0m`,
-                `\x1b[33m${req.method}\x1b[0m`,
-                `${decodeURIComponent(String(req.url))}`,
+                `\x1b[33m${req.method!}\x1b[0m`,
+                `${decodeURIComponent(req.url!)}`,
                 `${statusCode(res)}`,
                 `${diffTime(startTime)}`,
                 ].join(" ")
@@ -251,8 +242,6 @@ class Spear {
      * @returns {this}
      */
     public useBodyParser ({ except } : { except ?: T.MethodInput[] } = {}): this {
-
-        this._isEnabledBodyParser = true;
 
         this._globalMiddlewares.push((ctx : T.Context , next : T.NextFunction) => {
 
@@ -309,8 +298,6 @@ class Spear {
         }
     } = {}) {
 
-        this._isEnabledFileUpload = true;
-
         if(limit != null) {
             this._fileUploadOptions.limit = limit
         }
@@ -360,8 +347,6 @@ class Spear {
      * @returns {this}
      */
     public useCookiesParser (): this {
-
-        this._isEnabledCookieParser = true;
 
         this._globalMiddlewares.push(({ req } : T.Context , next : T.NextFunction) => {
 
@@ -573,12 +558,10 @@ class Spear {
 
             const ctx = this._createContext({ req , res , ps: {} });
 
-            return fn(ctx)
+            return fn(ctx);
         }
     
-        this._onListeners.push(() => {
-            return this.all('*', ...this._globalMiddlewares, handler)
-        })
+        this.all('*', handler);
 
         return this
     }
@@ -719,25 +702,6 @@ class Spear {
     }
 
     /**
-     * The 'any' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' 'HEAD' 'OPTIONS' methods.
-     * 
-     * @param {string} path
-     * @callback {...Function[]} handlers of the middlewares
-     * @property  {object} ctx - context { req , res , query , params , cookies , files , body}
-     * @property  {function} next  - go to next function
-     * @returns {this}
-     */
-    public any (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
-        this._onListeners.push(() => {
-            return this._router.all(
-                this._normalizePath(this._globalPrefix, path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
-            );
-        })
-        return this
-    }
-
-     /**
      * The 'all' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' 'HEAD' 'OPTIONS' methods.
      * 
      * @param {string} path
@@ -755,9 +719,10 @@ class Spear {
         })
         return this
     }
+
     private async _import (dir: string , pattern ?: RegExp): Promise<string[]> {
         const directories = fsSystem.readdirSync(dir, { withFileTypes: true });
-        const files: any[] = (await Promise.all(
+        const files = (await Promise.all(
           directories.map((directory) => {
             const newDir = pathSystem.resolve(String(dir), directory.name);
             if(pattern == null) {
@@ -771,7 +736,7 @@ class Spear {
           })
         )).filter(d => d != null)
 
-        return [].concat(...files);
+        return [].concat(...files as any[]);
     }
 
     private async _registerControllers(): Promise<void> {
@@ -958,7 +923,6 @@ class Spear {
 
             }
             
-
             if(this._formatResponse != null) {
                 
                 return res.end(JSON.stringify(
@@ -1522,85 +1486,53 @@ class Spear {
         return server as Server
     }
 
-    private _createContext ({ req, res, ps } : { 
-        req: IncomingMessage;
-        res: ServerResponse;
-        ps : Record<string,any>}
-    ) {
+    private _createContext({ req, res, ps } : {
+        req: IncomingMessage
+        res: ServerResponse
+        ps: Record<string, string>
+    }) {
 
         const request = req as T.Request;
-
-        const response = this._customizeResponse(req,res) as T.Response;
-        
-        const params = ps as T.Params;
+        const response = this._customizeResponse(req, res) as T.Response;
 
         const headers = req.headers as T.Headers;
+        const params = ps as T.Params;
 
-        const isEnabledFileUpload   = this._isEnabledFileUpload;
-        const isEnabledBodyParser   = this._isEnabledBodyParser;
-        const isEnabledCookieParser = this._isEnabledCookieParser;
+        const query = this._parser.queryString(req.url!) as T.Query || {};
 
-        const getIps = () : T.Ips => {
-            const addr = req?.socket?.remoteAddress ?? null;
-            const xff  = headers['x-forwarded-for'];
-            const xrip = headers['x-real-ip'];
-            const cfip = headers['cf-connecting-ip'];
+        const xff  = headers['x-forwarded-for'];
+        const xrip = headers['x-real-ip'];
+        const cfip = headers['cf-connecting-ip'];
 
-            const value = cfip ?? xff ?? xrip;
+        let ips: T.Ips = [];
 
-            if (!value)  return addr ? [addr] : [];
-        
-            const ips = Array.isArray(value) ? value : [value];
-            
-            return ips
+        if (cfip) {
+            ips = Array.isArray(cfip) ? cfip : [cfip]
+        } else if (xff) {
+            ips = Array.isArray(xff) ? xff : [xff]
+        } else if (xrip) {
+            ips = Array.isArray(xrip) ? xrip : [xrip]
+        } else {
+            const addr = req.socket?.remoteAddress
+            ips = addr ? [addr] : []
         }
 
-        const getQueryString = (url : string) => this._parser.queryString(url);
-        
+        const ip = (ips.length ? ips[0] : null) as T.Ip
+
         return {
-            req     : request, 
-            res     : response,
-            headers : headers ?? {},
-            params  : params ?? {},
-            get query () {
-                const query = getQueryString(req.url!);
-                return (query ?? {}) as T.Query;
-            },
-            get body () {
-                if(!isEnabledBodyParser){
-                    console.warn(
-                        `\x1b[33m[BodyParser WARNING]\x1b[0m \x1b[36mBody parser is not enabled.\x1b[0m Call .useBodyParser() before accessing body.`
-                    );
-                }
-                return (request.body ?? {}) as T.Body;
-            },
-            get files () {
-                if(!isEnabledFileUpload){
-                    console.warn(
-                        `\x1b[33m[FileUpload WARNING]\x1b[0m \x1b[36mFile Upload is not enabled.\x1b[0m Call .useFileUpload() before accessing files.`
-                    );
-                }
-                return (request.files ?? {}) as T.FileUpload;
-            },
-            get cookies () {
-                if(!isEnabledCookieParser){
-                    console.warn(
-                        `\x1b[33m[CookieParser WARNING]\x1b[0m \x1b[36mCookie parser is not enabled.\x1b[0m Call .useBodyParser() before accessing cookies.`
-                    );
-                }
-                return (request.cookies ?? {}) as T.Cookies;
-            },
-            get ip() {
-                
-                const ips = getIps();
+            req: request,
+            res: response,
 
-                const ip = ips.length ? ips[0] : null;
+            headers: headers || {},
+            params: params || {},
 
-                return ip as T.Ip;
-            },
-            get ips () {
-                return getIps() as T.Ips;
-            },
+            query,
+            body: request.body || {},
+            files: request.files || {},
+            cookies: request.cookies || {},
+
+            ip,
+            ips
         }
     }
 
