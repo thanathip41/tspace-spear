@@ -28,10 +28,10 @@ import { type T } from '../types';
  *
  * @param {number} statusCode - HTTP status code to send with the response.
  * @param {OutgoingHttpHeaders} contentType - Response headers to set.
- * @returns {Function}
+ * @returns {MethodDecorator}
  */
-export const WriteHeader = (statusCode: number, contentType: OutgoingHttpHeaders): Function => {
-  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+export const WriteHeader = (statusCode: number, contentType: OutgoingHttpHeaders): MethodDecorator => {
+  return (target: any, key: any, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {

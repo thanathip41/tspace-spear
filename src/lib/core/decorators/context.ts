@@ -18,8 +18,8 @@ import { type T } from '../types';
  * @param {...string} bodyParms - Body field names to extract.
  * @returns {MethodDecorator}
  */
-export const Body = (...bodyParms: string[]): Function => {
-    return function (target: any, key: string, descriptor: PropertyDescriptor) {
+export const Body = (...bodyParms: string[]): MethodDecorator => {
+    return function (target: any, key: any, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
@@ -55,8 +55,8 @@ export const Body = (...bodyParms: string[]): Function => {
  * @param {...string} filesParms - File field names to extract.
  * @returns {MethodDecorator}
  */
-export const Files = (...filesParms: string[]): Function => {
-    return function (target: any, key: string, descriptor: PropertyDescriptor) {
+export const Files = (...filesParms: string[]): MethodDecorator => {
+    return function (target: any, key: any, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
@@ -92,8 +92,8 @@ export const Files = (...filesParms: string[]): Function => {
  * @param {...string} paramsData - Route parameter names to extract.
  * @returns {MethodDecorator}
  */
-export const Params = (...paramsData: string[]): Function => {
-    return function (target: any, key: string, descriptor: PropertyDescriptor) {
+export const Params = (...paramsData: string[]): MethodDecorator => {
+    return function (target: any, key: any, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
@@ -129,8 +129,8 @@ export const Params = (...paramsData: string[]): Function => {
  * @param {...string} queryParms - Query parameter names to extract.
  * @returns {MethodDecorator}
  */
-export const Query = (...queryParms: string[]): Function => {
-    return function (target: any, key: string, descriptor: PropertyDescriptor) {
+export const Query = (...queryParms: string[]): MethodDecorator => {
+    return function (target: any, key: any, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
@@ -166,8 +166,8 @@ export const Query = (...queryParms: string[]): Function => {
  * @param {...string} cookiesParms - Cookie names to extract.
  * @returns {MethodDecorator}
  */
-export const Cookies = (...cookiesParms: string[]): Function => {
-    return function (target: any, key: string, descriptor: PropertyDescriptor) {
+export const Cookies = (...cookiesParms: string[]): MethodDecorator => {
+    return function (target: any, key: any, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {

@@ -37,9 +37,9 @@ import { T } from '../types';
  * @param {T.RequestFunction} middleware - Middleware function to execute before the route handler.
  * @returns {MethodDecorator}
  */
-export const Middleware = (middleware: T.RequestFunction): Function => {
+export const Middleware = (middleware: T.RequestFunction): MethodDecorator => {
 
-  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+  return (target: any, key: any, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = function (ctx: T.Context, next: T.NextFunction) {

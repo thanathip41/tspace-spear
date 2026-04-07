@@ -24,8 +24,8 @@ import { type T } from '../types';
  * @param {T.StatusCode} statusCode - HTTP status code to send with the response.
  * @returns {MethodDecorator}
  */
-export const StatusCode = (statusCode: T.StatusCode): Function => {
-    return (target: any, key: string, descriptor: PropertyDescriptor) => {
+export const StatusCode = (statusCode: T.StatusCode): MethodDecorator => {
+    return (target: any, key: any, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
 
         const code = statusCode < 100 ? 100 : statusCode > 599 ? 599 : statusCode;

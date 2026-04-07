@@ -1,7 +1,7 @@
 import { type T } from '../types'
 
 const methodDecorator = (method: T.Method) => {
-  return (path: `/${string}`) => {
+  return (path: `/${string}`): MethodDecorator => {
     return (target:any, propertyKey:any) => {
       const controller = target.constructor;
 

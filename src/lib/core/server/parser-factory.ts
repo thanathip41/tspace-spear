@@ -7,6 +7,7 @@ import querystring       from 'querystring';
 import { Readable }      from 'stream';
 import { StringDecoder } from "string_decoder";
 import xml2js            from 'xml2js';
+import fastQuerystring   from 'fast-querystring';
 
 import busboy, { 
     type FileInfo 
@@ -28,38 +29,12 @@ export class ParserFactory {
         }
     }
     public queryString(url: string) {
-        const query : Record<string,string> = {};
 
-        let i = url.indexOf('?');
+        const i = url.indexOf('?');
 
-        if (i === -1) return query;
+        if (i === -1) return {};
 
-        i++;
-
-        let key = '';
-        let value = '';
-        let mode = 0;
-
-        for (; i < url.length; i++) {
-            const c = url[i];
-
-            if (c === '#') break;
-
-            if (c === '=') {
-                mode = 1;
-            } else if (c === '&') {
-                if (key) query[key] = value;
-                key = '';
-                value = '';
-                mode = 0;
-            } else {
-                mode ? (value += c) : (key += c);
-            }
-        }
-
-        if (key) query[key] = value;
-
-        return query;
+        return fastQuerystring.parse(url.slice(i + 1));
     }
 
     public async files({ req, res, options }: {
@@ -238,7 +213,7 @@ export class ParserFactory {
 
                 try {
 
-                    const body = await this.transformBody({ contentType , payload });
+                    const body = await this.transformPayloadBody({ contentType , payload });
 
                     return resolve(body);
 
@@ -925,7 +900,7 @@ export class ParserFactory {
 
                 try {
 
-                    const body = await this.transformBody({ contentType , payload });
+                    const body = await this.transformPayloadBody({ contentType , payload });
 
                     return resolve(body);
 
@@ -938,7 +913,10 @@ export class ParserFactory {
         });
     }
 
-    private async transformBody ({ contentType , payload } : { contentType : string | null , payload : any }) {
+    private async transformPayloadBody ({ contentType , payload } : { 
+        contentType : string | null; 
+        payload     : any ;
+    }) {
    
         if(contentType == null || payload == null || payload === '') {
             return {};

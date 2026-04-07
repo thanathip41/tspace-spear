@@ -34,7 +34,7 @@ import { type T } from "../types";
  * @param {T.Swagger.Spec} data - Swagger/OpenAPI specification for the route.
  * @returns {MethodDecorator}
  */
-export const Swagger = (data: T.Swagger.Spec) => {
+export const Swagger = (data: T.Swagger.Spec): MethodDecorator => {
   return (target: any, propertyKey: any) => {
     const controller = target.constructor;
 
