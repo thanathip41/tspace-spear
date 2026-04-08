@@ -4,6 +4,7 @@ import http, {
     ServerResponse 
 } from 'http';
 
+import { Stream }          from 'stream';
 import cluster             from 'cluster';
 import os                  from 'os';
 import fsSystem            from 'fs';
@@ -14,6 +15,8 @@ import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import type { T }          from '../types';
+import mime                from 'mime-types';
+
 
 /**
  * 
@@ -87,7 +90,7 @@ class Spear {
         logger,
         cluster,
         adapter
-    } : T.Application) {
+    } : T.Application = {}) {
         this._controllers   = controllers;
         this._middlewares   = middlewares;
         
@@ -289,7 +292,7 @@ class Spear {
                 return next();
             })
             .catch(err => {
-                return this._nextFunction(ctx)(err);
+                return this._nextError(ctx)(err);
             })
         })
 
@@ -352,7 +355,7 @@ class Spear {
                 return next()
             })
             .catch(err => {
-                return this._nextFunction(ctx)(err)
+                return this._nextError(ctx)(err)
             })
         })
 
@@ -546,7 +549,7 @@ class Spear {
      * @param {function} format 
      * @returns 
      */
-    public response (format : (r : unknown , statusCode : number) => any) {
+    public response (format : (r : unknown , statusCode : number) => Record<string,any> | string) {
         this._formatResponse = format
         return this
     }
@@ -559,7 +562,7 @@ class Spear {
      * @param {function} error 
      * @returns 
      */
-    public catch (error : (err : any , ctx : T.Context) => any) {
+    public catch (error : (err : any , ctx : T.Context) => T.Response) {
         this._errorHandler = error
         return this
     }
@@ -570,7 +573,7 @@ class Spear {
      * @param {function} fn
      * @returns 
      */
-    public notfound (fn : (ctx : T.Context) =>  any) {
+    public notfound (fn : (ctx : T.Context) => T.Response) {
 
         const handler = ({ req , res } : T.Context) => {
 
@@ -914,6 +917,12 @@ class Spear {
 
         const response = res as unknown as T.Response
 
+        const parser = this._parser
+
+        response.stream = (filePath : string) => {
+            return parser.pipeStream({ req , res , filePath })
+        }
+
         response.json = (results ?: Record<string,any>) => {
 
             if (res.writableEnded) return;
@@ -1215,13 +1224,13 @@ class Spear {
                     if (!handler) return;
 
                     const result = index === handlers.length - 1
-                    ? this._wrapResponse(handler)(ctx, this._nextFunction(ctx))
+                    ? this._wrapResponse(handler)(ctx, this._nextError(ctx))
                     : handler(ctx, () => dispatch(index + 1));
 
                     return Promise.resolve(result);
 
                 } catch (err) {
-                    return this._nextFunction(ctx)(err);
+                    return this._nextError(ctx)(err);
                 }
             };
 
@@ -1233,14 +1242,19 @@ class Spear {
         return (ctx: T.Context, next: T.NextFunction) => {
             Promise.resolve(handler(ctx, next))
             .then(result => {
-
+                
                 if (ctx.res.writableEnded) return;
 
                 if (result instanceof ServerResponse) {
                     return;
                 }
+
+                if(result instanceof Stream) {
+                    return;
+                }
                     
                 if (result == null) {
+                   
                     if (!ctx.res.headersSent) {
                         ctx.res.writeHead(204, { 'Content-Type': 'text/plain' });
                     }
@@ -1286,61 +1300,30 @@ class Spear {
                 return;
             })
             .catch(err => {
-                return this._nextFunction(ctx)(err)
+                return next(err)
             })
         };
     }
 
-    private _nextFunction (ctx : T.Context) {
+    private _nextError (ctx : T.Context) {
 
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
         return (err ?: any) => {
+
+            const errorMessage = err?.message || NEXT_MESSAGE
             
-            if(err != null) {
-
-                if(this._errorHandler != null) {
-                    const callback = this._errorHandler(err,ctx);
-
-                    if(callback == null || !(callback instanceof ServerResponse)) {
-
-                        ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
-
-                        return ctx.res.end(JSON.stringify({
-                            message : err?.message
-                        }));  
-                    }
-
-                    return callback
-                }
-
-                ctx.res.writeHead(500, { 'Content-Type': 'application/json' })
-
-                if(this._formatResponse != null) {
-                    return ctx.res.end(JSON.stringify(
-                        this._formatResponse({ 
-                            message : err?.message,
-                        }, ctx.res.statusCode))
-                    )
-                }
-
-                ctx.res.end(JSON.stringify({
-                    message : err?.message
-                }));  
-
-                return;
-            }
-
             if(this._errorHandler != null) {
-                return this._errorHandler(new Error(NEXT_MESSAGE), ctx);
+                return this._errorHandler(new Error(errorMessage), ctx);
             }
 
             ctx.res.writeHead(500, { 'Content-Type': 'application/json' });
 
             if(this._formatResponse != null) {
+
                 ctx.res.end(JSON.stringify(
                     this._formatResponse({ 
-                        message : NEXT_MESSAGE
+                        message : errorMessage
                     }, ctx.res.statusCode))
                 );
 
@@ -1348,7 +1331,7 @@ class Spear {
             }
             
             ctx.res.end(JSON.stringify({
-                message : NEXT_MESSAGE
+                message : errorMessage
             }));  
 
             return;
@@ -1681,10 +1664,15 @@ class Spear {
                 return res;
             },
             end: (str : string) => {
+
                 if(res.aborted) {
                     return;
                 }
                 
+                if(str === undefined) {
+                    return;
+                }
+
                 uwsRes.cork(() => {
                     if(!res.aborted) {
                         res.aborted = true
@@ -1699,6 +1687,9 @@ class Spear {
                         return
                     }
                 })
+            },
+            pipeStream (stream : Stream) {
+
             },
             aborted: false,
             writeHeaders : {},

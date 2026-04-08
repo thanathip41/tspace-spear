@@ -26,7 +26,7 @@ import { T } from '../types';
  * Example middleware:
  *
  * ```ts
- * const authMiddleware: T.RequestFunction = (ctx, next) => {
+ * const authMiddleware: T.ContextHandler = (ctx, next) => {
  *   if (!ctx.user) {
  *     return next(new Error("Unauthorized"));
  *   }
@@ -34,10 +34,10 @@ import { T } from '../types';
  * };
  * ```
  *
- * @param {T.RequestFunction} middleware - Middleware function to execute before the route handler.
+ * @param {T.ContextHandler} middleware - Middleware function to execute before the route handler.
  * @returns {MethodDecorator}
  */
-export const Middleware = (middleware: T.RequestFunction): MethodDecorator => {
+export const Middleware = (middleware: T.ContextHandler): MethodDecorator => {
 
   return (target: any, key: any, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;

@@ -3,6 +3,7 @@ import http, {
     IncomingMessage, 
     ServerResponse 
 } from "http";
+import { Stream } from "stream";
 import WebSocket from "ws";
 
 type TContext = {
@@ -83,6 +84,7 @@ type THttpResponder = {
     gatewayTimeout  : (message?: string) => any;
 
     /**helper */
+    stream          : (path: string) => any;
     json            : (data?: Record<string,any>) => any;
     error           : (err: any) => any;
     send            : (message : string) => any;
@@ -156,7 +158,9 @@ type TApplication = {
     globalPrefix ?: string;
     logger       ?: boolean;
     cluster      ?: boolean | number; 
-    adapter      ?: TAdapter
+    adapter      ?: TAdapter;
+
+    express      ?: boolean
 }
 
 type TContextHandler = (ctx : TContext , next : TNextFunction) => any

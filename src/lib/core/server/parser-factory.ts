@@ -4,7 +4,7 @@ import mime              from 'mime-types';
 import crypto            from 'crypto';
 import swaggerUiDist     from 'swagger-ui-dist';
 import querystring       from 'querystring';
-import { Readable }      from 'stream';
+import { Readable, Stream }      from 'stream';
 import { StringDecoder } from "string_decoder";
 import xml2js            from 'xml2js';
 import fastQuerystring   from 'fast-querystring';
@@ -642,6 +642,20 @@ export class ParserFactory {
         }
     }
 
+    public async pipeStream ({ req, res, filePath }: {
+        req   : IncomingMessage;
+        res   : ServerResponse;
+        filePath : string;
+    }): Promise<Stream> {
+
+        if(this.isUWS) {
+            return await this.uWSPipeStream(req , res as ServerResponse & { uwsRes : any }, filePath) as Stream
+        }
+
+        return '' as unknown as Stream
+        
+    }
+
     private async uWSfiles({
         req,
         res,
@@ -955,5 +969,86 @@ export class ParserFactory {
         }
 
         return {};
+    }
+
+    private async uWSPipeStream(req : IncomingMessage, res: ServerResponse & { uwsRes : any } , filePath: string) {
+        const uwsRes = res.uwsRes;
+        
+        if (!fsSystem.existsSync(filePath)) {
+            uwsRes.writeStatus('404 Not Found').end();
+            return;
+        }
+
+        const stat = fsSystem.statSync(filePath);
+        const fileSize = stat.size;
+
+        const range = req.headers['range'];
+
+        let aborted = false;
+        let stream: fsSystem.ReadStream;
+
+        uwsRes.onAborted(() => {
+            aborted = true;
+            if (stream) stream.destroy();
+        });
+
+        let start = 0;
+        let end = fileSize - 1;
+
+        const contentType = mime.lookup(filePath) || 'application/octet-stream';
+
+        const isVideo = contentType.startsWith("video/");
+
+        if (range && isVideo) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            start = parseInt(parts[0], 10);
+            end = parts[1] ? parseInt(parts[1], 10) : end;
+
+            uwsRes.writeStatus('206 Partial Content');
+            uwsRes.writeHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+        } else {
+            uwsRes.writeStatus('200 OK');
+        }
+
+        const chunkSize = end - start + 1;
+        
+        uwsRes.writeHeader('Content-Type', contentType);
+        uwsRes.writeHeader('Accept-Ranges', 'bytes');
+        uwsRes.writeHeader('Content-Length', chunkSize.toString());
+
+
+        stream = fsSystem.createReadStream(filePath, { start, end });
+
+        stream.pause();
+
+        stream.on('data', (chunk) => {
+            if (aborted) return;
+
+            const ok = uwsRes.cork(() => uwsRes.write(chunk));
+
+            if (!ok) stream.pause();
+        });
+
+        uwsRes.onWritable(() => {
+            if (aborted) return false;
+            stream.resume();
+            return true;
+        });
+
+        stream.on('end', () => {
+            if (!aborted) {
+            uwsRes.cork(() => uwsRes.end());
+            }
+        });
+
+        stream.on('error', () => {
+            if (!aborted) {
+            uwsRes.writeStatus('500 Internal Server Error').end();
+            }
+        });
+
+        stream.resume();
+
+        return stream;
     }
 }
