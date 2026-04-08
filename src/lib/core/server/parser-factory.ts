@@ -191,10 +191,10 @@ export class ParserFactory {
         })
     }
  
-    public async body (req : T.Request , res: T.Response) {
+    public async body (req : T.Request , res: T.Response) :Promise<T.Body> {
 
         if(this.isUWS) {
-            return await this.uWSBody(req , res as T.Response & { uwsRes : any })
+            return await this.uWSBody(req , res as T.Response & { uwsRes : any }) as T.Body
         }
 
         return new Promise((resolve, reject) => {

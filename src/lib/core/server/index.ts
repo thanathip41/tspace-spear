@@ -34,10 +34,10 @@ import type { T }          from '../types';
 class Spear {
 
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp};
-    private readonly _middlewares ?: T.RequestFunction[] | { folder : string , name ?: RegExp};
-    private readonly _globalPrefix : string;
+    private readonly _middlewares ?: T.ContextHandler[] | { folder : string , name ?: RegExp};
     private readonly _router : FastRouter = new FastRouter();
     private readonly _parser = new ParserFactory();
+    private _globalPrefix : string = '';
     private _adapter : T.Adapter = http;
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
@@ -64,7 +64,7 @@ class Spear {
         options ?: WebSocket.ServerOptions;
     }
     private _errorHandler : T.ErrorFunction | null = null
-    private _globalMiddlewares : T.RequestFunction[] = []
+    private _globalMiddlewares : T.ContextHandler[] = []
     private _formatResponse : Function | null = null
     private _onListeners : Function[] = []
     private _fileUploadOptions : { 
@@ -87,14 +87,15 @@ class Spear {
         logger,
         cluster,
         adapter
-    } : T.Application = {}) {
-        if(logger)  this.useLogger()
-        if(cluster) this.useCluster(cluster)
-        if(adapter) this.useAdater(adapter)
+    } : T.Application) {
         this._controllers   = controllers;
         this._middlewares   = middlewares;
-        this._globalPrefix  = globalPrefix == null ? '' : globalPrefix;
         
+        if(logger)  this.useLogger();
+        if(cluster) this.useCluster(cluster);
+        if(adapter) this.useAdater(adapter);
+        if(globalPrefix) this.useGlobalPrefix(globalPrefix);
+      
     }
 
     /**
@@ -137,11 +138,25 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public use (middleware : (ctx : T.Context , next : T.NextFunction) =>  void): this {
+    public use (middleware : T.ContextHandler): this {
 
         this._globalMiddlewares.push(middleware)
 
         return this
+    }
+
+    /**
+     * The 'useGlobalPrefix' method is used to sets a global prefix for all routes in the router.
+     *
+     * If `globalPrefix` is `null` or `undefined`, it will default to an empty string,
+     * meaning no prefix will be applied.
+     *
+     * @param {string | null} globalPrefix - The base path prefix to apply to all routes.
+     * @returns {this} Returns the current instance for method chaining.
+     */
+    public useGlobalPrefix(globalPrefix: string | null): this {
+        this._globalPrefix = globalPrefix == null ? '' : globalPrefix;
+        return this;
     }
 
     /**
@@ -177,7 +192,10 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public useLogger ({ methods , exceptPath } : { methods ?: T.MethodInput[] , exceptPath ?: string[] | RegExp } = {}): this  {
+    public useLogger ({ methods , exceptPath } : { 
+        methods ?: T.MethodInput[];
+        exceptPath ?: string[] | RegExp } = {}
+    ): this  {
         
         this._globalMiddlewares.push(({ req , res } : T.Context , next : T.NextFunction) => {
            
@@ -575,7 +593,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public get (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public get (path : string , ...handlers : T.ContextHandler[]): this {
 
         this._onListeners.push(() => {
             return this._router.get(
@@ -596,7 +614,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public post (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public post (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.post(
                 this._normalizePath(this._globalPrefix, path),  
@@ -615,7 +633,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public put (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public put (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.put(
                 this._normalizePath(this._globalPrefix, path), 
@@ -634,7 +652,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public patch (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public patch (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.patch(
                 this._normalizePath(this._globalPrefix, path),  
@@ -653,7 +671,7 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public delete (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public delete (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.delete(
                 this._normalizePath(this._globalPrefix, path), 
@@ -672,7 +690,7 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public head (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public head (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.head(
                 this._normalizePath(this._globalPrefix, path), 
@@ -691,7 +709,7 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public options (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public options (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.options(
                 this._normalizePath(this._globalPrefix, path), 
@@ -710,7 +728,7 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public all (path : string , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public all (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._globalPrefix, path), 
@@ -1180,7 +1198,7 @@ class Spear {
         return response
     }
 
-    private _wrapHandlers (...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]) {
+    private _wrapHandlers (...handlers : T.ContextHandler[]) {
 
         return (req : IncomingMessage, res : ServerResponse , ps : Record<string,any>) => {
 
@@ -1211,7 +1229,7 @@ class Spear {
         }
     }
 
-    private _wrapResponse(handler: (ctx: T.Context, next: T.NextFunction) => any) {
+    private _wrapResponse(handler: T.ContextHandler) {
         return (ctx: T.Context, next: T.NextFunction) => {
             Promise.resolve(handler(ctx, next))
             .then(result => {
@@ -1498,6 +1516,10 @@ class Spear {
         const headers = req.headers as T.Headers;
         const params = ps as T.Params;
 
+        const body    = request.body as T.Body;
+        const files   = request.files as T.FileUpload;
+        const cookies = request.cookies as T.Cookies;
+
         const query = this._parser.queryString(req.url!) as T.Query || {};
 
         const xff  = headers['x-forwarded-for'];
@@ -1519,6 +1541,11 @@ class Spear {
 
         const ip = (ips.length ? ips[0] : null) as T.Ip
 
+        request.params = params
+        request.query  = query
+        request.ip     = ip
+        request.ips    = ips
+
         return {
             req: request,
             res: response,
@@ -1527,9 +1554,9 @@ class Spear {
             params: params || {},
 
             query,
-            body: request.body || {},
-            files: request.files || {},
-            cookies: request.cookies || {},
+            body: body || {},
+            files: files || {},
+            cookies: cookies || {},
 
             ip,
             ips

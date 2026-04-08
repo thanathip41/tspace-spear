@@ -54,7 +54,11 @@ type TFileUpload = Record<string, TFile[] | undefined>
 
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
-type TRequest = IncomingMessage & Partial<any>
+type TRequest = IncomingMessage & {
+    query : TQuery;
+    files : TFileUpload;
+    body  : TBody;
+} &Partial<any>
 
 type THttpResponder = {
     /**200+ */
@@ -124,17 +128,17 @@ type TMethod = |'get' | 'post' | 'patch' | 'put' | 'delete' | 'all' | 'head' | '
 
 type TMethodInput = Uppercase<TMethod>;
 
-type Handler = (res: unknown, req: unknown) => void | Promise<void>;
+type HandlerUWS = (res: unknown, req: unknown) => void | Promise<void>;
 
 type UWS = {
   App: () => {
-    get: (path: string, handler: Handler) => any;
-    post: (path: string, handler: Handler) => any;
-    patch: (path: string, handler: Handler) => any;
-    put: (path: string, handler: Handler) => any;
-    del: (path: string, handler: Handler) => any;
-    any: (path: string, handler: Handler) => any;
-    options: (path: string, handler: Handler) => any;
+    get: (path: string, handler: HandlerUWS) => any;
+    post: (path: string, handler: HandlerUWS) => any;
+    patch: (path: string, handler: HandlerUWS) => any;
+    put: (path: string, handler: HandlerUWS) => any;
+    del: (path: string, handler: HandlerUWS) => any;
+    any: (path: string, handler: HandlerUWS) => any;
+    options: (path: string, handler: HandlerUWS) => any;
     listen: (...args: any[]) => any;
     ws : (path: string, options: {
         open?: (ws: any) => void;
@@ -148,15 +152,15 @@ type TAdapter = UWS | typeof http
 
 type TApplication = {
     controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp };
-    middlewares  ?: TRequestFunction[] | { folder : string , name ?: RegExp };
+    middlewares  ?: TContextHandler[] | { folder : string , name ?: RegExp };
     globalPrefix ?: string;
     logger       ?: boolean;
     cluster      ?: boolean | number; 
     adapter      ?: TAdapter
 }
 
-type TRequestFunction = (ctx : TContext , next : TNextFunction) => any
-  
+type TContextHandler = (ctx : TContext , next : TNextFunction) => any
+
 type TErrorFunction = (err : Error, ctx : TContext) => any
 
 type TSwaggerFormat = 
@@ -265,7 +269,7 @@ export declare namespace T {
     type Method           = TMethod
     type ErrorFunction    = TErrorFunction
     type HttpStatus       = THttpResponder
-    type RequestFunction  = TRequestFunction
+    type ContextHandler   = TContextHandler
     type WebSocketHandler = TWSHandler
     type StatusCode       = TStatusCode
     type MethodInput      = TMethodInput
