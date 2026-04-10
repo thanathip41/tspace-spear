@@ -8,7 +8,7 @@ export const App0Http = ({ name , port , message }: {
     const { router, server } = cero()
 
     //@ts-ignore
-    router.get('/hello', (req, res) => {
+    router.get('/', (req, res) => {
         res.end(message);
         return
     })

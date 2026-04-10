@@ -15,7 +15,7 @@ import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import type { T }          from '../types';
-import mime                from 'mime-types';
+import { Response }        from './response';
 
 
 /**
@@ -82,6 +82,8 @@ class Spear {
             ms : 1000 * 60 * 10
         }
     }
+
+    private socketClose = 0;
     
     constructor({
         controllers,
@@ -966,11 +968,11 @@ class Spear {
 
         response.send = (results : string) => {
 
-            if (res.writableEnded) return;
+            if (res.writableEnded) {
+                return;
+            }
 
-            res.writeHead(res.statusCode, { 'Content-Type': 'text/plain' })
-            
-            return res.end(results)
+            return res.end(results);
         }
 
         response.html = (results : string) => {
@@ -1209,9 +1211,7 @@ class Spear {
 
     private _wrapHandlers (...handlers : T.ContextHandler[]) {
 
-        return (req : IncomingMessage, res : ServerResponse , ps : Record<string,any>) => {
-
-            if (res.writableEnded) return;
+        return (req : IncomingMessage, res : ServerResponse , ps : Record<string,string>) => {
 
             const ctx = this._createContext({ req , res , ps });
            
@@ -1240,10 +1240,12 @@ class Spear {
 
     private _wrapResponse(handler: T.ContextHandler) {
         return (ctx: T.Context, next: T.NextFunction) => {
-            Promise.resolve(handler(ctx, next))
-            .then(result => {
-                
-                if (ctx.res.writableEnded) return;
+
+            const handleResult = (result : unknown) : void => {
+
+                if (ctx.res.writableEnded) {
+                    return;
+                }
 
                 if (result instanceof ServerResponse) {
                     return;
@@ -1264,9 +1266,7 @@ class Spear {
                 }
 
                 if (typeof result === 'string') {
-                    
-                    ctx.res.end(result ?? '');
-                    
+                    ctx.res.send(result)
                     return;
                 }
 
@@ -1296,12 +1296,12 @@ class Spear {
                 }
 
                 ctx.res.end(JSON.stringify(result));
-               
                 return;
-            })
-            .catch(err => {
-                return next(err)
-            })
+            }
+
+            Promise.resolve(handler(ctx, next))
+            .then(result => handleResult(result))
+            .catch(err => next(err))
         };
     }
 
@@ -1494,7 +1494,10 @@ class Spear {
     }) {
 
         const request = req as T.Request;
-        const response = this._customizeResponse(req, res) as T.Response;
+        // const response = this._customizeResponse(req, res) as T.Response;
+        const response = new Response(req,res)
+        .format(this._formatResponse) 
+        .isUwebStocket('App' in this._adapter) as unknown as T.Response
 
         const headers = req.headers as T.Headers;
         const params = ps as T.Params;

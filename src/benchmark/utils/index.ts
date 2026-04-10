@@ -47,7 +47,7 @@ export const runBenchmark = async (
             autocannon({
                 url,
                 connections: 2,
-                duration: 2,
+                duration: 5,
                 pipelining: 1,
             }, (err) => {
                 if (err) return reject(err)

@@ -86,6 +86,10 @@ export class FastRouter {
     return;
   }
 
+  public get routes () {
+    return []
+  }
+
   public get(path: string, handler: Handler) {
     this._add("GET", path, handler);
     return this;

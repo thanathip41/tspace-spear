@@ -15,22 +15,22 @@ const runApps = async () => {
 
     const apps = [
         // bese on uWS
-        { name: 'tspace-spear(uWS)', app : AppSpearUWS }, // but return like http
+        // { name: 'tspace-spear(uWS)', app : AppSpearUWS }, // but return like http
         { name: 'uWS' ,              app : AppUWS },
-        { name: 'hyper-express',     app : AppHyperExpress },
+        // { name: 'hyper-express',     app : AppHyperExpress },
 
         // base on http
-        { name: 'express',           app : AppExpress },
-        { name: 'http',              app : AppHttp },
-        { name: 'fastify',           app : AppFastify },
+        // { name: 'express',           app : AppExpress },
+        // { name: 'http',              app : AppHttp },
+        // { name: 'fastify',           app : AppFastify },
         { name: 'tspace-spear',      app : AppSpear },
-        { name: 'elysia(node)',      app : AppElysiaNode },
-        { name: 'hono(node)',        app : AppHonoNode },
-        { name: '0http',             app : App0Http }
+        // { name: 'elysia(node)',      app : AppElysiaNode },
+        // { name: 'hono(node)',        app : AppHonoNode },
+        // { name: '0http',             app : App0Http }
     ].map((s,i) => {
         return {
             ...s,
-            port: 3000 + i
+            port: 5000 + i
         }
     })
 
