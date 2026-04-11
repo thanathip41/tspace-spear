@@ -1,117 +1,113 @@
-import { IncomingMessage, ServerResponse } from "http"
-import { T } from "../types";
-import { Stream } from "stream";
-import fsSystem   from "fs";
-import mime       from 'mime-types';
-export class Response {
+import { 
+    IncomingMessage, 
+    ServerResponse 
+} from "http";
 
-    private _formatResponse : Function | null = null;
-    private _isUwebStocket: Boolean = false
+import { 
+    HEADER_CONTENT_TYPES 
+} from "../const";
 
-    constructor (private req: IncomingMessage , private res: ServerResponse) {}
+import type { T }  from "../types";
+import { pipeStream } from "../utils";
 
-    public format(format : Function | null) {
-        this._formatResponse = format;
-        return this;
+export const Response = (req : IncomingMessage, res : ServerResponse , { 
+    formatResponse,
+    isUwebSocket
+} : { 
+    formatResponse ?: Function | null
+    isUwebSocket ?: boolean
+}
+): T.Response => {
+
+    const response = res as unknown as T.Response;
+
+    response.serveMedia = (filePath : string) => {
+        return pipeStream({ req , res , filePath, isUwebSocket })
     }
 
-    public isUwebStocket (uws : boolean) {
-        this._isUwebStocket = uws;
-        return this;
-    }
-
-    public end(r : unknown) {
-        return this.res.end(r)
-    }
-
-    public writeHead(status : number , header : string) {
-        this.res.writeHead(status,header)
-    }
-
-    public stream (filePath : string){
-        return this.pipeStream(filePath)
-    }
-
-    public send (results : string) {
-
-        if (this.res.writableEnded) {
-            return;
+    response.status = (code : number) => {
+        
+        return {
+            json : (data?: { [key: string]: any }) => {
+                if(!res.headersSent)
+                    res.writeHead(code, HEADER_CONTENT_TYPES['json'])
+                return response.json(data)
+            },
+            send : (message : string) => {
+                if(!res.headersSent)
+                    res.writeHead(code, HEADER_CONTENT_TYPES['text'])
+                return response.send(message)
+            },
+            end : (message ?: string) => {
+                if(!res.headersSent)
+                    res.writeHead(code, HEADER_CONTENT_TYPES['text'])
+                return response.end(message)
+            },
         }
-
-        // return this.res.end(results);
-        const resultsBuffer = Buffer.from(results);
-
-        const socket = this.req.socket;
-
-        if (!socket || socket.destroyed) {
-            return this.res.end(resultsBuffer)
-        }
-
-        const headerBuffer = this._buildHeader(200, {
-            "Content-Length": resultsBuffer.length,
-            "Content-Type": "text/plain",
-            "Connection": "keep-alive"
-        });
-
-        socket.cork();
-        socket.write(headerBuffer as unknown as Uint8Array<ArrayBufferLike>);
-        socket.write(resultsBuffer as unknown as Uint8Array<ArrayBufferLike>);
-        socket.uncork();
-
-        return this.res.end();
     }
-    
-    public json (results ?: Record<string,any>) {
 
-        if (this.res.writableEnded) return;
+    response.json = (results ?: Record<string,any>) => {
+
+        if (res.writableEnded) return;
 
         if(typeof results === 'string') {
 
-            if(!this.res.headersSent) {
-                this.res.writeHead(200, { 'Content-Type': 'text/plain' })
+            if(!res.headersSent) {
+                res.writeHead(200, HEADER_CONTENT_TYPES['text'])
             }
 
-            return this.res.end(results)
+            return res.end(results)
         }
 
-        if(!this.res.headersSent) {
-            this.res.writeHead(200, { 'Content-Type': 'application/json' })
+        if(!res.headersSent) {
+            res.writeHead(200, HEADER_CONTENT_TYPES['json'])
         }
 
         if(results == null) {
 
-            if(this._formatResponse != null) {
-                return this.res.end(JSON.stringify(this._formatResponse(null, this.res.statusCode)))
+            if(formatResponse != null) {
+                return res.end(JSON.stringify(formatResponse(null, res.statusCode)))
             }
 
-            return this.res.end()
+            return res.end();
 
         }
         
-        if(this._formatResponse != null) {
+        if(formatResponse != null) {
             
-            return this.res.end(JSON.stringify(
-                this._formatResponse({ 
+            return res.end(JSON.stringify(
+                formatResponse({ 
                     ...results
-                }, this.res.statusCode))
+                }, res.statusCode))
             )
         }
 
-        return this.res.end(JSON.stringify({
-            ...results,
-        }))
+        return res.end(JSON.stringify(results))
     }
-    
-    public html = (results : string) => {
 
-        if (this.res.writableEnded) return;
+    response.send = (results : string) => {
 
-        this.res.writeHead(this.res.statusCode, {'Content-Type': 'text/html'})
+        if (res.writableEnded) {
+            return;
+        }
 
-        return this.res.end(results)
+        if(formatResponse != null) {
+            return res.end(formatResponse(results, res.statusCode))
+        }
+
+        return res.end(results);
     }
-    
-    public error = (err: any) => {
+
+    response.html = (results : string) => {
+
+        if (res.writableEnded) return;
+
+        res.writeHead(res.statusCode, HEADER_CONTENT_TYPES['html'])
+
+        return res.end(results)
+    }
+
+    response.error = (err: any) => {
 
         const statusCandidates = [
             err?.response?.data?.code,
@@ -129,40 +125,94 @@ export class Response {
             err?.response?.data?.errorMessage ??
             err?.response?.data?.message ??
             err?.message ??
-            `The request '${this.req.url}' resulted in a server error.`
+            `The request '${req.url}' resulted in a server error.`
 
-        this.setStatusCode(code as T.StatusCode)
+        response.status(code as T.StatusCode)
 
         const payload = { message }
 
-        if (this._formatResponse) {
-            return this.res.end(
-                JSON.stringify(this._formatResponse(payload, code))
+        if (formatResponse) {
+            return res.end(
+                JSON.stringify(formatResponse(payload, code))
             )
         }
 
-        return this.res.end(JSON.stringify(payload))
+        return res.end(JSON.stringify(payload))
     }
 
-    public status (code : number) {
-        this.res.writeHead(code, { 'Content-Type': 'application/json' })
+    response.ok = (results ?: Record<string,any> ) => {
+        return response.json(results)
+    }
+
+    response.created = (results ?: Record<string,any>) => {
+        return response.status(201).json(results);
+    }
+
+    response.accepted = (results ?: Record<string,any>) => {
+        return response.status(202).json(results);
+    }
+
+    response.noContent = () => {
+        return response.status(204).end();
+    }
+
+    response.badRequest = (message ?: string) => {
+
+        message = message ?? `The request '${req.url}' resulted in a bad request. Please review the data and try again.`;
+
+        return response.status(400).json({ message })
+    }
+
+    response.unauthorized = (message ?: string) => {
+       
+        message = message ?? `The request '${req.url}' is unauthorized. Please verify.`
+
+        return response.status(401).json({ message })
+    }
+
+    response.paymentRequired = (message ?: string) => {
+
+        message = message ?? `The request '${req.url}' requires payment. Please proceed with payment.`
+
+       return response.status(402).json({ message })
+    }
+
+    response.forbidden = (message ?: string) => {
+
+        message = message ?? `The request '${req.url}' is forbidden. Please check the permissions or access rights.`
+
+        return response.status(403).json({ message })
+    }
+
+    response.notFound = (message ?: string) => {
+
+        message = message ?? `The request '${req.url}' was not found. Please re-check the your url again.`
+
+        return response.status(404).json({ message })
+    }
+
+    response.unprocessable = (message ?: string) => {
+
+        message = message ?? `The request to '${req.url}' failed validation.`
+
+        return response.status(422).json({ message })
+    }
+
+    response.tooManyRequests = (message ?: string) => {
+
+        message = message ?? `The request '${req.url}' is too many request. Please wait and try agian.`;
+
+        return response.status(429).json({ message });
+    }
+
+    response.serverError = (message ?: string) => {
         
-        return {
-            json : (data?: { [key: string]: any }) => {
-                return this.json(data);
-            },
-            send : (str : string) => {
-                return this.send(str)
-            }
-        }
+        message = message ?? `The request '${req.url}' resulted in a server error. Please investigate.`
+
+        return response.status(500).json({ message });
     }
 
-    public setStatusCode (code: number) {
-        this.res.writeHead(code, { 'Content-Type': 'application/json' });
-        return;
-    }
-
-    public setCookies = (cookies : Record<string,string | { 
+    response.setCookies = (cookies : Record<string,string | { 
         value      : string
         path       ?: string
         sameSite   ?: 'Strict' | 'Lax' | 'None'
@@ -194,299 +244,15 @@ export class Response {
             cookieLists.push(str)
         }
 
-        if(this._isUwebStocket) {
+        if(isUwebSocket) {
             for(const cookie of cookieLists) {
-                this.res.setHeader('Set-Cookie', cookie)
+                res.setHeader('Set-Cookie', cookie)
             }
             return;
         }
-        this.res.setHeader('Set-Cookie', cookieLists)
+
+        res.setHeader('Set-Cookie', cookieLists)
     }
 
-    public ok (results ?: Record<string,any> ) {
-        if (this.res.writableEnded) return;
-        return this.json(results == null ? {} : results)
-    }
-
-    public created (results ?: Record<string,any>) {
-        if (this.res.writableEnded) return;
-        this.status(201);
-        return this.json(results == null ? {} : results)
-    }
-
-    public accepted = (results ?: Record<string,any>) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(202)
-
-        return this.json(results == null ? {} : results)
-    }
-
-    public noContent = () => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(204)
-
-        return this.res.end()
-    }
-
-    public badRequest = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-        
-        this.status(400);
-
-        message = message ?? `The request '${this.req.url}' resulted in a bad request. Please review the data and try again.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 400) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message : message 
-        }))
-    }
-
-    public unauthorized = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(401);
-
-        message = message ?? `The request '${this.req.url}' is unauthorized. Please verify.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 401) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    paymentRequired = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(402);
-
-        message = message ?? `The request '${this.req.url}' requires payment. Please proceed with payment.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 402) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    forbidden = (message ?: string) => {
-        
-        if (this.res.writableEnded) return;
-
-        this.status(403)
-
-        message = message ?? `The request '${this.req.url}' is forbidden. Please check the permissions or access rights.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 403) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    notFound = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(404)
-
-        message = message ?? `The request '${this.req.url}' was not found. Please re-check the your url again.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 404) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    unprocessable = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(422)
-
-        message = message ?? `The request to '${this.req.url}' failed validation.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 422) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    tooManyRequests = (message ?: string) => {
-
-        if (this.res.writableEnded) return;
-
-        this.status(429)
-
-        message = message ?? `The request '${this.req.url}' is too many request. Please wait and try agian.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 429) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message
-        }))
-    }
-
-    serverError = (message ?: string) => {
-        
-        if (this.res.writableEnded) return;
-
-        this.status(500)
-
-        message = message ?? `The request '${this.req.url}' resulted in a server error. Please investigate.`
-
-        if(this._formatResponse != null) {
-            return this.res.end(JSON.stringify(this._formatResponse({ message }, 500) ))
-        }
-
-        return this.res.end(JSON.stringify({
-            message 
-        }))
-    }
-
-    private async pipeStream (filePath : string): Promise<Stream> {
-    
-        if(this._isUwebStocket) {
-            //@ts-ignore
-            const uwsRes = this.res.uwsRes;
-                    
-            if (!fsSystem.existsSync(filePath)) {
-                uwsRes.writeStatus('404 Not Found').end();
-            }
-            
-            const stat = fsSystem.statSync(filePath);
-            const fileSize = stat.size;
-            
-            const range = this.req.headers['range'];
-            
-            let aborted = false;
-            let stream: fsSystem.ReadStream;
-            
-            uwsRes.onAborted(() => {
-                aborted = true;
-                if (stream) stream.destroy();
-            });
-            
-            let start = 0;
-            let end = fileSize - 1;
-            
-            const contentType = mime.lookup(filePath) || 'application/octet-stream';
-    
-            const isVideo = contentType.startsWith("video/");
-            
-            if (range && isVideo) {
-                const parts = range.replace(/bytes=/, '').split('-');
-                start = parseInt(parts[0], 10);
-                end = parts[1] ? parseInt(parts[1], 10) : end;
-    
-                uwsRes.writeStatus('206 Partial Content');
-                uwsRes.writeHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
-            } else {
-                uwsRes.writeStatus('200 OK');
-            }
-    
-            const chunkSize = end - start + 1;
-                    
-            uwsRes.writeHeader('Content-Type', contentType);
-            uwsRes.writeHeader('Accept-Ranges', 'bytes');
-            uwsRes.writeHeader('Content-Length', chunkSize.toString());
-    
-    
-            stream = fsSystem.createReadStream(filePath, { start, end });
-    
-            stream.pause();
-    
-            stream.on('data', (chunk) => {
-                if (aborted) return;
-    
-                const ok = uwsRes.cork(() => uwsRes.write(chunk));
-    
-                if (!ok) stream.pause();
-            });
-    
-            uwsRes.onWritable(() => {
-                if (aborted) return false;
-                stream.resume();
-                return true;
-            });
-    
-            stream.on('end', () => {
-                if (!aborted) {
-                uwsRes.cork(() => uwsRes.end());
-                }
-            });
-    
-            stream.on('error', () => {
-                if (!aborted) {
-                uwsRes.writeStatus('500 Internal Server Error').end();
-                }
-            });
-    
-            stream.resume();
-    
-            return stream;
-        }
-    
-        return '' as unknown as Stream
-        
-    }
-
-    private _buildHeader(
-        status : number,
-        headers : Record<string,string | number> = {}
-    ) {
-    
-        const statusTextMap: Record<string,string> = {
-            200: "OK",
-            201: "Created",
-            204: "No Content",
-            301: "Moved Permanently",
-            302: "Found",
-            304: "Not Modified",
-            400: "Bad Request",
-            401: "Unauthorized",
-            403: "Forbidden",
-            404: "Not Found",
-            500: "Internal Server Error",
-        };
-
-        const statusText = statusTextMap[status] || "OK";
-
-        const lines = [`HTTP/1.1 ${status} ${statusText}`];
-
-        for (const k in headers) {
-            const v = headers[k];
-            if (v !== undefined && v !== null) {
-                lines.push(k + ": " + v);
-            }
-        }
-
-        lines.push("", "");
-
-        return Buffer.from(lines.join("\r\n"));
-    }
+    return response
 }

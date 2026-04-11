@@ -3,7 +3,7 @@ import http, {
     IncomingMessage, 
     ServerResponse 
 } from "http";
-import { Stream } from "stream";
+
 import WebSocket from "ws";
 
 type TContext = {
@@ -56,53 +56,158 @@ type TFileUpload = Record<string, TFile[] | undefined>
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
 type TRequest = IncomingMessage & {
-    query : TQuery;
-    files : TFileUpload;
-    body  : TBody;
-} &Partial<any>
+    uWs    : any; // typeof import('uWebSockets.js').HttpRequest
+    query  : TQuery;
+    files  : TFileUpload;
+    body   : TBody;
+    params : TParams;
+} & Partial<any>
 
 type THttpResponder = {
-    /**200+ */
-    ok              : (data ?: Record<string,any>) => any;
-    created         : (data ?: Record<string,any>) => any; 
-    accepted        : (data ?: Record<string,any>) => any;
+    /**
+     * Raw uWS HttpResponse instance.
+     */
+    uWS: any; // typeof import('uWebSockets.js').HttpResponse
 
-    /**400+ */
-    noContent       : (message?: string) => any;
-    badRequest      : (message?: string) => any;
-    unauthorized    : (message?: string) => any;
-    paymentRequired : (message?: string) => any;
-    forbidden       : (message?: string) => any;
-    unprocessable   : (message?: string) => any;
-    tooManyRequests : (message?: string) => any;
-    notFound        : (message?: string) => any;
+    /** 200 OK - Standard successful response */
+    ok: (data?: Record<string, any>) => any;
 
-    /**500+ */
-    serverError     : (message?: string) => any;
-    badGateway      : (message?: string) => any;
-    unavailable     : (message?: string) => any;
-    gatewayTimeout  : (message?: string) => any;
+    /** 201 Created - Resource successfully created */
+    created: (data?: Record<string, any>) => any;
 
-    /**helper */
-    stream          : (path: string) => any;
-    json            : (data?: Record<string,any>) => any;
-    error           : (err: any) => any;
-    send            : (message : string) => any;
-    html            : (html : string) => any;
-    status          : (code : TStatusCode) => {
-        json : (data?: Record<string,any>) => any;
-        send : (message : string) => any;
+    /** 202 Accepted - Request accepted for processing */
+    accepted: (data?: Record<string, any>) => any;
+
+    /** 204 No Content - Successful request with no response body */
+    noContent: (message?: string) => any;
+
+    /** 400 Bad Request - Invalid request from client */
+    badRequest: (message?: string) => any;
+
+    /** 401 Unauthorized - Authentication required or failed */
+    unauthorized: (message?: string) => any;
+
+    /** 402 Payment Required - Reserved for future/payment flow */
+    paymentRequired: (message?: string) => any;
+
+    /** 403 Forbidden - Client does not have access rights */
+    forbidden: (message?: string) => any;
+
+    /** 422 Unprocessable Entity - Valid request but semantic errors */
+    unprocessable: (message?: string) => any;
+
+    /** 429 Too Many Requests - Rate limit exceeded */
+    tooManyRequests: (message?: string) => any;
+
+    /** 404 Not Found - Resource does not exist */
+    notFound: (message?: string) => any;
+
+    /** 500 Internal Server Error - Generic server failure */
+    serverError: (message?: string) => any;
+
+    /** 502 Bad Gateway - Invalid response from upstream server */
+    badGateway: (message?: string) => any;
+
+    /** 503 Service Unavailable - Server temporarily unavailable */
+    unavailable: (message?: string) => any;
+
+    /** 504 Gateway Timeout - Upstream server timeout */
+    gatewayTimeout: (message?: string) => any;
+
+    /**
+     * Serve a media file (video, image, PDF, etc.) from file system.
+     * @param filePath Absolute or relative path to media file
+     */
+    serveMedia: (filePath: string) => any;
+
+    /**
+     * Send JSON response.
+     * @param data JSON serializable object
+     */
+    json: (data?: Record<string, any>) => any;
+
+    /**
+     * Send error response (generic wrapper).
+     * @param err Error object or message
+     */
+    error: (err: any) => any;
+
+    /**
+     * Send plain text response.
+     * @param message Text content
+     */
+    send: (message: string) => any;
+
+    /**
+     * Send HTML response.
+     * @param html HTML string
+     */
+    html: (html: string) => any;
+
+    /**
+     * Set HTTP status code and return chained response helpers.
+     *
+     * This method does not send a response immediately.
+     * Instead, it sets the status code and returns a response builder
+     * that allows sending the response in different formats.
+     *
+     * @param code HTTP status code to set for the response
+     * @returns An object containing response methods bound to the given status
+     *
+     * @example
+     * res.status(200).json({ success: true });
+     *
+     * @example
+     * res.status(404).send("Not Found");
+     *
+     * @example
+     * res.status(204).end();
+     */
+    status: (code: TStatusCode) => {
+        /**
+         * Send JSON response with the previously set status code.
+         *
+         * @param data JSON-serializable object to send as response body
+         */
+        json: (data?: Record<string, any>) => any;
+
+        /**
+         * Send plain text response with the previously set status code.
+         *
+         * @param message Text response body
+         */
+        send: (message: string) => any;
+
+        /**
+         * End the response with optional raw message body.
+         *
+         * Commonly used for empty responses (e.g. 204 No Content).
+         *
+         * @param message Optional raw response body
+         */
+        end: (message?: string) => any;
     };
-    setCookies      : (cookies : Record<string, string | { 
-        value       : string
-        path        ?: string
-        sameSite    ?: 'Strict' | 'Lax' | 'None'
-        domain      ?: string
-        secure      ?: boolean
-        httpOnly    ?: boolean
-        expires     ?: Date
-    }>) => any
-}
+
+    /**
+     * Set HTTP cookies.
+     * @param cookies Key-value map or detailed cookie objects
+     */
+    setCookies: (
+        cookies: Record<
+            string,
+            | string
+            | {
+                  value: string;
+                  path?: string;
+                  sameSite?: 'Strict' | 'Lax' | 'None';
+                  domain?: string;
+                  secure?: boolean;
+                  httpOnly?: boolean;
+                  expires?: Date;
+              }
+        >
+    ) => any;
+};
 
 type TStatusCode = 
 | 200 | 201 | 202 | 203 | 204
@@ -256,10 +361,10 @@ type TSwagger = {
 }
 
 type TWSHandler = {
-    connection : (ws: WebSocket) => void | string | Buffer;
-    message    : (ws: WebSocket, data: WebSocket.Data) => void | string | Buffer;
-    close      : (ws: WebSocket, code: number, reason: Buffer) => void;
-    error      : (ws: WebSocket, error: Error) => void;
+    connection : (ws: WebSocket & Partial<any>) => void | string | Buffer;
+    message    : (ws: WebSocket & Partial<any>, data: WebSocket.Data) => void | string | Buffer;
+    close      : (ws: WebSocket & Partial<any>, code: number, reason: Buffer) => void;
+    error      : (ws: WebSocket & Partial<any>, error: Error) => void;
 }
 
 export declare namespace T {

@@ -1,5 +1,78 @@
 import { type T } from '../types';
 
+export function createDtoDecorator(
+    validator: (ctx: T.Context) => void | Promise<void>,
+    onError?: (ctx: T.Context, error: any) => any
+): MethodDecorator {
+    return (_target, _key, descriptor: PropertyDescriptor) => {
+        const original = descriptor.value;
+
+        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
+            try {
+                await validator(ctx);
+
+                return await original.call(this, ctx, next);
+
+            } catch (err: any) {
+
+                if (onError) {
+                    return onError(ctx, err);
+                }
+
+                let message = err?.message ?? "Bad Request";
+                let issues = err.issues ?? [];
+                let status : 400 | 422 = 400;
+
+                if(err.name === "ZodError") {
+                    const zodIssues = err.issues
+                    .map((i: { path: any[]; message: string; }) => ({
+                        path: i.path.join("."),
+                        message: i.message,
+                    }));
+
+                    message = "Validation failed";
+                    issues = zodIssues;
+                    status = 422;
+                }
+
+                return ctx.res.status(status).json({
+                    message,
+                    issues,
+                });
+            }
+        };
+
+        return descriptor;
+    };
+}
+export function createContextDecorator(
+    hook: (
+        ctx: T.Context,
+        next: T.NextFunction,
+        meta: {
+            target: any;
+            key: string | symbol;
+            descriptor: PropertyDescriptor;
+        }
+    ) => any | Promise<any>
+): MethodDecorator {
+    return (target, key, descriptor: PropertyDescriptor) => {
+        const original = descriptor.value;
+
+        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
+            return await hook(ctx, async () => {
+                return await original.call(this, ctx, next);
+            }, {
+                target,
+                key,
+                descriptor,
+            });
+        };
+
+        return descriptor;
+    };
+}
+
 /**
  * Extract specific fields from `ctx.body`.
  *
@@ -18,26 +91,19 @@ import { type T } from '../types';
  * @param {...string} bodyParms - Body field names to extract.
  * @returns {MethodDecorator}
  */
-export const Body = (...bodyParms: string[]): MethodDecorator => {
-    return function (target: any, key: any, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value;
+export const Body = (...keys: string[]) : MethodDecorator => {
+    return createContextDecorator(async (ctx, next) => {
+        const body = ctx.body;
+    
+        ctx.body = keys.reduce(
+            (prev, curr) => (body[curr] != null ? { ...prev, [curr]: body[curr] } : prev),
+            {}
+        );
 
-        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            const q = ctx?.body ?? {};
-            const body = bodyParms.reduce(
-                (acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc),
-                {}
-            );
-
-            ctx.body = Object.keys(body).length ? body : {};
-
-            return await originalMethod.call(this, ctx, next);
-        };
-
-        return descriptor;
-    };
-};
-
+        return await next();
+    });
+}
+    
 /**
  * Extract specific uploaded files from `ctx.files`.
  *
@@ -52,27 +118,20 @@ export const Body = (...bodyParms: string[]): MethodDecorator => {
  * }
  * ```
  *
- * @param {...string} filesParms - File field names to extract.
+ * @param {...string} keys - File field names to extract.
  * @returns {MethodDecorator}
  */
-export const Files = (...filesParms: string[]): MethodDecorator => {
-    return function (target: any, key: any, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value;
+export const Files = (...keys: string[]): MethodDecorator => {
+    return createContextDecorator(async (ctx, next) => {
+        const files = ctx.files;
+    
+        ctx.files = keys.reduce(
+            (prev, curr) => (files[curr] != null ? { ...prev, [curr]: files[curr] } : prev),
+            {}
+        );
 
-        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            const q = ctx?.files ?? {};
-            const files = filesParms.reduce(
-                (acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc),
-                {}
-            );
-
-            ctx.files = Object.keys(files).length ? files : {};
-
-            return await originalMethod.call(this, ctx, next);
-        };
-
-        return descriptor;
-    };
+        return await next();
+    });
 };
 
 /**
@@ -89,27 +148,20 @@ export const Files = (...filesParms: string[]): MethodDecorator => {
  * }
  * ```
  *
- * @param {...string} paramsData - Route parameter names to extract.
+ * @param {...string} keys - Route parameter names to extract.
  * @returns {MethodDecorator}
  */
-export const Params = (...paramsData: string[]): MethodDecorator => {
-    return function (target: any, key: any, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value;
+export const Params = (...keys: string[]): MethodDecorator => {
+    return createContextDecorator(async (ctx, next) => {
+        const params = ctx.params;
+    
+        ctx.params = keys.reduce(
+            (prev, curr) => (params[curr] != null ? { ...prev, [curr]: params[curr] } : prev),
+            {}
+        );
 
-        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            const q = ctx?.params ?? {};
-            const params = paramsData.reduce(
-                (acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc),
-                {}
-            );
-
-            ctx.params = Object.keys(params).length ? params : {};
-
-            return await originalMethod.call(this, ctx, next);
-        };
-
-        return descriptor;
-    };
+        return await next();
+    });
 };
 
 /**
@@ -126,27 +178,20 @@ export const Params = (...paramsData: string[]): MethodDecorator => {
  * }
  * ```
  *
- * @param {...string} queryParms - Query parameter names to extract.
+ * @param {...string} keys - Query parameter names to extract.
  * @returns {MethodDecorator}
  */
-export const Query = (...queryParms: string[]): MethodDecorator => {
-    return function (target: any, key: any, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value;
+export const Query = (...keys: string[]): MethodDecorator => {
+    return createContextDecorator(async (ctx, next) => {
+        const query = ctx.query;
+    
+        ctx.query = keys.reduce(
+            (prev, curr) => (query[curr] != null ? { ...prev, [curr]: query[curr] } : prev),
+            {}
+        );
 
-        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            const q = ctx?.query ?? {};
-            const query = queryParms.reduce(
-                (acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc),
-                {}
-            );
-
-            ctx.query = Object.keys(query).length ? query : {};
-
-            return await originalMethod.call(this, ctx, next);
-        };
-
-        return descriptor;
-    };
+        return await next();
+    });
 };
 
 /**
@@ -163,25 +208,18 @@ export const Query = (...queryParms: string[]): MethodDecorator => {
  * }
  * ```
  *
- * @param {...string} cookiesParms - Cookie names to extract.
+ * @param {...string} keys - Cookie names to extract.
  * @returns {MethodDecorator}
  */
-export const Cookies = (...cookiesParms: string[]): MethodDecorator => {
-    return function (target: any, key: any, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value;
+export const Cookies = (...keys: string[]): MethodDecorator => {
+    return createContextDecorator(async (ctx, next) => {
+        const cookies = ctx.cookies;
+    
+        ctx.cookies = keys.reduce(
+            (prev, curr) => (cookies[curr] != null ? { ...prev, [curr]: cookies[curr] } : prev),
+            {}
+        );
 
-        descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            const q = ctx?.cookies ?? {};
-            const cookies = cookiesParms.reduce(
-                (acc, key) => (q[key] != null ? { ...acc, [key]: q[key] } : acc),
-                {}
-            );
-
-            ctx.cookies = Object.keys(cookies).length ? cookies : {};
-
-            return await originalMethod.call(this, ctx, next);
-        };
-
-        return descriptor;
-    };
+        return await next();
+    });
 };
