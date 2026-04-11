@@ -16,6 +16,11 @@ Install with [npm](https://www.npmjs.com/):
 npm install tspace-spear --save
 
 ```
+
+## Documentation
+
+See the [`docs`](https://thanathip41.github.io/tspace-spear) directory for full documentation.
+
 ## Basic Usage
 - [Start Server](#start-server)
 - [Adapter](#adapter)
@@ -32,6 +37,7 @@ npm install tspace-spear --save
 - [Cookie](#cookie)
 - [Middleware](#middleware)
 - [Controller](#controller)
+- [Dto](#dto)
 - [Router](#router)
 - [Swagger](#swagger)
 - [WebSocket](#websocket)
@@ -82,6 +88,7 @@ new Spear({ adapter: uWS })
 ```
 
 ## Cluster
+Cluster mode allows tspace-spear to run multiple worker processes to fully utilize multi-core CPU performance.
 ```js
 import { Spear } from "tspace-spear";
 new Spear({
@@ -98,6 +105,9 @@ new Spear({
 ```
 
 ## Global Prefix
+Global Prefix allows you to define a base path for all routes in your application.
+
+It helps keep your API structured and consistent (e.g. /api, /v1, /app).
 ```js
 const app = new Spear({
   globalPrefix : '/api' // prefix all routes
@@ -109,6 +119,16 @@ const app = new Spear({
 ```
 
 ## Logger
+The built-in Logger provides request logging for incoming HTTP requests.
+
+It helps you monitor:
+
+Request method
+Request path
+Performance tracking
+Debugging and observability
+
+You can enable a simple logger or configure advanced logging behavior.
 ```js
 const app = new Spear({
   logger :  true
@@ -124,8 +144,17 @@ const app = new Spear({
 ```
 
 ## Format Response
+Provides a consistent response structure system to standardize how responses are handled across your application.
+
+It ensures that:
+
+* All responses are predictable
+* Errors are properly structured
+* Missing routes are handled cleanly
+* Global error catching is supported
 
 ### Notfound
+The NotFound handler is triggered when no route matches the incoming request.
 ```js
 const app = new Spear()
 .get('/' , () => {
@@ -142,6 +171,13 @@ const app = new Spear()
 ```
 
 ### Response
+The response system ensures that all returned values are automatically formatted and sent to the client.
+
+You can return:
+
+* String
+* Object (JSON)
+* Custom response via ctx.res
 ```js
 import { Spear } from "tspace-spear";
 
@@ -183,6 +219,10 @@ const app = new Spear()
 ```
 
 ### Catch
+The Catch handler is used to handle unexpected runtime errors globally.
+
+It acts as a safety layer to prevent server crashes and standardize error responses.
+
 ```js
 import { Spear } from "tspace-spear";
 import { z } from "zod";
@@ -217,7 +257,9 @@ const app = new Spear()
 ```
 
 ## Cors
+CORS (Cross-Origin Resource Sharing) controls which origins are allowed to access your API.
 
+It helps secure your server by restricting or allowing cross-domain requests.
 ```js
 const app = new Spear()
 .cors({
@@ -232,6 +274,9 @@ const app = new Spear()
 ```
 
 ## Body
+Body parsing allows your server to read incoming request payloads (JSON) and access them via ctx.body.
+
+It enables handling requests with structured data.
 ```js
 
 new Spear()
@@ -247,7 +292,14 @@ new Spear()
 ```
 
 ## File Upload
+File upload support allows handling multipart/form-data requests and working with uploaded files via ctx.files.
 
+It provides:
+
+* Temporary file handling
+* File size limits
+* Manual file movement
+* Auto cleanup option
 ```js
 
 import { Spear, type T } from 'tspace-spear';
@@ -284,6 +336,14 @@ new Spear()
 ```
 
 ## Cookie
+Cookie support allows you to read and manage HTTP cookies from incoming requests via ctx.cookies.
+
+It is useful for:
+
+* Session handling
+* Authentication
+* User preferences
+* Stateful requests
 ```js
 
 new Spear()
@@ -297,6 +357,12 @@ new Spear()
 ```
 
 ## Middleware
+Middleware is a function that runs before the controller handler and is used to:
+
+* Intercept requests
+* Modify ctx
+* Validate or block execution
+* Handle authentication / logging / transformations
 ```js
 import { type T } from "tspace-spear"
 // file cat-middleware.ts
@@ -348,6 +414,9 @@ import CatMiddleware from './cat-middleware.ts'
 ```
 
 ## Controller
+A Controller is used to group related routes and define request handlers in a structured way.
+
+It helps organize your application into modules (similar to NestJS / Express routers), while keeping a clean and readable API design.
 ```js
 import { 
   Controller , 
@@ -462,8 +531,131 @@ import CatController from './cat-controller.ts'
 })()
 ```
 
-## Router
 
+## Dto
+DTO (Data Transfer Object) is used to validate and transform incoming request data before it reaches your controller logic.
+```js
+import { 
+  Controller , 
+  Post,
+  createDtoDecorator
+  type T
+} from 'tspace-spear';
+
+import z from "zod";
+
+const ValidateDtoBody = (keys: string[]) => {
+  return createDtoDecorator((ctx) => {
+    const body = ctx.body ?? {};
+    const issues: Array<{ path: string; message: string }> = [];
+
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+
+        if (body[key] == null) {
+            issues.push({
+                path: key,
+                message: "Missing field",
+            });
+        }
+    }
+
+    if (issues.length > 0) {
+        throw {
+          message : "Validation failed",
+          issues
+        }
+    }
+  });
+}
+
+const ValidateDtoZodBody = (schema: z.ZodTypeAny) => {
+  return createDtoDecorator((ctx) => {
+    const result = schema.parse(ctx.body);
+    ctx.body = result as T.Body;
+  });
+}
+
+const ValidateDtoPromiseBody = (keys: string[]) => {
+  return createDtoDecorator(async (ctx) => {
+      await new Promise(resolve => setTimeout(resolve,500));
+      // check in DB or other async operation
+      throw new Error('Validation failed in promise!');
+  }, (ctx, error) => {
+    // you implement your custom error handling for async validation here
+    return ctx.res.status(400).json({
+      message: error.message || "Validation failed",
+      issues: error.issues || [],
+    });
+  });
+}
+
+const catSchema = z.object({
+  name: z.string(),
+  age: z.number(),
+})
+
+
+// file cat-controller.ts
+@Controller('/cats')
+export class CatController {
+  @Post('/')
+  @ValidateDtoBody(["name", "age"])
+  public async basic(ctx : T.Context) {
+    const body = ctx.body;
+    return {
+      body
+    }
+  }
+
+  @Post('/zod')
+  @ValidateDtoZodBody(catSchema)
+  public async zod(ctx : T.Context) {
+    const body = ctx.body as z.infer<typeof catSchema>;
+    return {
+      body
+    }
+  }
+
+  @Post('/promise')
+  @ValidateDtoPromiseBody(['name', 'age'])
+  public async promise(ctx : T.Context) {
+    const body = ctx.body;
+
+    return {
+      body
+    }
+  }
+}
+
+import { Spear } , { Router, type T } from "tspace-spear";
+
+import CatController from './cat-controller.ts'
+
+(async () => {
+
+  new Spear({
+    controllers: [ CatController ]
+  })
+  .useBodyParser()
+  .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+
+  // localhost:3000/cats  // basic implete
+  // localhost:3000/cats/zod  // zod implete
+  // localhost:3000/cats/promise // promise implete
+
+})()
+```
+
+## Router
+The Router allows you to organize routes into modular groups, making your application more scalable and maintainable.
+
+It supports:
+
+* Grouped routes
+* Nested route prefixes
+* Reusable router modules
+* Separation of concerns
 ```js
 import { Spear, Router, type T } from "tspace-spear";
 
@@ -507,6 +699,14 @@ app.listen(port , () => console.log(`Server is now listening http://localhost:30
 ```
 
 ## Swagger
+Provides built-in Swagger support to document your API endpoints.
+
+It allows you to:
+
+* Describe request parameters (query, body, params)
+* Generate API documentation
+* Improve developer experience
+* Standardize API contracts
 ```js
 
 // file cat-controller.ts
@@ -699,44 +899,78 @@ class CatController {
 ```
 
 ## WebSocket
+Provides built-in WebSocket support for real-time communication.
+
+It allows you to:
+
+* Handle client connections
+* Send/receive messages
+* Build chat systems
+* Manage real-time events
 ```js
 import { Spear } from "tspace-spear";
+import fs from 'fs';
+import path from 'path';
 
 new Spear()
-.get('/', () => 'Hello wor1ld!')
-.post('/', ({ req , res , headers , query })=> {  
-  return res.tooManyRequests()
+.get('/',(ctx) => {
+  // you can serve a HTML file for testing WebSocket connection
+  const htmlWs = fs.readFileSync(path.join(path.resolve(), 'public', 'ws.html'), 'utf-8');
+  return ctx.res.html(htmlWs);
 })
 .ws(() => {
+  const clients = new Map<string, any>();
   return {
     connection: (ws) => {
-      ws.send(JSON.stringify({ type: 'welcome', message: 'Welcome to the server!' }));
+      console.log("connected");
     },
+
     message: (ws, msg) => {
       const data = JSON.parse(msg.toString());
 
-      switch (data.type) {
-        case 'chat':
-          console.log('Chat message:', data.text);
-          ws.send(JSON.stringify({ type: 'chat_ack', message: 'Chat received!' }));
-          break;
+      if (data.type === "register") {
+        ws.userId = data.userId;
+        clients.set(data.userId, ws);
 
-        case 'ping':
-          console.log('Ping received');
-          ws.send(JSON.stringify({ type: 'pong' }));
-          break;
+        ws.send(JSON.stringify({
+          type: "system",
+          message: `registered as ${data.userId}`
+        }));
 
-        default:
-          ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
+        return;
+      }
+
+      if (data.type === "chat") {
+        const targetWs = clients.get(data.to);
+
+        if (!targetWs) {
+          ws.send(JSON.stringify({
+            type: "error",
+            message: "User not online"
+          }));
+          return;
+        }
+
+        targetWs.send(JSON.stringify({
+          type: "chat",
+          from: ws.userId,
+          text: data.text
+        }));
+
+        return;
       }
     },
-    close: (ws, code, reason) => {
-      console.log('Client disconnected');
+
+    close: (ws) => {
+      if (ws.userId) {
+        clients.delete(ws.userId);
+      }
     },
+    
     error: (ws, error) => {
       console.error('WebSocket error:', error);
     }
-  }    
+  };
 })
 .listen(3000 , ({ port , server }) =>  {
     console.log(`server listening on : http://localhost:${port}`)
