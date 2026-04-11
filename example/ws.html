@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>WS Demo</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .app {
+    width: 420px;
+    height: 600px;
+    background: #111827;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .header {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: #1f2937;
+    align-items: center;
+  }
+
+  select, button, input {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+  }
+
+  select {
+    flex: 1;
+    background: #111827;
+    color: white;
+  }
+
+  button {
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+  }
+
+  .chat {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .msg {
+    max-width: 70%;
+    padding: 10px;
+    border-radius: 12px;
+    word-wrap: break-word;
+  }
+
+  .me {
+    align-self: flex-end;
+    background: #3b82f6;
+  }
+
+  .other {
+    align-self: flex-start;
+    background: #1f2937;
+  }
+
+  .footer {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: #1f2937;
+  }
+
+  .footer input {
+    flex: 1;
+    background: #111827;
+    color: white;
+  }
+</style>
+
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="header">
+    Me:
+    <select id="me">
+      <option value="A" selected>A (You)</option>
+      <option value="B">B (You)</option>
+    </select>
+
+    Send to:
+    <select id="to">
+      <option value="A">A</option>
+      <option value="B" selected>B</option>
+    </select>
+
+    <button onclick="connect()">Connect</button>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="footer">
+    <input id="text" placeholder="message..." />
+    <button onclick="sendMsg()">Send</button>
+  </div>
+
+</div>
+
+<script>
+let connected = false;
+let ws;
+
+const meSelect = document.getElementById("me");
+const toSelect = document.getElementById("to");
+const textInput = document.getElementById("text");
+const chat = document.getElementById("chat");
+
+function syncTarget() {
+  const me = meSelect.value;
+  toSelect.value = me === "A" ? "B" : "A";
+}
+
+meSelect.addEventListener("change", syncTarget);
+toSelect.addEventListener("change", syncTarget);
+
+function log(msg, cls = "other") {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.innerText = msg;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function connect() {
+  ws = new WebSocket("ws://localhost:3000");
+
+  ws.onopen = () => {
+    const me = meSelect.value;
+    syncTarget();
+    connected = true;
+    ws.send(JSON.stringify({
+      type: "register",
+      userId: me
+    }));
+
+    log("Connected as " + me, "other");
+  };
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+
+    if (data.type === "chat") {
+      log(`${data.from}: ${data.text}`, "other");
+    }
+  };
+
+  ws.onclose = () => {
+    log("Disconnected", "other");
+  };
+}
+
+function sendMsg() {
+  if(!connected) connect();
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+  const me = meSelect.value;
+  const to = toSelect.value;
+  const text = textInput.value.trim();
+
+  if (!text) return;
+
+  ws.send(JSON.stringify({
+    type: "chat",
+    to,
+    text
+  }));
+
+  log(text, "me");
+
+  textInput.value = "";
+}
+
+textInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendMsg();
+  }
+});
+
+
+</script>
+
+</body>
+</html>
