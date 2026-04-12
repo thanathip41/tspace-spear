@@ -1,10 +1,6 @@
-import { Spear } from "../../lib"
+const { Spear } = require('../../dist/lib')
 
-export const AppSpear = ({ name , port , message }: { 
-    name   : string; 
-    port   : number; 
-    message: string;
-}) => {
+const ServerSpear =({ name, port, message }) => {
     const server = new Spear()
     server.get('/' , () => message)
     server.listen(port , () => console.log(`Server '${name}' running at : http://localhost:${port}`))
@@ -12,11 +8,7 @@ export const AppSpear = ({ name , port , message }: {
     return server;
 }
 
-export const AppSpearUWS = ({ name , port , message }: { 
-    name   : string; 
-    port   : number; 
-    message: string;
-}) => {
+const ServerSpearUWS = ({ name, port, message }) => {
     try {
         const uWS  = require('uWebSockets.js');
         
@@ -38,4 +30,9 @@ export const AppSpearUWS = ({ name , port , message }: {
             }    
         `)
     }
+}
+
+module.exports = {
+  ServerSpear,
+  ServerSpearUWS,
 }

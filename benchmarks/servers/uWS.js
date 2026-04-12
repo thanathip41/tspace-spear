@@ -1,15 +1,9 @@
-export const AppUWS = ({ name , port , message }: { 
-    name   : string; 
-    port   : number; 
-    message: string;
-}) => {
+const uWS  = require('uWebSockets.js');
+const ServerUWS = ({ name , port , message }) => {
     try {
-        
-        const uWS  = require('uWebSockets.js');
         
         const app = uWS.App();
 
-        //@ts-ignore
         app.get('/', (res) => {
             res.end(message);
             return;
@@ -30,3 +24,5 @@ export const AppUWS = ({ name , port , message }: {
         `)
     }
 }
+
+module.exports = { ServerUWS }

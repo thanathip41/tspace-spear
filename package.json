@@ -39,8 +39,8 @@
     "beta": "npm run build && npm publish --tag beta",
     "bm:node": "npm run benchmark:node",
     "bm:bun": "npm run benchmark:bun",
-    "benchmark:node": "npm run build && node dist/benchmark/benchmark.node.js",
-    "benchmark:bun": "npm run build && bun run dist/benchmark/benchmark.bun.js",
+    "benchmark:node": "npm run build && node benchmarks/tests/benchmark.node.js",
+    "benchmark:bun": "npm run build && bun run benchmarks/tests/benchmark.bun.js",
     "test": "mocha  dist/tests/**/0*.test.js",
     "load": "autocannon -c 100 -d 30 -p 10 localhost:5000",
     "docs": "npx docsify-cli serve docs"
