@@ -14,16 +14,16 @@ const { ServerNet } = require('../servers/net')
 const runApps = async () => {
   const apps = [
     // base on uWS
-    { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
-    { name: 'uWS', app: ServerUWS },
+    // { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
+    // { name: 'uWS', app: ServerUWS },
 
     // base on http
-    { name: 'express', app: ServerExpress },
+    // { name: 'express', app: ServerExpress },
     { name: 'http', app: ServerHttp },
     { name: 'fastify', app: ServerFastify },
     { name: 'tspace-spear', app: ServerSpear },
-    { name: 'elysia(node)', app: ServerElysiaNode },
-    { name: 'hono(node)', app: ServerHonoNode },
+    // { name: 'elysia(node)', app: ServerElysiaNode },
+    // { name: 'hono(node)', app: ServerHonoNode },
     { name: '0http', app: Server0Http },
     { name: 'net', app: ServerNet },
   ]

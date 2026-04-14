@@ -5,6 +5,7 @@ import http, {
 } from "http";
 
 import WebSocket from "ws";
+import net from 'net';
 
 type TContext = {
     req     : TRequest
@@ -255,7 +256,13 @@ type UWS = {
   }
 };
 
-type TAdapter = UWS | typeof http
+type TAdapter =
+  | { kind: 'http'; server: typeof http }
+  | { kind: 'net'; server: typeof net }
+  | { kind: 'uWS'; server: UWS };
+
+type TAdapterServer = typeof http | typeof net | UWS
+
 
 type TApplication = {
     controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp };
@@ -263,7 +270,7 @@ type TApplication = {
     globalPrefix ?: string;
     logger       ?: boolean;
     cluster      ?: boolean | number; 
-    adapter      ?: TAdapter;
+    adapter      ?: TAdapterServer;
 
     express      ?: boolean
 }
@@ -369,6 +376,7 @@ type TWSHandler = {
 
 export declare namespace T {
     type Adapter          = TAdapter
+    type AdapterServer    = TAdapterServer
     type Application      = TApplication
     type NextFunction     = TNextFunction
     type File             = TFile

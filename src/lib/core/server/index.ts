@@ -21,6 +21,8 @@ import { Router }          from './router';
 import type { T }          from '../types';
 import { Response }        from './response';
 import { uWSAdaptRequestResponse } from './uWS';
+import net , { Socket } from 'net';
+import { netAdaptRequestResponse } from './net';
 
 
 
@@ -47,7 +49,7 @@ class Spear {
     private readonly _router : FastRouter = new FastRouter(); 
     private readonly _parser = new ParserFactory();
     private _globalPrefix : string = '';
-    private _adapter : T.Adapter = http;
+    private _adapter : T.Adapter = { kind : 'http', server : http };
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
     private _swagger : { use : boolean } & T.Swagger.Doc = {
@@ -176,12 +178,26 @@ class Spear {
      * The 'useAdater' method is used to switch between different server implementations,
      * such as the native Node.js HTTP server or uWebSockets.js (uWS).
      *
-     * @param {T.Adapter} adapter - The adapter instance (e.g., HTTP or uWS).
+     * @param {T.AdapterServer} adapter - The adapter instance (e.g., HTTP or uWS).
      * @returns {this} Returns the current instance for chaining
      */
-    public useAdater (adapter :  T.Adapter): this {
-        this._adapter = adapter;
-        this._parser.useAdater(adapter);
+    public useAdater (adapter:  T.AdapterServer): this {
+
+       if (adapter === http) {
+            this._adapter = { kind: 'http', server: adapter };
+        } 
+        
+        else if (adapter === net) {
+            this._adapter = { kind: 'net', server: adapter };
+        } 
+        
+        else {
+            //@ts-ignore
+            this._adapter = { kind: 'uWs', server: adapter };
+        }
+
+        this._parser.useAdater(this._adapter);
+
         return this;
     }
 
@@ -461,7 +477,7 @@ class Spear {
             return server
         }
  
-        if ('App' in this._adapter) {
+        if (this._adapter.kind === 'uWS') {
 
             const handler = () => {
                 this._onListeners.forEach(listener => listener());
@@ -1052,7 +1068,7 @@ class Spear {
 
         if(cluster.isWorker) {
             
-            if ('App' in this._adapter) {
+            if (this._adapter.kind === 'uWS') {
 
                 const handler = () => {
                     this._onListeners.forEach(listener => listener());
@@ -1109,8 +1125,9 @@ class Spear {
 
         const adapter = this._adapter;
 
-        if ('App' in adapter) {
-            const server = adapter.App();
+        if (adapter.kind === 'uWS') {
+
+            const server = adapter.server.App();
 
             server.any('/*', (uwsRes, uwsReq) => {
 
@@ -1139,6 +1156,47 @@ class Spear {
 
             return server as unknown as Server;
         } 
+
+        if(adapter.kind === 'net') {
+            const server = net.createServer((socket: Socket) => {
+
+                netAdaptRequestResponse(socket, (req, res) => {
+                    if (cors) cors(req, res);
+                    this._router.lookup(req, res) 
+                })
+
+            }) as unknown as Server;
+
+            if (this._ws?.handler) {
+
+                this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
+
+                this._ws.server.on('connection', (ws) => {
+
+                    if (this._ws.handler?.connection) {
+                        this._ws.handler.connection(ws);
+                    }
+
+                    ws.on('message', (data) => {
+                        this._ws.handler?.message?.(ws, data);
+                    });
+
+                    ws.on('close', (code, reason) => {
+                        if (this._ws.handler?.close) {
+                            this._ws.handler?.close(ws, code, reason);
+                        }
+                    });
+
+                    ws.on('error', (err) => {
+                        if (this._ws.handler?.error) {
+                            this._ws.handler!.error(ws, err);
+                        }
+                    });
+                });
+            }
+
+            return server;
+        }
 
         const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
             if (cors) cors(req, res);
@@ -1172,7 +1230,8 @@ class Spear {
             });
         }
         
-        return server as Server
+        return server
+
     }
 
     private _createContext({ req, res, ps } : {
@@ -1185,7 +1244,7 @@ class Spear {
 
         const response = Response(req, res, {
             formatResponse : this._formatResponse,
-            isUwebSocket : 'App' in this._adapter
+            isUwebSocket :  this._adapter.kind === 'uWS'
         }) as T.Response
 
         const headers = req.headers as T.Headers;

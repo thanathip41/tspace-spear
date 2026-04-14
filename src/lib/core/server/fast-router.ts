@@ -192,6 +192,7 @@ export class FastRouter {
 
     if (!node) {
       res.statusCode = 405;
+      console.log({ method })
       return res.end("Method Not Allowed");
     }
 

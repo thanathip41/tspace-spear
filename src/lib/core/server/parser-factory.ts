@@ -19,13 +19,22 @@ import { type T }        from "../types";
 
 import { normalizeRequestBody } from "../utils";
 import { uWSBody, uWSfiles }    from "./uWS";
+import { netBody, netFiles }    from "./net";
 export class ParserFactory {
-  private uWebStockets = false;
+  private uWebStockets     = false;
+  private net              = false;
 
   public useAdater(adapter: T.Adapter) {
-    if ("App" in adapter) {
+  
+    if(adapter.kind === 'uWS') {
       this.uWebStockets = true;
     }
+
+    if(adapter.kind === 'net') {
+      this.net = true
+    }
+
+    return this;
   }
   public queryString(url: string) {
     const i = url.indexOf("?");
@@ -51,8 +60,13 @@ export class ParserFactory {
       };
     };
   }) {
+
     if (this.uWebStockets) {
       return uWSfiles({ req, res, options });
+    }
+
+    if(this.net) {
+      return netFiles(req , options)
     }
 
     const temp = options.tempFileDir;
@@ -205,8 +219,13 @@ export class ParserFactory {
   }
 
   public async body(req: T.Request, res: T.Response): Promise<T.Body> {
+
     if (this.uWebStockets) {
       return (await uWSBody(req, res as T.Response & { uWS: any })) as T.Body;
+    }
+
+    if(this.net) {
+      return (await netBody(req)) as T.Body;
     }
 
     return new Promise((resolve, reject) => {
