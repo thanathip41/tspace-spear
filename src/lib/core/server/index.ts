@@ -15,13 +15,13 @@ import fsSystem            from 'fs';
 import pathSystem          from 'path';
 import onFinished          from "on-finished";
 import WebSocket           from 'ws';
+import net , { Socket }    from 'net';
 import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import type { T }          from '../types';
 import { Response }        from './response';
 import { uWSAdaptRequestResponse } from './uWS';
-import net , { Socket } from 'net';
 import { netAdaptRequestResponse } from './net';
 
 
@@ -193,7 +193,7 @@ class Spear {
         
         else {
             //@ts-ignore
-            this._adapter = { kind: 'uWs', server: adapter };
+            this._adapter = { kind: 'uWS', server: adapter };
         }
 
         this._parser.useAdater(this._adapter);
@@ -1162,7 +1162,7 @@ class Spear {
 
                 netAdaptRequestResponse(socket, (req, res) => {
                     if (cors) cors(req, res);
-                    this._router.lookup(req, res) 
+                   return lookup(req, res);
                 })
 
             }) as unknown as Server;
@@ -1200,7 +1200,7 @@ class Spear {
 
         const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
             if (cors) cors(req, res);
-            this._router.lookup(req,res)
+            return lookup(req, res);
         })
 
         if (this._ws?.handler) {
