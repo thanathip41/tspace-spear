@@ -365,8 +365,11 @@ export class ParserFactory {
         spec.tags = [];
 
         if (doc.responses != null) {
+
           const responses: Record<string, any> = {};
+
           for (const response of Array.from(doc.responses ?? [])) {
+
             if (response == null || !Object.keys(response).length) continue;
 
             responses[`${response.status}`] = {
@@ -398,29 +401,15 @@ export class ParserFactory {
           };
         }
 
-        if (swagger != null) {
+        if(swagger == null) {
           spec.tags = [
-            swagger.tags == null
-              ? tags == null || tags === "" || /^:[^:]*$/.test(tags)
-                ? "default"
-                : tags
-              : swagger.tags,
+            tags == null || tags === "" || /^:[^:]*$/.test(tags)
+              ? "default"
+              : tags,
           ];
 
-          if (swagger.bearerToken) {
-            spec.security = [{ BearerToken: [] }];
-          }
-
-          if (swagger.summary != null) {
-            spec.summary = swagger.summary;
-          }
-
-          if (swagger.description != null) {
-            spec.description = swagger.description;
-          }
-
           if (Array.isArray(r.params) && Array.from(r.params).length) {
-            spec.parameters = Array.from(r?.params).map((p) => {
+            spec.parameters = Array.from(r.params).map((p) => {
               return {
                 name: p,
                 in: "path",
@@ -430,112 +419,6 @@ export class ParserFactory {
                 },
               };
             });
-          }
-
-          if (swagger.query != null) {
-            spec.parameters = [
-              ...spec.parameters,
-              ...Object.entries(swagger.query).map(([k, v]) => {
-                return {
-                  name: k,
-                  in: "query",
-                  required: v.required == null ? false : true,
-                  schema: {
-                    type: v.type,
-                  },
-                };
-              }),
-            ];
-          }
-
-          if (swagger.cookies != null) {
-            spec.parameters = [
-              ...spec.parameters,
-              ...[
-                {
-                  name: "Cookie",
-                  in: "header",
-                  required: swagger.cookies.required == null ? false : true,
-                  schema: {
-                    type: "string",
-                  },
-                  example: swagger.cookies.names
-                    .map((v, i) => `${v}={value${i + 1}}`)
-                    .join(" ; "),
-                  description: swagger.cookies?.description,
-                },
-              ],
-            ];
-          }
-
-          if (swagger.body != null) {
-            spec.requestBody = {
-              description:
-                swagger.body?.description == null
-                  ? "description"
-                  : swagger.body.description,
-              required: swagger.body?.required == null ? false : true,
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: swagger.body.properties,
-                  },
-                },
-              },
-            };
-          }
-
-          if (swagger.files != null) {
-            spec.requestBody = {
-              description:
-                swagger.files?.description == null
-                  ? "description"
-                  : swagger.files.description,
-              required: swagger.files?.required ?? false,
-              content: {
-                "multipart/form-data": {
-                  schema: {
-                    type: "object",
-                    properties: swagger.files.properties,
-                  },
-                },
-              },
-            };
-          }
-
-          if (swagger.responses != null) {
-            const responses: Record<string, any> = {};
-            for (const response of swagger.responses) {
-              if (response == null || !Object.keys(response).length) continue;
-
-              responses[`${response.status}`] = {
-                description: response.description,
-                content: {
-                  "application/json": {
-                    schema: {
-                      type: "object",
-                      properties:
-                        response.example == null
-                          ? {}
-                          : Object.keys(response.example).reduce(
-                              (prev: Record<string, any>, key: string) => {
-                                prev[key] = {
-                                  example: (response?.example ?? {})[key] ?? {},
-                                };
-                                return prev;
-                              },
-                              {},
-                            ),
-                    },
-                  },
-                },
-              };
-            }
-
-            spec.responses = {
-              ...responses,
-            };
           }
 
           if (!Object.keys(spec.responses).length) {
@@ -548,13 +431,27 @@ export class ParserFactory {
         }
 
         spec.tags = [
-          tags == null || tags === "" || /^:[^:]*$/.test(tags)
-            ? "default"
-            : tags,
+          swagger.tags == null
+            ? tags == null || tags === "" || /^:[^:]*$/.test(tags)
+              ? "default"
+              : tags
+            : swagger.tags,
         ];
 
+        if (swagger.bearerToken) {
+          spec.security = [{ BearerToken: [] }];
+        }
+
+        if (swagger.summary != null) {
+          spec.summary = swagger.summary;
+        }
+
+        if (swagger.description != null) {
+          spec.description = swagger.description;
+        }
+
         if (Array.isArray(r.params) && Array.from(r.params).length) {
-          spec.parameters = Array.from(r.params).map((p) => {
+          spec.parameters = Array.from(r?.params).map((p) => {
             return {
               name: p,
               in: "path",
@@ -564,6 +461,119 @@ export class ParserFactory {
               },
             };
           });
+        }
+
+        if (swagger.query != null) {
+          spec.parameters = [
+            ...spec.parameters,
+            ...Object.entries(swagger.query).map(([k, v]) => {
+              return {
+                name: k,
+                in: "query",
+                required: v.required === true ? true : false,
+                schema: {
+                  type: v.type,
+                },
+              };
+            }),
+          ];
+        }
+
+        if (swagger.cookies != null) {
+          spec.parameters = [
+            ...spec.parameters,
+            ...[
+              {
+                name: "Cookie",
+                in: "header",
+                required: swagger.cookies.required === true ? true : false,
+                schema: {
+                  type: "string",
+                },
+                example: swagger.cookies.names
+                  .map((v, i) => `${v}={value${i + 1}}`)
+                  .join(" ; "),
+                description: swagger.cookies?.description,
+              },
+            ],
+          ];
+        }
+
+        if (swagger.body != null) {
+
+          spec.requestBody = {
+            description: swagger.body?.description == null
+                ? "description"
+                : swagger.body.description,
+
+            required: swagger.body?.required === true ? true : false,
+
+            content: {
+              "application/json": {
+                schema: {
+                  type       : "object",
+                  properties : swagger.body.properties,
+                  required   : Object.entries(swagger.body.properties)
+                    .filter(([_, v]) => v.required)
+                    .map(([key]) => key)
+                },
+              },
+            },
+          };
+        }
+
+        if (swagger.files != null) {
+
+          spec.requestBody = {
+            description: swagger.files?.description == null
+                ? "description"
+                : swagger.files.description,
+
+            required: swagger.files?.required === true ? true : false,
+
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  properties: swagger.files.properties,
+                },
+              },
+            },
+          };
+        }
+
+        if (swagger.responses != null) {
+          const responses: Record<string, any> = {};
+          for (const response of swagger.responses) {
+            if (response == null || !Object.keys(response).length) continue;
+
+            responses[`${response.status}`] = {
+              description: response.description,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties:
+                      response.example == null
+                        ? {}
+                        : Object.keys(response.example).reduce(
+                            (prev: Record<string, any>, key: string) => {
+                              prev[key] = {
+                                example: (response?.example ?? {})[key] ?? {},
+                              };
+                              return prev;
+                            },
+                            {},
+                          ),
+                  },
+                },
+              },
+            };
+          }
+
+          spec.responses = {
+            ...responses,
+          };
         }
 
         if (!Object.keys(spec.responses).length) {

@@ -57,7 +57,7 @@ class Spear {
         path : '/api/docs',
         servers : [
             {
-                url : 'http://localhost:3000'
+                url : '/'
             }
         ],
         tags : [],

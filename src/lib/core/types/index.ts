@@ -319,6 +319,24 @@ type TSwaggerDoc = {
     }[]
 }
 
+type TSwaggerPropertyOptions = {
+    type: "array";
+    items: TSwaggerPropertyOptions; 
+    enum?: never;               
+    required?: boolean;
+    example?: any;
+    description?: string;
+    format?: TSwaggerFormat;
+} | {
+    type?: Exclude<TSwaggerType, "array">;
+    enum?: (string | number)[];
+    required?: boolean;
+    example?: any;
+    description?: string;
+    format?: TSwaggerFormat;
+    items?: never;
+};
+
 type TSwagger = {
     disabled ?: boolean
     // --
@@ -326,34 +344,17 @@ type TSwagger = {
     summary ?: string,
     bearerToken ?: boolean
     tags        ?: string[]
-    params ?: Record<string , {
-        description ?: string,
-        type ?: TSwaggerType
-        example ?: any
-    }>
-    query ?: Record<string , {
-        required ?: boolean,
-        description ?: string,
-        type ?: TSwaggerType
-        example ?: any
-    }>
+    params ?: Record<string , TSwaggerPropertyOptions>
+    query ?: Record<string , TSwaggerPropertyOptions>
     body  ?: {
         required ?: boolean,
         description ?: string,
-        properties : Record<string , {
-            type : TSwaggerType
-            example ?: any
-        }>
+        properties : Record<string , TSwaggerPropertyOptions>
     }
     files  ?: {
         required ?: boolean,
         description ?: string,
-        properties : Record<string , {
-            type : TSwaggerType
-            format ?: TSwaggerFormat,
-            items ?: any,
-            example ?: any
-        }>
+        properties : Record<string , TSwaggerPropertyOptions>
     }
     cookies ?: {
         names : string[],

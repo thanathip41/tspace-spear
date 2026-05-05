@@ -774,7 +774,22 @@ class CatController {
         name :  {
           type : 'string',
           example : "xxxxx"
-        }
+        },
+        status :  {
+            type : 'string',
+            example: "active",
+            enum: ['active', 'inactive'],
+            description: "User status (active = enabled, inactive = disabled)",
+            required : true
+        },
+        roles: {
+            type: 'array',
+            items : {
+                type: 'string',
+                example: "roleA",
+                enum: ['roleA', 'roleB']
+            }
+        },
       }
     }
   })
