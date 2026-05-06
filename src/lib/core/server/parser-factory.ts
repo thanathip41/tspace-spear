@@ -450,7 +450,27 @@ export class ParserFactory {
           spec.description = swagger.description;
         }
 
-        if (Array.isArray(r.params) && Array.from(r.params).length) {
+        if(swagger.params != null) {
+          const params = Object.entries(swagger.params).map(([k, v]) => {
+            return {
+              name: k,
+              in: "path",
+              required: v?.required === true,
+              description: v?.description,
+              example: v?.example || v?.enum,
+              schema: {
+                type: v?.type ?? "string",
+              }
+            }
+          });
+
+          spec.parameters = [
+            ...(spec.parameters ?? []),
+            ...params,
+          ];
+        }
+
+        else if (Array.isArray(r.params) && Array.from(r.params).length) {
           spec.parameters = Array.from(r?.params).map((p) => {
             return {
               name: p,
@@ -464,18 +484,22 @@ export class ParserFactory {
         }
 
         if (swagger.query != null) {
+          const queryParams = Object.entries(swagger.query).map(([k, v]) => {
+            return {
+              name: k,
+              in: "query",
+              required: v?.required === true,
+              description: v?.description,
+              example: v?.example || v?.enum,
+              schema: {
+                type: v?.type ?? "string",
+              }
+            }
+          });
+
           spec.parameters = [
-            ...spec.parameters,
-            ...Object.entries(swagger.query).map(([k, v]) => {
-              return {
-                name: k,
-                in: "query",
-                required: v.required === true ? true : false,
-                schema: {
-                  type: v.type,
-                },
-              };
-            }),
+            ...(spec.parameters ?? []),
+            ...queryParams,
           ];
         }
 
@@ -486,7 +510,7 @@ export class ParserFactory {
               {
                 name: "Cookie",
                 in: "header",
-                required: swagger.cookies.required === true ? true : false,
+                required: swagger.cookies.required === true,
                 schema: {
                   type: "string",
                 },
@@ -502,12 +526,8 @@ export class ParserFactory {
         if (swagger.body != null) {
 
           spec.requestBody = {
-            description: swagger.body?.description == null
-                ? "description"
-                : swagger.body.description,
-
-            required: swagger.body?.required === true ? true : false,
-
+            description: swagger.body.description,
+            required: swagger.body?.required === true,
             content: {
               "application/json": {
                 schema: {
@@ -525,12 +545,8 @@ export class ParserFactory {
         if (swagger.files != null) {
 
           spec.requestBody = {
-            description: swagger.files?.description == null
-                ? "description"
-                : swagger.files.description,
-
-            required: swagger.files?.required === true ? true : false,
-
+            description: swagger.files.description,
+            required: swagger.files?.required === true,
             content: {
               "multipart/form-data": {
                 schema: {
