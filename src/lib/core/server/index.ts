@@ -1016,7 +1016,7 @@ class Spear {
             const errorMessage = err?.message || NEXT_MESSAGE
             
             if(this._errorHandler != null) {
-                return this._errorHandler(new Error(errorMessage), ctx);
+                return this._errorHandler(err, ctx);
             }
 
             if(!ctx.res.headersSent) {
