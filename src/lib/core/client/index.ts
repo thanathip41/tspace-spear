@@ -1,6 +1,7 @@
 import type { AppRoutes } from "../compiler/pre-routes";
 
 import type {
+  AnyRoutes,
   RoutesWithMethod,
   RequestBody,
   RequestQuery,
@@ -10,23 +11,32 @@ import type {
 } from "../compiler/types";
 
 type RequestInput<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
 > =
-  RequestParams<TPath, TMethod> extends never
+  RequestParams<TRoutes,TPath,TMethod> extends never
     ? {
-        body?: RequestBody<TPath, TMethod>;
-        query?: RequestQuery<TPath, TMethod>;
-        files?: RequestFiles<TPath, TMethod>;
+        params ?: never;
+
+        query  ?: RequestQuery<TRoutes,TPath,TMethod>;
+
+        body   ?: RequestBody<TRoutes,TPath,TMethod>;
+
+        files  ?: RequestFiles<TRoutes,TPath,TMethod>;
       }
     : {
-        params: RequestParams<TPath, TMethod>;
-        body?: RequestBody<TPath, TMethod>;
-        query?: RequestQuery<TPath, TMethod>;
-        files?: RequestFiles<TPath, TMethod>;
-      };
+        params : RequestParams<TRoutes,TPath,TMethod>;
 
-export class ApiClient {
+        query  ?: RequestQuery<TRoutes,TPath,TMethod>;
+
+        body   ?: RequestBody<TRoutes,TPath,TMethod>;
+
+        files  ?: RequestFiles<TRoutes,TPath,TMethod>;
+      };
+class ApiClient<
+  TRoutes extends AnyRoutes = AppRoutes,
+> {
   private baseURL: string;
 
   constructor(baseURL: string) {
@@ -34,72 +44,190 @@ export class ApiClient {
   }
 
   protected async request<
-    TPath extends keyof AppRoutes,
-    TMethod extends keyof AppRoutes[TPath],
+    TPath extends keyof TRoutes,
+    TMethod extends keyof TRoutes[TPath],
   >(
     method: TMethod,
     path: TPath,
-    input?: RequestInput<TPath, TMethod>,
-  ): Promise<ResponseType<TPath, TMethod>> {
-    const url = this.baseURL + path;
+    input?: RequestInput<
+      TRoutes,
+      TPath,
+      TMethod
+    >,
+  ): Promise<{
+    ok     : boolean;
+    status : number;
+    data   : ResponseType<
+      TRoutes,
+      TPath,
+      TMethod
+    >  
+  }> {
+    
+      let url = this.baseURL + (path as string)
+
+   
+      if (input?.params) {
+        for (const key in input.params) {
+          url = url.replace(
+            `:${key}`,
+            encodeURIComponent((input.params as any)[key])
+          )
+        }
+      }
+
+      if (input?.query) {
+        const queryString = new URLSearchParams(
+          input.query as any
+        ).toString()
+
+        if (queryString) {
+          url += `?${queryString}`
+        }
+      }
 
     const res = await fetch(url, {
       method: method as string,
+
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type":
+          "application/json",
       },
-      body: input?.body ? JSON.stringify(input.body) : undefined,
+
+      body: input?.body
+        ? JSON.stringify(input.body)
+        : undefined,
     });
 
-    const contentType = res.headers.get("content-type");
+    const contentType =
+      res.headers.get("content-type");
 
-    const isJson = contentType?.includes("application/json");
-
-    const data = isJson ? await res.json() : await res.text();
-
-    if (!res.ok) {
-      throw new Error(
-        data?.message ||
-          data?.error ||
-          (typeof data === "string" ? data : `HTTP ${res.status}`),
+    const isJson =
+      contentType?.includes(
+        "application/json",
       );
+
+    const data = isJson
+      ? await res.json()
+      : await res.text();
+
+    // if (!res.ok) {
+    //   throw new Error(
+    //     data?.message ||
+    //       data?.error ||
+    //       (typeof data === "string"
+    //         ? data
+    //         : `HTTP ${res.status}`),
+    //   );
+    // }
+
+    return {
+      ok : res.ok,
+      status: res.status,
+      data,
     }
-
-    return data;
   }
 
-  public async get<TPath extends RoutesWithMethod<"GET">>(
+  public async get<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "GET"
+    >,
+  >(
     path: TPath,
-    input?: RequestInput<TPath, "GET">,
+    input?: RequestInput<
+      TRoutes,
+      TPath,
+      "GET"
+    >
   ) {
-    return this.request("GET", path, input);
+    return this.request(
+      "GET",
+      path,
+      input,
+    );
   }
 
-  public async post<TPath extends RoutesWithMethod<"POST">>(
+  public async post<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "POST"
+    >,
+  >(
     path: TPath,
-    input: RequestInput<TPath, "POST">,
+    input: RequestInput<
+      TRoutes,
+      TPath,
+      "POST"
+    >,
   ) {
-    return this.request("POST", path, input);
+    return this.request(
+      "POST",
+      path,
+      input,
+    );
   }
 
-  public async put<TPath extends RoutesWithMethod<"PUT">>(
+  public async put<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "PUT"
+    >,
+  >(
     path: TPath,
-    input: RequestInput<TPath, "PUT">,
+    input: RequestInput<
+      TRoutes,
+      TPath,
+      "PUT"
+    >,
   ) {
-    return this.request("PUT", path, input);
+    return this.request(
+      "PUT",
+      path,
+      input,
+    );
   }
 
-  public async patch<TPath extends RoutesWithMethod<"PATCH">>(
+  public async patch<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "PATCH"
+    >,
+  >(
     path: TPath,
-    input: RequestInput<TPath, "PATCH">,
+    input: RequestInput<
+      TRoutes,
+      TPath,
+      "PATCH"
+    >,
   ) {
-    return this.request("PATCH", path, input);
+    return this.request(
+      "PATCH",
+      path,
+      input,
+    );
   }
 
-  public async delete<TPath extends RoutesWithMethod<"DELETE">>(
+  public async delete<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "DELETE"
+    >,
+  >(
     path: TPath,
-    input?: RequestInput<TPath, "DELETE">,
+    input?: RequestInput<
+      TRoutes,
+      TPath,
+      "DELETE"
+    >,
   ) {
-    return this.request("DELETE", path, input);
+    return this.request(
+      "DELETE",
+      path,
+      input,
+    );
   }
 }
+
+export { ApiClient };
+export default ApiClient;

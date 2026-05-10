@@ -9,3 +9,5 @@ package-lock.json
 docs
 examples
 benchmark
+__tests-report__
+__tests__

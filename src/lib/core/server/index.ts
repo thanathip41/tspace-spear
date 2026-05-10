@@ -24,6 +24,7 @@ import { Response }        from './response';
 import { Compiler }        from '../compiler';
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
+import { AppRoutes } from '../compiler/pre-routes';
 
 /**
  * 
@@ -114,7 +115,13 @@ class Spear {
         if(cluster) this.useCluster(cluster);
         if(adapter) this.useAdater(adapter);
         if(globalPrefix) this.useGlobalPrefix(globalPrefix);
-      
+
+        if(!Array.isArray(this._controllers)) {
+            this._generateRoutes = {
+                folder : this._controllers?.folder!,
+                name : this._controllers?.name!
+            }
+        }
     }
 
     /**
@@ -136,7 +143,11 @@ class Spear {
         return this._router;
     }
 
-    public useGenerateRouteType (options : {
+    get contract () : AppRoutes {
+        return {} as AppRoutes
+    }
+
+    public useGenerateRouteTypes (options : {
         folder: string
         name: RegExp
     }) {
@@ -530,7 +541,6 @@ class Spear {
 
         return server
     }
-
     /**
      * The 'cors' is used to enable the cors origins on the server.
      * 

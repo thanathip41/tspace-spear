@@ -7,19 +7,6 @@ import http, {
 import WebSocket from "ws";
 import net from 'net';
 
-// type TContext = {
-//     req     : TRequest
-//     res     : TResponse
-//     headers : THeaders 
-//     query   : TQuery
-//     params  : TParams
-//     body    : TBody
-//     files   : TFileUpload
-//     cookies : TCookies
-//     ip      : TIp
-//     ips     : TIps
-// }
-
 type TContextBase = {
   req     : TRequest
   res     : TResponse
@@ -48,7 +35,7 @@ type THeaders<T = IncomingHttpHeaders> = {
 
 type TQuery<T = Record<string, string | undefined>> = T
 
-type TParams<T = Record<string, string | undefined>> = T
+type TParams<T = Record<string, string | number | undefined>> = T
 
 type TBody<T = Record<string,any>> = T
 

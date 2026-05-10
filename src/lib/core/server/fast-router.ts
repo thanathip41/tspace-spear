@@ -191,8 +191,10 @@ export class FastRouter {
     let node = this.trees[method];
 
     if (!node) {
+      if (res.writableEnded) {
+        return
+      }
       res.statusCode = 405;
-      console.log({ method })
       return res.end("Method Not Allowed");
     }
 
@@ -240,6 +242,9 @@ export class FastRouter {
           return rootWildcard.handler(req, res, params)
         }
 
+        if (res.writableEnded) {
+          return
+        }
 
         res.statusCode = 404;
         res.end("Not Found");
@@ -250,12 +255,16 @@ export class FastRouter {
      if (!node.handler) {
 
       if (rootWildcard?.handler) {
-        return rootWildcard.handler(req, res, params)
+        return rootWildcard.handler(req, res, params);
+      }
+
+      if (res.writableEnded) {
+        return;
       }
 
       res.statusCode = 404;
-
-      return res.end("Not Found");
+      res.end("Not Found");
+      return;
     }
 
     return node.handler(req, res, params)

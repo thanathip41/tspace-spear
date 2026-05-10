@@ -1,40 +1,81 @@
-import type { AppRoutes } from "./pre-routes";
+export type AnyRoutes = {
+  [key: string]: any;
+};
 
-export type RoutesWithMethod<TMethod extends string> = {
-  [K in keyof AppRoutes]: TMethod extends keyof AppRoutes[K] ? K : never;
-}[keyof AppRoutes];
+export type RoutesWithMethod<
+  TRoutes extends AnyRoutes,
+  TMethod extends string,
+> = {
+  [K in keyof TRoutes]:
+    TMethod extends keyof TRoutes[K]
+      ? K
+      : never;
+}[keyof TRoutes];
 
 export type ExtractFrom<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
   Key extends string,
-> = AppRoutes[TPath][TMethod] extends Record<Key, infer R> ? R : never;
+> =
+  TRoutes[TPath][TMethod] extends Record<
+    Key,
+    infer R
+  >
+    ? R
+    : never
 
 export type RequestBody<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
-> = ExtractFrom<TPath, TMethod, "body">;
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> = ExtractFrom<
+  TRoutes,
+  TPath,
+  TMethod,
+  "body"
+>;
 
 export type RequestQuery<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
-> = ExtractFrom<TPath, TMethod, "query">;
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> = ExtractFrom<
+  TRoutes,
+  TPath,
+  TMethod,
+  "query"
+>;
 
 export type RequestParams<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
-> = ExtractFrom<TPath, TMethod, "params">;
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> = ExtractFrom<
+  TRoutes,
+  TPath,
+  TMethod,
+  "params"
+>;
 
 export type RequestFiles<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
-> = ExtractFrom<TPath, TMethod, "files">;
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> = ExtractFrom<
+  TRoutes,
+  TPath,
+  TMethod,
+  "files"
+>;
 
 export type ResponseType<
-  TPath extends keyof AppRoutes,
-  TMethod extends keyof AppRoutes[TPath],
-> = AppRoutes[TPath][TMethod] extends {
-  response: infer R;
-}
-  ? Awaited<R>
-  : never;
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> =
+  TRoutes[TPath][TMethod] extends {
+    response: infer R;
+  }
+    ? Awaited<R>
+    : never;

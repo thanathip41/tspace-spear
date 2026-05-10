@@ -8,3 +8,4 @@ node_modules
 package-lock.json
 test.sh
 uploads
+__tests-report__

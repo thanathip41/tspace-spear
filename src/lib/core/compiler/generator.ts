@@ -70,7 +70,8 @@ export async function generateRoutes(options: Options) {
   const files = project.getSourceFiles()
 
   if (!files.length) {
-    throw new Error("No controller files found")
+    console.log("No controller files found")
+    return;
   }
 
   const routes: Route[] = []
