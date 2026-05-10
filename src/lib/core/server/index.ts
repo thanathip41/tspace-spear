@@ -116,11 +116,23 @@ class Spear {
         if(adapter) this.useAdater(adapter);
         if(globalPrefix) this.useGlobalPrefix(globalPrefix);
 
-        if(!Array.isArray(this._controllers)) {
+        // Ensure controllers is NOT an array and has the required shape
+        // before enabling automatic route generation (used for E2E typing).
+        const isValidControllerObject = 
+            controllers &&
+            !Array.isArray(controllers) &&
+            typeof controllers === "object" &&
+            "folder" in controllers &&
+            "name" in controllers &&
+            controllers.folder &&
+            controllers.name
+
+        if (isValidControllerObject) {
+            // Auto-generate route metadata for type-safe E2E usage;
             this._generateRoutes = {
-                folder : this._controllers?.folder!,
-                name : this._controllers?.name!
-            }
+                folder: controllers.folder!,
+                name: controllers.name!,
+            };
         }
     }
 

@@ -171,6 +171,7 @@ ${methodBlock}
     .join("\n")
 
   const output = `
+// @ts-nocheck
 // AUTO GENERATED FILE
 // DO NOT EDIT
 
