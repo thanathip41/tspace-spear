@@ -56,7 +56,8 @@
     "reflect-metadata": "0.2.2",
     "swagger-ui-dist": "5.32.0",
     "ws": "8.19.0",
-    "xml2js": "0.6.2"
+    "xml2js": "0.6.2",
+    "ts-morph": "28.0.0"
   },
   "devDependencies": {
     "@elysiajs/node": "1.4.5",

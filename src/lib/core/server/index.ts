@@ -21,10 +21,9 @@ import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import type { T }          from '../types';
 import { Response }        from './response';
+import { Compiler }        from '../compiler';
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
-
-
 
 /**
  * 
@@ -95,6 +94,11 @@ class Spear {
         }
     }
 
+    private _generateRoutes !: {
+        folder: string
+        name: RegExp
+    }
+
     constructor({
         controllers,
         middlewares,
@@ -130,6 +134,14 @@ class Spear {
      */
     get routers (): FastRouter {
         return this._router;
+    }
+
+    public useGenerateRouteType (options : {
+        folder: string
+        name: RegExp
+    }) {
+        this._generateRoutes = options;
+        return this;
     }
 
     /**
@@ -463,6 +475,10 @@ class Spear {
         }
 
         const server = await this._createServer();
+
+        if(this._generateRoutes) {
+            await new Compiler().generateRoutes(this._generateRoutes)
+        }
 
         if(
             this._cluster != null && 

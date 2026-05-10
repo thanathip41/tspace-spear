@@ -7,18 +7,37 @@ import http, {
 import WebSocket from "ws";
 import net from 'net';
 
-type TContext = {
-    req     : TRequest
-    res     : TResponse
-    headers : THeaders 
-    query   : TQuery
-    params  : TParams
-    body    : TBody
-    files   : TFileUpload
-    cookies : TCookies
-    ip      : TIp
-    ips     : TIps
+// type TContext = {
+//     req     : TRequest
+//     res     : TResponse
+//     headers : THeaders 
+//     query   : TQuery
+//     params  : TParams
+//     body    : TBody
+//     files   : TFileUpload
+//     cookies : TCookies
+//     ip      : TIp
+//     ips     : TIps
+// }
+
+type TContextBase = {
+  req     : TRequest
+  res     : TResponse
+  headers : THeaders
+  params  : TParams
+  cookies : TCookies
+  ip      : TIp
+  ips     : TIps
+
+  body    : TBody
+  query   : TQuery
+  files   : TFileUpload
 }
+
+type TContext<
+  Override extends Partial<Pick<TContextBase, "body" | "query" | "files" | "params">> = {}
+> =
+  Omit<TContextBase, keyof Override> & Override
 
 type TIp = string | null
 type TIps = string[]
@@ -376,12 +395,16 @@ type TWSHandler = {
 }
 
 export declare namespace T {
+    type Context<
+        O extends Partial<Pick<
+            TContextBase, "body" | "query" | "files" | "params">
+        > = {}
+    >                     = TContext<O>
     type Adapter          = TAdapter
     type AdapterServer    = TAdapterServer
     type Application      = TApplication
     type NextFunction     = TNextFunction
     type File             = TFile
-    type Context          = TContext
     type Router           = TRouter
     type Route            = TRoute
     type Method           = TMethod
