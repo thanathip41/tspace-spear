@@ -9,14 +9,16 @@ chai.use(chaiJsonSchema);
 const { expect } = chai;
 
 let server: Server;
-let api: ApiClient;
+let api: ApiClient<typeof app.contract>;
 
 describe("TSpear E2E Test", () => {
   before((done) => {
     app.listen(9090, ({ port , server : sCallback }) => {
       console.log(`server listening on http://localhost:${port}`);
       server = sCallback
-      api = new ApiClient(`http://localhost:${port}/api`);
+      api = new ApiClient(
+        `http://localhost:${port}/api`
+      );
       done();
     });
   });

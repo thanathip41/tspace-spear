@@ -1,5 +1,3 @@
-import type { AppRoutes } from "../compiler/pre-routes";
-
 import type {
   AnyRoutes,
   RoutesWithMethod,
@@ -35,7 +33,7 @@ type RequestInput<
         files  ?: RequestFiles<TRoutes,TPath,TMethod>;
       };
 class ApiClient<
-  TRoutes extends AnyRoutes = AppRoutes,
+  TRoutes extends AnyRoutes,
 > {
   private baseURL: string;
 
