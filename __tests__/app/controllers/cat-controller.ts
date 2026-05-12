@@ -33,8 +33,6 @@ const ValidateDtoBody = (schema: z.ZodTypeAny) => {
     ctx.body = result as T.Body;
   });
 };
-
-
 @Controller('/cats')
 class CatController {
   @Get('/')
@@ -84,6 +82,7 @@ class CatController {
   @Put('/:id')
   @ValidateDtoBody(catSchemaAction.partial())
   public async update({
+    res,
     params,
     body,
   }: T.Context<{
@@ -95,7 +94,7 @@ class CatController {
     const index = cats.findIndex((d) => d.id === id);
 
     if (index === -1) {
-      return { message: 'not found', cat: null };
+      return res.notFound('not found cat')
     }
 
     cats[index] = {
@@ -113,14 +112,19 @@ class CatController {
   }
 
   @Delete('/:id')
-  public async remove({ params }: T.Context<{ params: { id: number } }>) {
+  public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
     const id = Number(params.id);
 
-    const before = cats.length;
+    const index = cats.findIndex((d) => d.id === id);
+
+    if (index === -1) {
+      throw res.notFound('not found cat')
+    }
+
     cats = cats.filter((d) => d.id !== id);
 
     return {
-      message: before === cats.length ? 'not found' : 'deleted',
+      message: 'deleted',
     };
   }
 }

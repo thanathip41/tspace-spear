@@ -1,22 +1,30 @@
-import chai from "chai";
-import { describe, it, before, after } from "mocha";
+import { Server }     from 'http';
+import chai           from "chai";
 import chaiJsonSchema from "chai-json-schema";
-import { app } from "./app";
+import { 
+  describe, 
+  it, 
+  before, 
+  after 
+} from "mocha";
+
+import { app }       from "./app";
 import { ApiClient } from "../src/lib/core/client";
-import { Server } from 'http';
+
 
 chai.use(chaiJsonSchema);
 const { expect } = chai;
 
 let server: Server;
-let api: ApiClient<typeof app.contract>;
+let client: ApiClient<typeof app.contract>;
 
 describe("TSpear E2E Test", () => {
+  
   before((done) => {
     app.listen(9090, ({ port , server : sCallback }) => {
       console.log(`server listening on http://localhost:${port}`);
       server = sCallback
-      api = new ApiClient(
+      client = new ApiClient(
         `http://localhost:${port}/api`
       );
       done();
@@ -28,7 +36,7 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should get cats", async () => {
-    const res = await api.get("/cats");
+    const res = await client.get("/cats");
 
     expect(res.status).to.be.equal(200);
 
@@ -40,7 +48,7 @@ describe("TSpear E2E Test", () => {
 
   it("should create new cat id = 3", async () => {
 
-    const res = await api.post("/cats", { 
+    const res = await client.post("/cats", { 
       body : { 
         name : 'new cat' , 
         age : 1
@@ -57,7 +65,7 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should get cat by id 3", async () => {
-    const res = await api.get("/cats/:id", { params: { id : 3 }});
+    const res = await client.get("/cats/:id", { params: { id : 3 }});
 
     expect(res.status).to.be.equal(200);
 
@@ -69,14 +77,14 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should get cat by id 4", async () => {
-    const res = await api.get("/cats/:id", { params: { id : 4 }})
+    const res = await client.get("/cats/:id", { params: { id : 4 }})
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(404);
 
   });
 
   it("should update cat by id 3", async () => {
-    const res = await api.put("/cats/:id", { 
+    const res = await client.put("/cats/:id", { 
       params: { id : 3 },
       body : { name : 'update cat' , age : 5 }
     });
@@ -90,11 +98,21 @@ describe("TSpear E2E Test", () => {
 
   it("should delete cat by id 3", async () => {
 
-    const res = await api.delete("/cats/:id", { 
+    const res = await client.delete("/cats/:id", { 
       params: { id : 3 }
     });
     
     expect(res.data.message).to.deep.equal('deleted');
+  });
+
+  it("should delete cat by id 3 after deleted", async () => {
+
+    const res = await client.delete("/cats/:id", { 
+      params: { id : 3 }
+    });
+    
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(404);
   });
 
 });
