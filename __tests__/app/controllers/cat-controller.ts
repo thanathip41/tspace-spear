@@ -6,7 +6,7 @@ import {
   Post,
   Put,
   Delete,
-  createDtoDecorator,
+  createDtoDecorator
 } from "../../../src/lib";
 
 const catSchema = z.object({
@@ -33,6 +33,7 @@ const ValidateDtoBody = (schema: z.ZodTypeAny) => {
     ctx.body = result as T.Body;
   });
 };
+
 
 @Controller('/cats')
 class CatController {
@@ -92,8 +93,9 @@ class CatController {
     const id = Number(params.id);
 
     const index = cats.findIndex((d) => d.id === id);
+
     if (index === -1) {
-      return { message: 'not found' };
+      return { message: 'not found', cat: null };
     }
 
     cats[index] = {
@@ -102,9 +104,11 @@ class CatController {
       id
     };
 
+    const cat = cats[index]
+
     return {
       message: 'updated',
-      cat: cats[index],
+      cat,
     };
   }
 

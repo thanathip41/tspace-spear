@@ -1,4 +1,4 @@
-import { Project } from "ts-morph"
+import { ParameterDeclaration, Project, Type } from "ts-morph"
 import fs from "fs"
 import path from "path"
 
@@ -41,10 +41,187 @@ function normalizePath(p: string) {
   )
 }
 
+function splitTopLevel(input: string) {
+  const parts: string[] = [];
+
+  let current = "";
+  let depth = 0;
+
+  for (const char of input) {
+    if (char === "{") depth++;
+    if (char === "}") depth--;
+
+    if (char === ";" && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+
+  return parts;
+}
+
+function parseType(type: string): any {
+  type = type.trim();
+
+  if (type === "never") {
+    return null;
+  }
+
+  if (type.startsWith("Record")) {
+    return {};
+  }
+
+  if (type.startsWith("Partial<")) {
+    const inner = type
+      .replace(/^Partial</, "")
+      .replace(/>$/, "");
+
+    const parsed = parseType(inner);
+
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed)
+    ) {
+      for (const key in parsed) {
+        parsed[key] =
+          parsed[key] + " | null";
+      }
+    }
+
+    return parsed;
+  }
+
+  if (type.startsWith("Promise<")) {
+    const inner = type
+      .replace(/^Promise</, "")
+      .replace(/>$/, "");
+
+    return parseType(inner);
+  }
+
+  if (type.endsWith("[]")) {
+    return [parseType(type.slice(0, -2))];
+  }
+
+  if (
+    type.startsWith("{") &&
+    type.endsWith("}")
+  ) {
+    const result: Record<string, any> = {};
+
+    const content = type.slice(1, -1);
+
+    const fields = splitTopLevel(content)
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    for (const field of fields) {
+      const match =
+        field.match(/^(\w+)(\??):\s*(.+)$/);
+
+      if (!match) continue;
+
+      const [, key, optional, value] = match;
+
+      let parsed;
+
+      if (value === "string") {
+        parsed = optional
+          ? "string | null"
+          : "string";
+      } else if (value === "number") {
+        parsed = optional
+          ? "number | null"
+          : "number";
+      } else if (value === "boolean") {
+        parsed = optional
+          ? "boolean | null"
+          : "boolean";
+      } else {
+        parsed = parseType(value);
+      }
+
+      result[key] = parsed;
+    }
+
+    return result;
+  }
+
+  if (type === "string") return "string";
+  if (type === "number") return "number";
+  if (type === "boolean") return "boolean";
+
+  if(type === "string | undefined") return "string";
+  if(type === "number | undefined") return "number";
+  if(type === "boolean | undefined") return "boolean";
+
+  if(type.includes("| undefined")) {
+    return type
+  }
+
+  if(type.includes("| null")) {
+    return type
+  }
+
+  // fallback
+  return {
+    $ref: type
+  };
+}
+
+function resolveType(type: Type): string {
+
+  if (type.getSymbol()?.getName() === "Promise") {
+    type = type.getTypeArguments()[0];
+  }
+
+  if (type.isString()) return "string";
+  if (type.isNumber()) return "number";
+  if (type.isBoolean()) return "boolean";
+  if (type.isNull()) return "null";
+  if (type.isUndefined()) return "undefined";
+  if (type.isAny()) return "any";
+  if (type.isUnknown()) return "unknown";
+
+  if (type.isArray()) {
+    const el = type.getArrayElementTypeOrThrow();
+    return `${resolveType(el)}[]`;
+  }
+
+  const props = type.getProperties();
+
+  if (props.length) {
+    const obj: string[] = [];
+
+    for (const prop of props) {
+      const decl = prop.getDeclarations()[0];
+      if (!decl) continue;
+
+      const propType = prop.getTypeAtLocation(decl);
+
+      obj.push(
+        `${prop.getName()}: ${resolveType(propType)}`
+      );
+    }
+
+    return `{ ${obj.join("; ")} }`;
+  }
+
+  return type.getText();
+}
+
 function extractPropertyType(
-  type: any,
+  type: Type,
   key: string,
-  node: any
+  node: ParameterDeclaration
 ) {
   const prop = type.getProperty(key)
   if (!prop) return "never"
@@ -55,7 +232,7 @@ function extractPropertyType(
 
   if (!text || text.includes("undefined")) return "never"
 
-  return text
+  return resolveType(t) ?? "never";
 }
 
 export async function generateRoutes(options: Options) {
@@ -103,8 +280,8 @@ export async function generateRoutes(options: Options) {
 
           const fullPath = normalizePath(`${basePath}/${methodPath}`)
 
-          const response = method.getReturnType().getText(method)
-
+          const response = resolveType(method.getReturnType())
+          
           let body = "never"
           let params = "never"
           let query = "never"
@@ -136,6 +313,22 @@ export async function generateRoutes(options: Options) {
   }
 
   const grouped: Record<string, any> = {}
+  
+  const grouped1 = routes.reduce((acc, route) => {
+    if (!acc[route.path]) {
+      acc[route.path] = {};
+    }
+
+    acc[route.path][route.method] = {
+      params: parseType(route.params),
+      query: parseType(route.query),
+      body: parseType(route.body),
+      files: parseType(route.files),
+      response: parseType(route.response),
+    };
+
+    return acc;
+  }, {} as Record<string, any>);
 
   for (const r of routes) {
     grouped[r.path] ??= {}
@@ -174,6 +367,8 @@ ${methodBlock}
 // @ts-nocheck
 // AUTO GENERATED FILE
 // DO NOT EDIT
+
+export const appRoutes = ${JSON.stringify(grouped1,null,2)}
 
 export interface AppRoutes {
 ${routeMap}

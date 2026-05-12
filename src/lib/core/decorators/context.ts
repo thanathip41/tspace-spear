@@ -88,7 +88,7 @@ export function createContextDecorator(
  * }
  * ```
  *
- * @param {...string} bodyParms - Body field names to extract.
+ * @param {...string} keys - Body field names to extract.
  * @returns {MethodDecorator}
  */
 export const Body = (...keys: string[]) : MethodDecorator => {
@@ -223,3 +223,110 @@ export const Cookies = (...keys: string[]): MethodDecorator => {
         return await next();
     });
 };
+
+/**
+ * Validates required fields from a request target.
+ *
+ * @param keys - List of required field names.
+ * @param options - Validation options.
+ * @param options.target - Request source to validate.
+ * Defaults to `"body"`.
+ * 
+ * @param options.required - Enables required-value validation.
+ *
+ * - `true`
+ *   - Rejects `null`
+ *   - Rejects empty strings (`""`)
+ *
+ * - `object`
+ *   - Allows customizing required rules.
+ *
+ * @param options.required.allowNull - Allow `null` values.
+ * Default: `false`
+ *
+ * @param options.required.allowEmptyString - Allow empty string values.
+ * Default: `false`
+ * @returns {MethodDecorator}
+ *
+ * @throws {Object} Throws a validation error object when
+ * one or more required fields are missing.
+ *
+ * @example
+ * ```ts
+ * \@Validate(["email", "password"], {
+ *   required: {
+ *     allowEmptyString : true,
+ *     allowNull        : false
+ *   }
+ * });
+ * ```
+ *
+ * @example
+ * ```ts
+ * \@Validate(["id"], { target: "query" });
+ * ```
+ */
+export const Validate = ( keys: string[], { target, required } : { 
+    target ?: 
+    | 'params' 
+    | 'query' 
+    | 'body' 
+    | 'files'
+
+    required ?: boolean | {
+        allowNull?: boolean;
+        allowEmptyString?: boolean;
+    }
+
+} = {}): MethodDecorator => {
+
+    return createDtoDecorator((ctx) => {
+        const payload = ctx[target ?? 'body'] ?? {};
+        const issues: { path: string; message: string }[] = [];
+        const requiredOpts = typeof required === "object"
+            ? required
+            : {};
+
+        const allowNull = requiredOpts.allowNull ?? false;
+
+        const allowEmptyString = requiredOpts.allowEmptyString ?? false;
+
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const value = payload[key]
+            if (value === undefined) {
+                issues.push({
+                    path: key,
+                    message: "Missing field",
+                });
+
+                continue;
+            }
+
+             if (required) {
+                const isNull = value === null && !allowNull;
+
+                const isEmptyString =
+                    typeof value === "string" &&
+                    value.trim() === "" &&
+                    !allowEmptyString;
+
+                if (isNull || isEmptyString) {
+                    issues.push({
+                        path: key,
+                        message: "Field is required",
+                    });
+                }
+            }
+        }
+
+        if (issues.length) {
+            throw {
+                message : "Validation failed",
+                issues
+            }
+        }
+
+        return;
+    });
+}

@@ -32,6 +32,22 @@ type RequestInput<
 
         files  ?: RequestFiles<TRoutes,TPath,TMethod>;
       };
+
+let fetchFn: typeof fetch | null = null;
+
+async function getFetch() {
+  if (fetchFn) return fetchFn;
+
+  if (globalThis.fetch) {
+    fetchFn = globalThis.fetch;
+    return fetchFn;
+  }
+
+  const mod = await import("node-fetch");
+  fetchFn = mod.default as unknown as typeof fetch;
+
+  return fetchFn;
+}
 class ApiClient<
   TRoutes extends AnyRoutes,
 > {
@@ -84,7 +100,13 @@ class ApiClient<
         }
       }
 
-    const res = await fetch(url, {
+    fetchFn = await getFetch();
+
+    if (!fetchFn) {
+      throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
+    }
+
+    const res = await fetchFn(url, {
       method: method as string,
 
       headers: {

@@ -281,7 +281,8 @@ export class ParserFactory {
     return cookies;
   }
 
-  public swagger(doc: T.Swagger.Doc) {
+  public async swagger(doc: T.Swagger.Doc) {
+
     const spec = {
       openapi: "3.1.0",
       info: doc.info ?? {
@@ -310,6 +311,8 @@ export class ParserFactory {
       paths: {},
     };
 
+    const { appRoutes } = await import("../compiler/pre-routes");
+
     const specPaths = (routes: T.Route[]) => {
       let paths: Record<string, any> = {};
 
@@ -330,12 +333,16 @@ export class ParserFactory {
           },
         },
       };
+      
 
       for (const r of routes) {
         if (r.path === "*") continue;
 
         const path = r.path.replace(/:(\w+)/g, "{$1}");
         const method = r.method.toLowerCase();
+
+        //@ts-ignore
+        const preRoute = appRoutes[r.path]?.[r.method];
 
         const swagger = (doc.specs ?? []).find((s) => {
           return s.path === r.path && s.method.toLowerCase() === method;
@@ -469,7 +476,28 @@ export class ParserFactory {
             ...params,
           ];
         }
+        else if (preRoute && preRoute.params) {
 
+           if(preRoute) {
+            const queryParams = Object.entries(preRoute.params ?? {}).map(([k, v]) => {
+              return {
+                name: k,
+                in: "path",
+                required: false,
+                description: `Params for '${k}'`,
+                example: v,
+                schema: {
+                  type: v
+                }
+              }
+            });
+
+            spec.parameters = [
+              ...(spec.parameters ?? []),
+              ...queryParams,
+            ];
+          }
+        }
         else if (Array.isArray(r.params) && Array.from(r.params).length) {
           spec.parameters = Array.from(r?.params).map((p) => {
             return {
@@ -501,6 +529,29 @@ export class ParserFactory {
             ...(spec.parameters ?? []),
             ...queryParams,
           ];
+        } else {
+
+          if(preRoute && Object.keys(preRoute.query ?? {}).length) {
+            
+            const queryParams = Object.entries(preRoute.query ?? {}).map(([k, v]) => {
+              return {
+                name: k,
+                in: "query",
+                required: false,
+                description: `QueryParams for '${k}'`,
+                example: v,
+                schema: {
+                  type: v,
+                }
+              }
+            });
+
+            spec.parameters = [
+              ...(spec.parameters ?? []),
+              ...queryParams,
+            ];
+          }
+          
         }
 
         if (swagger.cookies != null) {
@@ -540,6 +591,35 @@ export class ParserFactory {
               },
             },
           };
+        } else {
+
+          if(preRoute && Object.keys(preRoute.body ?? {}).length) {
+
+            const properties = Object.fromEntries(
+              Object.entries(preRoute.body ?? {}).map(([key, value]) => [
+                key,
+                {
+                  type: value,
+                  example: value,
+                },
+              ])
+            );
+            spec.requestBody = {
+              description: `Body payload`,
+              required: false,
+              content: {
+                "application/json": {
+                  schema: {
+                    type       : "object",
+                    properties : properties,
+                    required   : false
+                  }
+                },
+              },
+            }
+           
+          }
+          
         }
 
         if (swagger.files != null) {
@@ -556,6 +636,36 @@ export class ParserFactory {
               },
             },
           };
+        } else {
+
+          if(preRoute && Object.keys(preRoute.files ?? {}).length) {
+
+            const properties = Object.fromEntries(
+              Object.entries(preRoute.files ?? {}).map(([key, value]) => [
+                key,
+                {
+                  type: value,
+                  format:"binary",
+                  example: value,
+                },
+              ])
+            );
+
+            spec.requestBody = {
+              description: `File Upload payload`,
+              required: false,
+              content: {
+                 "multipart/form-data": {
+                  schema: {
+                    type: "object",
+                    properties: properties,
+                  },
+                },
+              },
+            }
+           
+          }
+          
         }
 
         if (swagger.responses != null) {
@@ -590,7 +700,39 @@ export class ParserFactory {
           spec.responses = {
             ...responses,
           };
+        } else {
+
+          if(preRoute && Object.keys(preRoute.response ?? {}).length) {
+            
+            const responses: Record<string, any> = {};
+            
+              responses["200"] = {
+                description: null,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: Object.keys(preRoute.response ?? {}).reduce(
+                          (prev: Record<string, any>, key: string) => {
+                            prev[key] = {
+                              example: (preRoute.response ?? {})[key] ?? {},
+                            };
+                            return prev;
+                          },
+                          {},
+                        )
+                    },
+                  },
+                },
+              };
+
+            spec.responses = {
+              ...responses,
+            };
+          }
+          
         }
+
 
         if (!Object.keys(spec.responses).length) {
           spec.responses = defaultSpecResponse;

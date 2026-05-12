@@ -44,7 +44,7 @@ import { AppRoutes } from '../compiler/pre-routes';
  */
 class Spear {
 
-    private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp};
+    private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp, preRouteTypes ?: boolean};
     private readonly _middlewares ?: T.ContextHandler[] | { folder : string , name ?: RegExp};
     private readonly _router : FastRouter = new FastRouter(); 
     private readonly _parser = new ParserFactory();
@@ -124,8 +124,10 @@ class Spear {
             typeof controllers === "object" &&
             "folder" in controllers &&
             "name" in controllers &&
+            "preRouteTypes" in controllers &&
             controllers.folder &&
-            controllers.name
+            controllers.name &&
+            controllers.preRouteTypes
 
         if (isValidControllerObject) {
             // Auto-generate route metadata for type-safe E2E usage;
@@ -518,11 +520,11 @@ class Spear {
  
         if (this._adapter.kind === 'uWS') {
 
-            const handler = () => {
+            const handler = async () => {
                 this._onListeners.forEach(listener => listener());
 
                 if (this._swagger.use) {
-                    this._swaggerHandler();
+                    await this._swaggerHandler();
                 }
 
                 callback?.({ server, port });
@@ -543,11 +545,11 @@ class Spear {
 
         server.listen(...args);
 
-        server.on('listening', () => {
+        server.on('listening', async () => {
             this._onListeners.forEach(listener => listener())
 
             if(this._swagger.use) {
-                this._swaggerHandler()
+                await this._swaggerHandler()
             }
         })
 
@@ -1348,7 +1350,7 @@ class Spear {
             : normalizedPath
     }
 
-    private _swaggerHandler () {
+    private async _swaggerHandler () {
 
         const routes = (this.routers as unknown as { routes : any[]})
         .routes
@@ -1366,7 +1368,7 @@ class Spear {
             html, 
             staticSwaggerHandler, 
             staticUrl 
-        } = this._parser.swagger({
+        } = await this._parser.swagger({
             ...this._swagger,
             specs : this._swaggerSpecs,
             routes
