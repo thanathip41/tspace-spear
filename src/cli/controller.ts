@@ -137,7 +137,7 @@ export default class CatController {
     );
 
     if (index === -1) {
-      thorw res.notFound(
+      throw res.notFound(
         "Cat not found"
       );
     }

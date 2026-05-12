@@ -58,7 +58,7 @@ function createApp(targetPath?: string) {
     path.join(
       root,
       "controllers",
-      "home.controller.ts"
+      "cat.controller.ts"
     ),CatController
   );
 
