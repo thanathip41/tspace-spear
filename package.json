@@ -7,6 +7,9 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "tspace-spear": "./dist/cli/index.js"
+  },
   "type": "commonjs",
   "repository": {
     "type": "git",
