@@ -22,9 +22,11 @@ import { Router }          from './router';
 import type { T }          from '../types';
 import { Response }        from './response';
 import { Compiler }        from '../compiler';
+import { AppRoutes }       from '../compiler/pre-routes';
+
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
-import { AppRoutes } from '../compiler/pre-routes';
+
 
 /**
  * 
@@ -95,7 +97,7 @@ class Spear {
         }
     }
 
-    private _generateRoutes !: {
+    private _generatePreRouteTypes !: {
         folder: string
         name: RegExp
     }
@@ -131,7 +133,7 @@ class Spear {
 
         if (isValidControllerObject) {
             // Auto-generate route metadata for type-safe E2E usage;
-            this._generateRoutes = {
+            this._generatePreRouteTypes = {
                 folder: controllers.folder!,
                 name: controllers.name!,
             };
@@ -161,11 +163,19 @@ class Spear {
         return {} as AppRoutes
     }
 
-    public useGenerateRouteTypes (options : {
+    /**
+     * The 'usePreRouteTypes' method is used to create pre routes for e2e and swagger
+     * 
+     * @param {{object}} options options
+     * @property {string} options.folder
+     * @property {RegExp} options.name
+     * @returns {this}
+     */
+    public usePreRouteTypes (options : {
         folder: string
         name: RegExp
-    }) {
-        this._generateRoutes = options;
+    }): this {
+        this._generatePreRouteTypes = options;
         return this;
     }
 
@@ -501,8 +511,8 @@ class Spear {
 
         const server = await this._createServer();
 
-        if(this._generateRoutes) {
-            await new Compiler().generateRoutes(this._generateRoutes)
+        if(this._generatePreRouteTypes) {
+            await new Compiler().generateRoutes(this._generatePreRouteTypes)
         }
 
         if(

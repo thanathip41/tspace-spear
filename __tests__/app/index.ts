@@ -4,7 +4,8 @@ export const app = new Spear({
     logger : true,
     controllers: {
         folder : `${__dirname}/controllers`,
-        name:/controller\.(ts|js)$/i
+        name:/controller\.(ts|js)$/i,
+        preRouteTypes: true
     }
 })
 .useGlobalPrefix('api')
