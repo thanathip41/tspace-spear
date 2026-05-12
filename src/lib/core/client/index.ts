@@ -48,6 +48,41 @@ async function getFetch() {
 
   return fetchFn;
 }
+
+/**
+ * Type-safe HTTP client built on top of the native Fetch API.
+ *
+ * `ApiClient` provides end-to-end type safety for your API routes,
+ * including:
+ *
+ * - `params` typing
+ * - `query` typing
+ * - `body` typing
+ * - typed file uploads
+ * - fully inferred response types
+ *
+ * Route types are inferred from your server route definitions,
+ * giving you autocomplete and compile-time validation across
+ * the entire request lifecycle.
+ *
+ * @template TRoutes Application route definitions.
+ *
+ * @example
+ * ```ts
+ * import app from '../server/app';
+ * 
+ * const client = new ApiClient<typeof app.contract>()
+ *
+ * const res = await client.get("/cats", {
+ *   query: {
+ *     id: "1",
+ *   },
+ * })
+ *
+ * // fully typed response
+ * console.log(res.cats)
+ * ```
+ */
 class ApiClient<
   TRoutes extends AnyRoutes,
 > {
