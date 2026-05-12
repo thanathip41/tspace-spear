@@ -1063,6 +1063,8 @@ class Spear {
         
         return (err ?: any) => {
 
+            if(ctx.res.writableEnded) return;
+
             const errorMessage = err?.message || NEXT_MESSAGE
             
             if(this._errorHandler != null) {
