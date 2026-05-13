@@ -74,7 +74,7 @@ function parseType(type: string): any {
     return null;
   }
 
-  if (type.startsWith("Record")) {
+  if (type.startsWith("Record<")) {
     return {};
   }
 
@@ -183,13 +183,13 @@ function resolveType(type: Type): string {
     type = type.getTypeArguments()[0];
   }
 
-  if (type.isString()) return "string";
-  if (type.isNumber()) return "number";
-  if (type.isBoolean()) return "boolean";
-  if (type.isNull()) return "null";
+  if (type.isString())    return "string";
+  if (type.isNumber())    return "number";
+  if (type.isBoolean())   return "boolean";
+  if (type.isNull())      return "null";
   if (type.isUndefined()) return "undefined";
-  if (type.isAny()) return "any";
-  if (type.isUnknown()) return "unknown";
+  if (type.isAny())       return "any";
+  if (type.isUnknown())   return "unknown";
 
   if (type.isArray()) {
     const el = type.getArrayElementTypeOrThrow();
@@ -206,9 +206,29 @@ function resolveType(type: Type): string {
       if (!decl) continue;
 
       const propType = prop.getTypeAtLocation(decl);
+      const text = propType.getText(decl);
+      const key = prop.getName();
+      let value = resolveType(propType);
 
+      if(/^\s*(\(.*\)\s*=>|function\b)/.test(value)) {
+        continue;
+      }
+      
+      if (text.includes('[x: string]')) { 
+        value = text
+      };
+
+      let colon = ":";
+
+      const maybeOptional = value.includes(" | undefined");
+
+      if(maybeOptional) {
+        value = value.replace(" | undefined", "")
+        colon = "?:"
+      }
+     
       obj.push(
-        `${prop.getName()}: ${resolveType(propType)}`
+        `${key}${colon} ${value}`
       );
     }
 
@@ -229,6 +249,8 @@ function extractPropertyType(
   const t = prop.getTypeAtLocation(node)
 
   const text = t.getText(node)
+
+  if (text.includes('[x: string]')) return text
 
   if (!text || text.includes("undefined")) return "never"
 
@@ -312,9 +334,46 @@ export async function generateRoutes(options: Options) {
     }
   }
 
-  const grouped: Record<string, any> = {}
-  
-  const grouped1 = routes.reduce((acc, route) => {
+  const groupedTypes = routes.reduce((acc, r) => {
+    acc[r.path] ??= {};
+
+    acc[r.path][r.method] = {
+      response: r.response,
+      body: r.body,
+      params: r.params,
+      query: r.query,
+      files: r.files,
+    };
+
+    return acc;
+  }, {} as Record<string, any>);
+
+  const routeMapTypes = Object.entries(groupedTypes)
+  .map(([path, methods]) => {
+    const methodBlock = Object.entries(methods)
+      .map(
+        ([method, c]: any) => `
+    ${method}: {
+      params: ${c.params}
+      query: ${c.query}
+      body: ${c.body}
+      files: ${c.files}
+      response: ${c.response}
+    }`).join("\n")
+
+    return `
+  "${path}": {
+  ${methodBlock}
+  }`
+  })
+  .join("\n")
+
+  const formatValue = (v: any) => {
+    if (typeof v === "string") return v;
+    return JSON.stringify(v);
+  };
+
+  const groupedValues = routes.reduce((acc, route) => {
     if (!acc[route.path]) {
       acc[route.path] = {};
     }
@@ -330,48 +389,36 @@ export async function generateRoutes(options: Options) {
     return acc;
   }, {} as Record<string, any>);
 
-  for (const r of routes) {
-    grouped[r.path] ??= {}
-    grouped[r.path][r.method] = {
-      response: r.response,
-      body: r.body,
-      params: r.params,
-      query: r.query,
-      files: r.files,
-    }
-  }
-
-  const routeMap = Object.entries(grouped)
-    .map(([path, methods]) => {
-      const methodBlock = Object.entries(methods)
-        .map(
-          ([method, c]: any) => `
+  const routerMapValues= Object.entries(groupedValues)
+  .map(([path, methods]) => {
+    const methodBlock = Object.entries(methods)
+      .map(([method, c]: any) => `
     ${method}: {
-      params: ${c.params}
-      query: ${c.query}
-      body: ${c.body}
-      files: ${c.files}
-      response: ${c.response}
-    }`
-        )
-        .join("\n")
+      params: ${formatValue(c.params)},
+      query: ${formatValue(c.query)},
+      body: ${formatValue(c.body)},
+      files: ${formatValue(c.files)},
+      response: ${formatValue(c.response)}
+    }`).join(",\n");
 
-      return `
+    return `
   "${path}": {
-${methodBlock}
-  }`
-    })
-    .join("\n")
+  ${methodBlock}
+  }`;
+  })
+  .join(",\n");
 
   const output = `
 // @ts-nocheck
 // AUTO GENERATED FILE
 // DO NOT EDIT
 
-export const appRoutes = ${JSON.stringify(grouped1,null,2)}
+export const appRoutes = {
+${routerMapValues}
+}
 
 export interface AppRoutes {
-${routeMap}
+${routeMapTypes}
 }
 
 export type AppRoute = keyof AppRoutes
