@@ -39,7 +39,7 @@ type TParams<T = Record<string, string | number | undefined>> = T
 
 type TBody<T = Record<string,any>> = T
 
-type TCookies<T = Record<string, any>> = T
+type TCookies<T = Record<string, any | undefined>> = T
 
 type TFile = {
     size: number;
@@ -58,7 +58,7 @@ type TFile = {
     remove : () => Promise<void>;
 }
 
-type TFileUpload = Record<string, TFile[] | undefined>
+type TFileUpload<T = Record<string, TFile[] | undefined>> = T
 
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
@@ -404,7 +404,8 @@ export declare namespace T {
     type Response         = TResponse
     type Request          = TRequest
 
-    type FileUpload                          = TFileUpload
+    type FileUpload<T = Record<string, TFile[] | undefined>> = T
+    type FileInput                           = TFile
     type Cookies<T = Record<string, any>>    = TCookies<T>
     type Params<T = Record<string, string>>  = TParams<T>
     type Query<T = Record<string, string>>   = TQuery<T>
