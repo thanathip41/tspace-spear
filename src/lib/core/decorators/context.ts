@@ -20,7 +20,7 @@ export function createDtoDecorator(
                 }
 
                 let message = err?.message ?? "Bad Request";
-                let issues = err.issues ?? [];
+                let issues = err.issues ?? err.errors ?? [];
                 let status : 400 | 422 = 400;
 
                 if(err.name === "ZodError") {
