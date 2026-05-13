@@ -819,6 +819,192 @@ class CatController {
 
 ```
 
+### E2E
+Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
+response output. It allows you to:
+```js
+// file cat-controller.ts
+import z from 'zod';
+import {
+  type T,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  createDtoDecorator
+} from "tspace-spear";
+
+const catSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  age: z.number(),
+});
+
+const catSchemaAction = z.object({
+  name: z.string(),
+  age: z.number(),
+});
+
+type Cat = z.infer<typeof catSchema>
+
+let cats: z.infer<typeof catSchema>[] = [
+  { id: 1, name: 'cat1', age: 1.6 },
+  { id: 2, name: 'cat2', age: 1.8 },
+];
+
+const ValidateDtoBody = (schema: z.ZodTypeAny) => {
+  return createDtoDecorator((ctx) => {
+    const result = schema.parse(ctx.body);
+    ctx.body = result as T.Body;
+  });
+};
+@Controller('/cats')
+class CatController {
+
+  @Get('/')
+  @Swagger()
+  public async index({
+    query,
+  }: T.Context) {
+    return {
+      cats,
+    };
+  }
+
+  @Get('/:id')
+  @Swagger()
+  public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
+    cat : Cat
+  }> {
+    const cat = cats.find((d) => d.id === Number(params.id));
+
+    if(cat == null) {
+      return res.notFound('not found cat')
+    }
+
+    return {
+      cat
+    };
+  }
+
+  @Post('/')
+  @Swagger()
+  @ValidateDtoBody(catSchemaAction)
+  public async create({
+    body,
+  }: T.Context<{ body: z.infer<typeof catSchemaAction> }>) {
+
+    const cat = {
+      id: cats.length + 1,
+      ...body
+    }
+
+    cats.push(cat);
+
+    return {
+      cat,
+      message: 'created',
+    };
+  }
+
+  @Put('/:id')
+  @Swagger()
+  @ValidateDtoBody(catSchemaAction.partial())
+  public async update({
+    res,
+    params,
+    body,
+  }: T.Context<{
+    params: { id: number };
+    body: Partial<z.infer<typeof catSchemaAction>>;
+  }>) {
+    const id = Number(params.id);
+
+    const index = cats.findIndex((d) => d.id === id);
+
+    if (index === -1) {
+      return res.notFound('not found cat')
+    }
+
+    cats[index] = {
+      ...cats[index],
+      ...body,
+      id
+    };
+
+    const cat = cats[index]
+
+    return {
+      message: 'updated',
+      cat,
+    };
+  }
+
+  @Delete('/:id')
+  @Swagger()
+  public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
+    const id = Number(params.id);
+
+    const index = cats.findIndex((d) => d.id === id);
+
+    if (index === -1) {
+      throw res.notFound('not found cat')
+    }
+
+    cats = cats.filter((d) => d.id !== id);
+
+    return {
+      message: 'deleted',
+    };
+  }
+}
+
+export { CatController };
+export default CatController;
+
+// file server/app.ts
+import Spear from "tspace-spear";
+const app = new Spear({
+  logger : true,
+  controllers: {
+      folder : `${__dirname}/controllers`,
+      name:/controller\.(ts|js)$/i,
+      // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
+      // and swagger documentation. By default if use @Swagger() no need to set any description
+      preRouteTypes: true
+  }
+})
+
+app.useGlobalPrefix('api');
+app.useBodyParser();
+app.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`));
+
+type AppRouter = typeof app.contract;
+export { AppRouter }
+export default app;
+
+// file frontend/index.ts
+import { AppRouter } from "./server/app";
+import { ApiClient } from "tspace-spear/client";
+
+const client: ApiClient<AppRouter> = new ApiClient(
+  `http://localhost:3000/api`
+);
+
+const test = await client.get("/catsq"); // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
+const res = await client.get("/cats");
+  res.data.cats = 1 // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
+  res.data.cats[0].name = 1 // Type error: Type 'number' is not assignable to type 'string'
+  res.data.cats[0].age = "1.6" // Type error: Type 'string' is not assignable to type 'number'
+
+  console.log(res) 
+  // res.ok -> boolean
+  // res.status -> number
+  // res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
+ 
+```
+
 ### Web Socket
 provides built-in WebSocket support for real-time communication. <br>
 

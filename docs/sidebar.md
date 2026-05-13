@@ -17,4 +17,5 @@
 - [Router](#router)
 - [Swagger](#swagger)
 - [Web Socket](#web-socket)
+- [E2E](#e2e)
 - [Example CRUD](#example-crud)
