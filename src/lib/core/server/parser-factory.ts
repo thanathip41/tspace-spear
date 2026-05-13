@@ -342,7 +342,7 @@ export class ParserFactory {
         const method = r.method.toLowerCase();
 
         //@ts-ignore
-        const preRoute = appRoutes[r.path]?.[r.method];
+        const preRoute = appRoutes[r.path.replace(`/${doc.globalPrefix}/`, '/')]?.[r.method];
 
         const swagger = (doc.specs ?? []).find((s) => {
           return s.path === r.path && s.method.toLowerCase() === method;
@@ -592,7 +592,7 @@ export class ParserFactory {
             },
           };
         } else {
-
+        
           if(preRoute && Object.keys(preRoute.body ?? {}).length) {
 
             const properties = Object.fromEntries(

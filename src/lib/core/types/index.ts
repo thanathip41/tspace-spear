@@ -306,7 +306,8 @@ type TSwaggerDoc = {
         path : string;
         method : string;
         params : string[]
-    }[]
+    }[];
+    globalPrefix ?: string;
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false

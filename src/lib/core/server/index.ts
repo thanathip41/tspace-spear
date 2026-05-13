@@ -1474,7 +1474,7 @@ class Spear {
                 "HEAD","OPTIONS"
             ].includes(r.method)
         })
-
+       
         const { 
             path, 
             html, 
@@ -1483,7 +1483,8 @@ class Spear {
         } = await this._parser.swagger({
             ...this._swagger,
             specs : this._swaggerSpecs,
-            routes
+            routes,
+            globalPrefix: this._globalPrefix
         })
 
         this._router.get(staticUrl, staticSwaggerHandler)
