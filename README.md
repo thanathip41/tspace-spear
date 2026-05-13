@@ -3,9 +3,23 @@
 [![NPM version](https://img.shields.io/npm/v/tspace-spear.svg)](https://www.npmjs.com)
 [![NPM downloads](https://img.shields.io/npm/dm/tspace-spear.svg)](https://www.npmjs.com)
 
-tspace-spear is a lightweight, high-performance API framework for Node.js, built on the native HTTP server with optional support for uWebSockets.js (C++) to achieve maximum speed and efficiency.
+**tspace-spear** is a lightweight, high-performance API framework for Node.js, built on the native HTTP server with optional support for uWebSockets.js (C++) to achieve maximum speed and efficiency.
 
-It is designed with a strong focus on developer experience and provides end-to-end (E2E) type safety and testing support across the full request lifecycle, from request input to response output.
+It is designed with a strong focus on developer experience and provides end-to-end (E2E) type safety and testing support across the full request lifecycle, from request input to response output (see [E2E](#e2e)).
+
+---
+
+## Features
+
+- ⚡ High-performance core built on native Node.js HTTP
+- 🚀 Optional uWebSockets.js support via adapter for ultra-low latency and maximum throughput
+- 🧠 End-to-end (E2E) type safety across request → response lifecycle
+- 🧪 Built-in testing support for E2E validation
+- 🧩 Simple and intuitive developer experience
+- 🔌 Flexible architecture for plugins and extensions
+- 📘 Auto-generated Swagger documentation via `@Swagger()` decorator (zero manual configuration required)
+
+---
 
 ## Install
 
@@ -535,7 +549,6 @@ import CatController from './cat-controller.ts'
 })()
 ```
 
-
 ## Dto
 DTO (Data Transfer Object) is used to validate and transform incoming request data before it reaches your controller logic.
 ```js
@@ -543,7 +556,7 @@ import {
   Controller , 
   Post,
   createDtoDecorator,
-  Vlidate
+  Validate,
   type T
 } from 'tspace-spear';
 

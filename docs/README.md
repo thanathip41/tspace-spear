@@ -3,8 +3,23 @@
 [![NPM version](https://img.shields.io/npm/v/tspace-spear.svg)](https://www.npmjs.com)
 [![NPM downloads](https://img.shields.io/npm/dm/tspace-spear.svg)](https://www.npmjs.com)
 
-tspace-spear is a lightweight API framework for Node.js that is fast and highly focused on providing the best developer experience. 
-It utilizes the native HTTP server.
+**tspace-spear** is a lightweight, high-performance API framework for Node.js, built on the native HTTP server with optional support for uWebSockets.js (C++) to achieve maximum speed and efficiency.
+
+It is designed with a strong focus on developer experience and provides end-to-end (E2E) type safety and testing support across the full request lifecycle, from request input to response output (see [E2E](#e2e)).
+
+---
+
+### Features
+
+- ⚡ High-performance core built on native Node.js HTTP
+- 🚀 Optional uWebSockets.js support via adapter for ultra-low latency and maximum throughput
+- 🧠 End-to-end (E2E) type safety across request → response lifecycle
+- 🧪 Built-in testing support for E2E validation
+- 🧩 Simple and intuitive developer experience
+- 🔌 Flexible architecture for plugins and extensions
+- 📘 Auto-generated Swagger documentation via `@Swagger()` decorator (zero manual configuration required)
+
+---
 
 ### Install
 
@@ -430,8 +445,12 @@ import CatController from './cat-controller.ts'
     controllers: [ CatController ]
     // if you want to import controllers with a directory can you follow the example
     // controllers : {
-    //   folder : `${__dirname}/controllers`,
-    //   name :  /controller\.(ts|js)$/i
+    //   folder : `${__dirname}/controllers`, // nestjs style `${__dirname}/modules/*`
+    //   name :  /controller\.(ts|js)$/i,
+
+    //   *Auto-generate route metadata for type-safe E2E usage, 
+    //   *and swagger documentation. By default if use @Swagger() no need to set any description 
+    //   preRouteTypes : true 
     // }
   })
 
@@ -460,38 +479,42 @@ DTO (Data Transfer Object) is used to validate and transform incoming request da
 import { 
   Controller , 
   Post,
-  createDtoDecorator
+  createDtoDecorator,
+  Validate,
   type T
 } from 'tspace-spear';
 
 import z from "zod";
 
-const catSchema = z.object({
-  name: z.string(),
-  age: z.number(),
-})
+import { 
+  IsString, 
+  IsInt, 
+  validate 
+} from "class-validator";
 
-const ValidateDtoBody = (keys: string[]) => {
+import { ClassConstructor, plainToInstance } from 'class-transformer';
+
+const ValidateDtoCustomBody = (keys: string[]) => {
   return createDtoDecorator((ctx) => {
     const body = ctx.body ?? {};
     const issues: Array<{ path: string; message: string }> = [];
 
     for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
+      const key = keys[i];
 
-        if (body[key] == null) {
-            issues.push({
-                path: key,
-                message: "Missing field",
-            });
-        }
+      if (body[key] == null) {
+          issues.push({
+              path: key,
+              message: "Missing field",
+          });
+      }
     }
 
     if (issues.length > 0) {
-        throw {
-          message : "Validation failed",
-          issues
-        }
+      throw {
+        message : "Validation failed",
+        issues
+      }
     }
   });
 }
@@ -507,7 +530,12 @@ const ValidateDtoPromiseBody = (keys: string[]) => {
   return createDtoDecorator(async (ctx) => {
       await new Promise(resolve => setTimeout(resolve,500));
       // check in DB or other async operation
-      throw new Error('Validation failed in promise!');
+      const cats = await catRepository.findMany({ where : { name : ctx.body.name }});
+
+      if(!cats.length) {
+       throw new Error('Validation failed in promise!');
+      }
+
   }, (ctx, error) => {
     // you implement your custom error handling for async validation here
     return ctx.res.status(400).json({
@@ -517,12 +545,70 @@ const ValidateDtoPromiseBody = (keys: string[]) => {
   });
 }
 
+const ValidateDtoClsBody = <T extends object>(
+  cls: ClassConstructor<T>
+) => {
+    return createDtoDecorator(async (ctx) => {
+
+      const dto = plainToInstance(
+          cls,
+          ctx.body
+      );
+
+      const errors = await validate(dto);
+
+      if (errors.length > 0) {
+          throw {
+            message: "Validation failed",
+            issues: errors.flatMap((error) => {
+              const constraints = error.constraints ?? {};
+
+              const firstError = Object.values(constraints)[0] ?? "Validation error";
+
+              return {
+                  path: error.property,
+                  message: firstError,
+              };
+            })
+          };
+      }
+
+      ctx.body = dto;
+    }
+  );
+};
+
+const catSchema = z.object({
+  name: z.string(),
+  age: z.number(),
+})
+
+class CreateCatDto {
+  @IsString()
+  name!: string;
+
+  @IsInt()
+  age!: number;
+}
+
+
 // file cat-controller.ts
 @Controller('/cats')
 export class CatController {
+
   @Post('/')
-  @ValidateDtoBody(["name", "age"])
-  public async basic(ctx : T.Context) {
+  // only required validation without type checking
+  @Validate(["name", "age"], { required: { allowEmptyString: false, allowNull: false } })
+  public async basic(ctx : T.Context<{ body : { name : any , age : any }}>) {
+    const body = ctx.body;
+    return {
+      body
+    }
+  }
+
+  @Post('/')
+  @ValidateDtoCustomBody(["name", "age"])
+  public async custom(ctx : T.Context<{ body : { name : string , age : number }}>) {
     const body = ctx.body;
     return {
       body
@@ -531,16 +617,26 @@ export class CatController {
 
   @Post('/zod')
   @ValidateDtoZodBody(catSchema)
-  public async zod(ctx : T.Context) {
-    const body = ctx.body as z.infer<typeof catSchema>;
+  public async zod(ctx : T.Context<z.infer<typeof catSchema>>) {
+    const body = ctx.body;
     return {
       body
     }
   }
 
   @Post('/promise')
-  @ValidateDtoPromiseBody(['name', 'age'])
-  public async promise(ctx : T.Context) {
+  @ValidateDtoPromiseBody(['name'])
+  public async promise(ctx : T.Context<{ body : { name : string }}>) {
+    const body = ctx.body;
+
+    return {
+      body
+    }
+  }
+
+  @Post('/cls')
+  @ValidateDtoClsBody(CreateCatDto)
+  public async cls(ctx : T.Context<{ body : CreateCatDto }>) {
     const body = ctx.body;
 
     return {
