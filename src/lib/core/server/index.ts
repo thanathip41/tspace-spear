@@ -816,23 +816,63 @@ class Spear {
         return this
     }
 
-    private async _import (dir: string , pattern ?: RegExp): Promise<string[]> {
-        const directories = fsSystem.readdirSync(dir, { withFileTypes: true });
-        const files = (await Promise.all(
-          directories.map((directory) => {
-            const newDir = pathSystem.resolve(String(dir), directory.name);
-            if(pattern == null) {
-                return directory.isDirectory() ? this._import(newDir) : newDir;
-            }
-            return directory.isDirectory() 
-            ? this._import(newDir) 
-            : pattern.test(directory.name) 
-              ? newDir
-              : null
-          })
-        )).filter(d => d != null)
+    private async _import(
+        dir: string,
+        pattern?: RegExp
+    ): Promise<string[]> {
 
-        return [].concat(...files as any[]);
+        const recursive = dir.endsWith("*");
+
+        const root = recursive
+            ? dir.slice(0, -1)
+            : dir;
+
+        return this._scan(root, pattern, recursive);
+    }
+
+    private async _scan(
+        dir: string,
+        pattern?: RegExp,
+        recursive = false
+    ): Promise<string[]> {
+
+        const entries = await fsSystem.promises.readdir(dir, {
+            withFileTypes: true,
+        })
+
+        const result: string[] = [];
+
+        for (const entry of entries) {
+            const fullPath = pathSystem.resolve(
+                dir,
+                entry.name
+            );
+
+            if (entry.isDirectory()) {
+
+                if (recursive) {
+                    result.push(
+                        ...(await this._scan(
+                            fullPath,
+                            pattern,
+                            true
+                        ))
+                    );
+                }
+
+                continue;
+            }
+
+            if (
+                !pattern ||
+                pattern.test(entry.name)
+            ) {
+
+                result.push(fullPath);
+            }
+        }
+
+        return result;
     }
 
     private async _registerControllers(): Promise<void> {
@@ -841,14 +881,43 @@ class Spear {
 
         if(!Array.isArray(this._controllers)) {
            
-            const controllers = await this._import(this._controllers.folder , this._controllers.name)
+            let failDir = false;
+            const controllers = await this._import(
+                this._controllers.folder, 
+                this._controllers.name
+            ).catch(err => {
+                 console.log(
+                    `\x1b[31m[ControllerLoader ERROR]\x1b[0m Failed to read directory:\n` +
+                    `Error: ${err.message}\n`
+                );
+                failDir = true;
+                return [];
+            })
+
+            if(!controllers.length && !failDir) {
+                console.log(
+                    `\x1b[33m[ControllerLoader Warning]\x1b[0m No controllers found in:\n` +
+                    `\x1b[36m${this._controllers.folder}\x1b[0m\n\n` +
+                    `Using pattern:\n` +
+                    `\x1b[36m${this._controllers.name}\x1b[0m`
+                );
+
+                console.log(
+                    `\nMake sure that:\n` +
+                    `- the folder path exists\n` +
+                    `- controller files match the pattern\n` +
+                    `- recursive scanning is enabled for nested folders\n\n` +
+                    `Example:\n` +
+                    `\x1b[36m${this._controllers.folder}/*\x1b[0m\n`
+                );
+            }
 
             for(const file of controllers) {
 
                 const imported = await import(file)
-
+              
                 let maybeController = imported?.default;
-                
+
                 if(maybeController == null) {
 
                     const entry = Object
@@ -945,7 +1014,38 @@ class Spear {
 
         if(!Array.isArray(this._middlewares)) {
            
-            const middlewares = await this._import(this._middlewares.folder , this._middlewares.name)
+            let failDir = false;
+
+            const middlewares = await this._import(
+                this._middlewares.folder, 
+                this._middlewares.name
+            )
+            .catch(err => {
+                 console.log(
+                    `\x1b[31m[MiddlewareLoader ERROR]\x1b[0m Failed to read directory:\n` +
+                    `Error: ${err.message}\n`
+                );
+                failDir = true;
+                return [];
+            })
+
+             if(!middlewares.length && !failDir) {
+                console.log(
+                    `\x1b[33m[MiddlewareLoader Warning]\x1b[0m No middlewares found in:\n` +
+                    `\x1b[36m${this._middlewares.folder}\x1b[0m\n\n` +
+                    `Using pattern:\n` +
+                    `\x1b[36m${this._middlewares.name}\x1b[0m`
+                );
+
+                console.log(
+                    `\nMake sure that:\n` +
+                    `- the folder path exists\n` +
+                    `- middleware files match the pattern\n` +
+                    `- recursive scanning is enabled for nested folders\n\n` +
+                    `Example:\n` +
+                    `\x1b[36m${this._middlewares.folder}/*\x1b[0m\n`
+                );
+            }
 
             for(const file of middlewares) {
 
