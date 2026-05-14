@@ -17,7 +17,7 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 🧪 Built-in testing support for E2E validation
 - 🧩 Simple and intuitive developer experience
 - 🔌 Flexible architecture for plugins and extensions
-- 📘 Auto-generated Swagger documentation via `@Swagger()` decorator (zero manual configuration required)
+- 📘 Auto-generated Swagger documentation via `app.useSwagger()` (zero manual configuration required)
 
 ---
 
