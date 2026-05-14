@@ -1,4 +1,9 @@
-import { ParameterDeclaration, Project, Type } from "ts-morph"
+import { 
+  ParameterDeclaration, 
+  Project, 
+  Type 
+} from "ts-morph"
+import ts from "typescript"
 import fs from "fs"
 import path from "path"
 
@@ -433,6 +438,24 @@ export type AppRoute = keyof AppRoutes
   })
 
   await fs.promises.writeFile(outPath, output)
+
+  const compiled = ts.transpileModule(output, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+    },
+  })
+
+  const jsPath = outPath.replace(
+    /\.ts$/,
+    ".js"
+  )
+
+  await fs.promises.writeFile(
+    jsPath,
+    compiled.outputText,
+    "utf8"
+  )
 
   return routes
 }
