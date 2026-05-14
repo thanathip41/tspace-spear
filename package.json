@@ -38,7 +38,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
-    "release": "npm run build && npm publish",
+    "release": "sh ./release.sh",
     "beta": "npm run build && npm publish --tag beta",
     "bm:node": "npm run benchmark:node",
     "bm:bun": "npm run benchmark:bun",
