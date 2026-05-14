@@ -21,7 +21,7 @@ let client: ApiClient<typeof app.contract>;
 describe("TSpear E2E Test", () => {
   
   before((done) => {
-    app.listen(9090, ({ port , server : sCallback }) => {
+    app.listen(5001, ({ port , server : sCallback }) => {
       console.log(`server listening on http://localhost:${port}`);
       server = sCallback
       client = new ApiClient(
