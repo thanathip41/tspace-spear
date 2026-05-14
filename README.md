@@ -526,7 +526,7 @@ import CatController from './cat-controller.ts'
     //   name :  /controller\.(ts|js)$/i,
 
     //   *Auto-generate route metadata for type-safe E2E usage, 
-    //   *and swagger documentation. By default if use @Swagger() no need to set any description 
+    //   *and swagger documentation. By default if use .useSwagger() in app no need to set any description 
     //   preRouteTypes : true 
     // }
   })
@@ -1131,7 +1131,6 @@ const ValidateDtoBody = (schema: z.ZodTypeAny) => {
 class CatController {
 
   @Get('/')
-  @Swagger()
   public async index({
     query,
   }: T.Context) {
@@ -1141,7 +1140,6 @@ class CatController {
   }
 
   @Get('/:id')
-  @Swagger()
   public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
     cat : Cat
   }> {
@@ -1157,7 +1155,6 @@ class CatController {
   }
 
   @Post('/')
-  @Swagger()
   @ValidateDtoBody(catSchemaAction)
   public async create({
     body,
@@ -1177,7 +1174,6 @@ class CatController {
   }
 
   @Put('/:id')
-  @Swagger()
   @ValidateDtoBody(catSchemaAction.partial())
   public async update({
     res,
@@ -1210,7 +1206,6 @@ class CatController {
   }
 
   @Delete('/:id')
-  @Swagger()
   public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
     const id = Number(params.id);
 
@@ -1239,7 +1234,7 @@ const app = new Spear({
       folder : `${__dirname}/controllers`,
       name:/controller\.(ts|js)$/i,
       // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
-      // and swagger documentation. By default if use @Swagger() no need to set any description
+      // and swagger documentation. By default if use .useSwagger() in app no need to set any description
       preRouteTypes: true
   }
 })

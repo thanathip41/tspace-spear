@@ -449,7 +449,7 @@ import CatController from './cat-controller.ts'
     //   name :  /controller\.(ts|js)$/i,
 
     //   *Auto-generate route metadata for type-safe E2E usage, 
-    //   *and swagger documentation. By default if use @Swagger() no need to set any description 
+    //   *and swagger documentation. By default if use .useSwagger() no need to set any description 
     //   preRouteTypes : true 
     // }
   })
@@ -1067,7 +1067,7 @@ const app = new Spear({
       folder : `${__dirname}/controllers`,
       name:/controller\.(ts|js)$/i,
       // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
-      // and swagger documentation. By default if use @Swagger() no need to set any description
+      // and swagger documentation. By default if use .useSwagger() no need to set any description
       preRouteTypes: true
   }
 })
