@@ -9,4 +9,4 @@ package-lock.json
 test.sh
 uploads
 __tests-report__
-**/pre-routes.ts
+**/pre-routes.*

@@ -1,4 +1,9 @@
-import { ParameterDeclaration, Project, Type } from "ts-morph"
+import { 
+  ParameterDeclaration, 
+  Project, 
+  Type 
+} from "ts-morph"
+import ts from "typescript"
 import fs from "fs"
 import path from "path"
 
@@ -158,10 +163,13 @@ function parseType(type: string): any {
   if (type === "string") return "string";
   if (type === "number") return "number";
   if (type === "boolean") return "boolean";
+  if (type === "date") return "date";
 
-  if(type === "string | undefined") return "string";
-  if(type === "number | undefined") return "number";
-  if(type === "boolean | undefined") return "boolean";
+  if (type === "string | undefined") return "string";
+  if (type === "number | undefined") return "number";
+  if (type === "boolean | undefined") return "boolean";
+  if (type === "date | undefined") return "date";
+  
 
   if(type.includes("| undefined")) {
     return type
@@ -169,6 +177,10 @@ function parseType(type: string): any {
 
   if(type.includes("| null")) {
     return type
+  }
+
+  if(type.includes(" | ") && !type.startsWith("{")) {
+    return type.replace(/"/g, "");
   }
 
   // fallback
@@ -190,6 +202,8 @@ function resolveType(type: Type): string {
   if (type.isUndefined()) return "undefined";
   if (type.isAny())       return "any";
   if (type.isUnknown())   return "unknown";
+  if (type.isUnion())     return type.getText();
+
 
   if (type.isArray()) {
     const el = type.getArrayElementTypeOrThrow();
@@ -433,6 +447,24 @@ export type AppRoute = keyof AppRoutes
   })
 
   await fs.promises.writeFile(outPath, output)
+
+  const compiled = ts.transpileModule(output, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+    },
+  })
+
+  const jsPath = outPath.replace(
+    /\.ts$/,
+    ".js"
+  )
+
+  await fs.promises.writeFile(
+    jsPath,
+    compiled.outputText,
+    "utf8"
+  )
 
   return routes
 }
