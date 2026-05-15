@@ -1,7 +1,7 @@
 export const app = `
 import Spear from "tspace-spear";
 
-export const app = new Spear({
+const app = new Spear({
   logger: true,
   controllers: {
     folder: \`\${__dirname}/controllers\`,
@@ -21,4 +21,8 @@ app.listen(8000 , ({ port , server }) =>  {
   console.log(\`Server listening on : http://localhost:\${port}\`)
   console.log(\`Docs listening on : http://localhost:\${port}/api/docs\`)
 })
+
+type AppRouter = typeof app.contract;
+export { AppRouter };
+export { app };
 `;

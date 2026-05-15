@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { app } from "./app";
 import { CatController } from "./controller";
+import { client } from "./client";
 
 const [, , action, type, target] = process.argv;
 
@@ -52,6 +53,11 @@ function createApp(targetPath?: string) {
   fs.writeFileSync(
     path.join(root, "index.ts"),
     app
+  );
+
+  fs.writeFileSync(
+    path.join(root, "client.ts"),
+    client
   );
 
   fs.writeFileSync(
