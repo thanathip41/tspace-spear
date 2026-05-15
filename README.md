@@ -88,6 +88,7 @@ src/
 ├── controllers/
 │   └── cat-controller.ts
 │   └── dog-controller.ts
+└── client.ts
 └── index.ts
 
 npm install ts-node --save-dev
@@ -95,6 +96,8 @@ npm install ts-node --save-dev
 ts-node src/index.ts
 ## Server is now listening http://localhost:8000
 ## Docs is now listening http://localhost:8000/api/docs
+
+ts-node src/client.ts // for E2E
 ```
 
 ## Adapter
