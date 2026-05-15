@@ -40,9 +40,30 @@ new Spear()
     message : 'Hello world!'
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
-
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 ```
+
+### Cli
+```sh
+# Install CLI globally
+npm install -g tspace-spear
+
+# Create a new application structure
+tspace-spear create app src
+
+# Generated structure
+src/
+├── controllers/
+│   └── cat-controller.ts
+└── index.ts
+
+npm install ts-node --save-dev
+
+ts-node src/index.ts
+## Server is now listening http://localhost:8000
+## Docs is now listening http://localhost:8000/api/docs
+```
+
 
 ## Adapter
 tspace-spear supports multiple server adapters, 
@@ -68,8 +89,8 @@ new Spear({ adapter: uWS })
     message: "Hello world!",
   };
 })
-.listen(3000, () =>
-  console.log("uWS server is running at http://localhost:3000")
+.listen(8000, () =>
+  console.log("uWS server is running at http://localhost:8000")
 );
 ```
 
@@ -86,7 +107,7 @@ new Spear({
     message : 'Hello world!'
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 ```
 
@@ -99,9 +120,9 @@ const app = new Spear({
   globalPrefix : '/api' // prefix all routes
 })
 .get('/' , () => 'Hello world!')
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
-// http://localhost:3000/api => 'Hello world!'
+// http://localhost:8000/api => 'Hello world!'
 ```
 
 ### Logger
@@ -117,7 +138,7 @@ const app = new Spear({
     exceptPath  : /\/benchmark(\/|$)|\/favicon\.ico(\/|$)/ // or use Array ['/']
 })
 .get('/' , () => 'Hello world!')
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 ```
 
@@ -136,8 +157,8 @@ const app = new Spear()
 .notfound(({ res } : T.Context) => {
   return res.notFound('Not found!')
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
-// http://localhost:3000/notfound => { success: false , message : 'Not found!' , statusCode: 404 }
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
+// http://localhost:8000/notfound => { success: false , message : 'Not found!' , statusCode: 404 }
 
 ```
 
@@ -162,8 +183,8 @@ const app = new Spear()
       statusCode
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
-// http://localhost:3000 => { success: true , message : 'Hello World' , statusCode: 200 }
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
+// http://localhost:8000 => { success: true , message : 'Hello World' , statusCode: 200 }
 
 ```
 
@@ -187,8 +208,8 @@ const app = new Spear()
       statusCode : 500
   });
 }) 
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
-// http://localhost:3000 => { success: false , message : 'Catching failed' , statusCode: 500 }
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
+// http://localhost:8000 => { success: false , message : 'Catching failed' , statusCode: 500 }
 
 ```
 
@@ -223,7 +244,7 @@ new Spear()
     yourBody : body
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 ```
 
@@ -267,7 +288,7 @@ new Spear()
     files
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 ```
 
@@ -289,7 +310,7 @@ new Spear()
     yourCookies : cookies
   }
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 ```
 
 ### Middleware
@@ -311,7 +332,7 @@ import  Spear { Router, type T } from "tspace-spear";
 import CatMiddleware from './cat-middleware.ts'
 
 (async () => {
-  const port = Number(process.env.PORT ?? 3000)
+  const port = Number(process.env.PORT ?? 8000)
   const app = new Spear({
     middlewares: [ CatMiddleware ]
     // if you want to import middlewares with a directory can you follow the example
@@ -342,9 +363,9 @@ import CatMiddleware from './cat-middleware.ts'
     });
   })
 
-  app.listen(port , () => console.log(`Server is now listening http://localhost:3000`))
+  app.listen(port , () => console.log(`Server is now listening http://localhost:8000`))
 
-  // localhost:3000
+  // localhost:8000
 
 })()
 ```
@@ -464,10 +485,10 @@ import CatController from './cat-controller.ts'
     });
   })
 
-  app.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+  app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
-  // localhost:3000/cats 
-  // localhost:3000/cats/41
+  // localhost:8000/cats 
+  // localhost:8000/cats/41
 
 })()
 ```
@@ -655,11 +676,11 @@ import CatController from './cat-controller.ts'
     controllers: [ CatController ]
   })
   .useBodyParser()
-  .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+  .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
-  // localhost:3000/cats  // basic implete
-  // localhost:3000/cats/zod  // zod implete
-  // localhost:3000/cats/promise // promise implete
+  // localhost:8000/cats  // basic implete
+  // localhost:8000/cats/zod  // zod implete
+  // localhost:8000/cats/promise // promise implete
 
 })()
 ```
@@ -706,12 +727,12 @@ app.get('/' , ({ res } : T.Context) => {
   });
 })
 
-let port = 3000
+let port = 8000
 
-app.listen(port , () => console.log(`Server is now listening http://localhost:3000`))
+app.listen(port , () => console.log(`Server is now listening http://localhost:8000`))
 
-// localhost:3000/my/cats
-// localhost:3000/cats
+// localhost:8000/my/cats
+// localhost:8000/cats
 
 ```
 
@@ -900,7 +921,7 @@ class CatController {
   .useSwagger({
     path : "/docs",
     servers : [
-      { url : "http://localhost:3000" , description : "development"}, 
+      { url : "http://localhost:8000" , description : "development"}, 
       { url : "http://localhost:8000" , description : "production"}
     ],
     info : {
@@ -908,9 +929,9 @@ class CatController {
       "description" : "This is the documentation"
     }
   })
-  .listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+  .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
-  // localhost:3000/docs
+  // localhost:8000/docs
 })()
 
 ```
@@ -1074,7 +1095,7 @@ const app = new Spear({
 
 app.useGlobalPrefix('api');
 app.useBodyParser();
-app.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`));
+app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
 
 type AppRouter = typeof app.contract;
 export { AppRouter }
@@ -1085,7 +1106,7 @@ import { AppRouter } from "./server/app";
 import { ApiClient } from "tspace-spear/client";
 
 const client: ApiClient<AppRouter> = new ApiClient(
-  `http://localhost:3000/api`
+  `http://localhost:8000/api`
 );
 
 const test = await client.get("/catsq"); // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
@@ -1175,7 +1196,7 @@ new Spear()
     }
   };
 })
-.listen(3000 , ({ port , server }) =>  {
+.listen(8000 , ({ port , server }) =>  {
     console.log(`server listening on : http://localhost:${port}`)
 })
 
@@ -1242,6 +1263,6 @@ new Spear()
 
   return res.status(204).json()
 })
-.listen(3000 , () => console.log(`Server is now listening http://localhost:3000`))
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 ```

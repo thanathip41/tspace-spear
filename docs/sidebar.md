@@ -1,4 +1,5 @@
 - [Getting Started](#getting-started)
+- [Cli](#cli)
 - [Adapter](#adapter)
 - [Cluster](#cluster)
 - [Global Prefix](#global-prefix)
