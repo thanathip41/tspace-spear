@@ -22,7 +22,7 @@ switch (`${action}:${type}`) {
 Usage:
 
 tspace-spear create app ./src
-tspace-spear create controller cats
+tspace-spear create controller ./src/controllers/dogs
 `);
 }
 
@@ -67,35 +67,26 @@ function createApp(targetPath?: string) {
   );
 }
 
-function createController(name?: string) {
-
-  if (!name) {
-    console.log("Missing controller name");
+function createController(inputPath?: string) {
+  if (!inputPath) {
+    console.log("Missing controller path");
     process.exit(1);
   }
 
-  const fileName =
-    `${name}.controller.ts`;
+  const resolvedPath = path.resolve(process.cwd(), inputPath);
 
-  const target = path.resolve(
-    process.cwd(),
-    "controllers",
-    fileName
-  );
+  const name = path.basename(resolvedPath);
+  const fileName = `${name}.controller.ts`;
 
-  fs.mkdirSync(
-    path.dirname(target),
-    {
-      recursive: true
-    }
-  );
+  const target = path.join(resolvedPath, fileName);
 
-  const className =
-    capitalize(name) + "Controller";
+  fs.mkdirSync(resolvedPath, { recursive: true });
+
+  const className = capitalize(name) + "Controller";
 
   fs.writeFileSync(
     target,
-`
+    `
 import {
   type T,
   Controller,
@@ -110,74 +101,43 @@ export default class ${className} {
 
   @Get("/")
   async index() {
-
     return {};
   }
 
   @Get("/:id")
   async show({
     params
-  }: T.Context<{
-    params: {
-      id: number;
-    };
-  }>) {
-
-    return {
-      id: params.id
-    };
+  }: T.Context<{ params: { id: number } }>) {
+    return { id: params.id };
   }
 
   @Post("/")
   async create({
     body
-  }: T.Context<{
-    body: {};
-  }>) {
-
-    return {
-      body
-    };
+  }: T.Context<{ body: {} }>) {
+    return { body };
   }
 
   @Put("/:id")
   async update({
     params,
     body
-  }: T.Context<{
-    params: {
-      id: number;
-    };
-    body: {};
-  }>) {
-
-    return {
-      id: params.id,
-      body
-    };
+  }: T.Context<{ params: { id: number }; body: {} }>) {
+    return { id: params.id, body };
   }
 
   @Delete("/:id")
   async remove({
     params
-  }: T.Context<{
-    params: {
-      id: number;
-    };
-  }>) {
-
-    return {
-      id: params.id
-    };
+  }: T.Context<{ params: { id: number } }>) {
+    return { id: params.id };
   }
 
 }
 `
   );
 
-  console.log(
-    `Controller created: ${fileName}`
-  );
+  console.log(`Controller created: ${target}`);
 }
 
 function capitalize(
