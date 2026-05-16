@@ -170,7 +170,6 @@ function parseType(type: string): any {
   if (type === "boolean | undefined") return "boolean";
   if (type === "date | undefined") return "date";
   
-
   if(type.includes("| undefined")) {
     return type
   }
@@ -194,16 +193,44 @@ function resolveType(type: Type): string {
   if (type.getSymbol()?.getName() === "Promise") {
     type = type.getTypeArguments()[0];
   }
-
+  
   if (type.isString())    return "string";
+  
   if (type.isNumber())    return "number";
   if (type.isBoolean())   return "boolean";
   if (type.isNull())      return "null";
   if (type.isUndefined()) return "undefined";
   if (type.isAny())       return "any";
   if (type.isUnknown())   return "unknown";
-  if (type.isUnion())     return type.getText();
+  if (type.isStringLiteral()) return type.getText();
 
+  if (type.isUnion())     {
+    const text = type.getText();
+
+    if(text.includes('| null') || text.includes('| undefined')) {
+
+      const types = type.getUnionTypes();
+
+      if (types.length > 1) {
+        const nonSpecial = types.filter(
+          t => !t.isNull() && !t.isUndefined()
+        );
+
+        const hasNull = types.some(t => t.isNull());
+        const hasUndefined = types.some(t => t.isUndefined());
+
+        const sorted = [
+          ...nonSpecial,
+          ...(hasNull ? [types.find(t => t.isNull())!] : []),
+          ...(hasUndefined ? [types.find(t => t.isUndefined())!] : []),
+        ];
+
+        return sorted.map(t => resolveType(t)).join(" | ");
+      }
+    }
+   
+    return text;
+  }
 
   if (type.isArray()) {
     const el = type.getArrayElementTypeOrThrow();
@@ -383,7 +410,7 @@ export async function generateRoutes(options: Options) {
   .join("\n")
 
   const formatValue = (v: any) => {
-    if (typeof v === "string") return v;
+    if (typeof v === "string") return `"${v.replace(/"/g,'')}"`;
     return JSON.stringify(v);
   };
 
