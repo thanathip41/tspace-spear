@@ -44,29 +44,58 @@ new Spear()
 ```
 
 ### Cli
+Generate applications, modules, controllers, services, and middleware with the Spear CLI.
 ```sh
 # Install CLI globally
 npm install -g tspace-spear
 
+# Usage:
+  spear create new <project>
+
+# Generators:
+  spear g module <names>
+  spear g controller <name>
+  spear g service <name>
+  spear g dto <name>
+  spear g middleware <name>
+
+---
+
 # Create a new application structure
-tspace-spear create app src
+spear create new my-app
 
-# Create a new controller
-tspace-spear create controller src/controllers/dog
+✔ Successfully created project "my-app"
 
-# Generated structure
+📦 Project Structure
+
 src/
-├── controllers/
-│   └── cat-controller.ts
-│   └── dog-controller.ts
-└── client.ts
+├── common/
+│   └── middlewares/
+│       └── log.middleware.ts
+│
+├── modules/
+│   └── cats/
+│       ├── cat.controller.ts
+│       ├── cat.service.ts
+│       └── cat.dto.ts
+│
+├── client.ts
 └── index.ts
 
-npm install ts-node --save-dev
+🚀 Next Steps
 
-ts-node src/index.ts
-## Server is now listening http://localhost:8000
-## Docs is now listening http://localhost:8000/api/docs
+cd my-app
+
+npm run dev
+
+✔ Server is running at:
+  http://localhost:8000
+
+✔ Swagger Docs:
+  http://localhost:8000/api/docs
+
+✔ Run E2E client:
+  ts-node src/client.ts
 
 ts-node src/client.ts // for E2E
 ```
