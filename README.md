@@ -600,8 +600,9 @@ DTO (Data Transfer Object) is used to validate and transform incoming request da
 import { 
   Controller , 
   Post,
-  createDtoDecorator,
   Validate,
+  ValidateDto,
+  createDtoDecorator,
   type T
 } from 'tspace-spear';
 
@@ -612,8 +613,6 @@ import {
   IsInt, 
   validate 
 } from "class-validator";
-
-import { ClassConstructor, plainToInstance } from 'class-transformer';
 
 const ValidateDtoCustomBody = (keys: string[]) => {
   return createDtoDecorator((ctx) => {
@@ -640,13 +639,6 @@ const ValidateDtoCustomBody = (keys: string[]) => {
   });
 }
 
-const ValidateDtoZodBody = (schema: z.ZodTypeAny) => {
-  return createDtoDecorator((ctx) => {
-    const result = schema.parse(ctx.body);
-    ctx.body = result as T.Body;
-  });
-}
-
 const ValidateDtoPromiseBody = (keys: string[]) => {
   return createDtoDecorator(async (ctx) => {
       await new Promise(resolve => setTimeout(resolve,500));
@@ -666,39 +658,6 @@ const ValidateDtoPromiseBody = (keys: string[]) => {
   });
 }
 
-const ValidateDtoClsBody = <T extends object>(
-  cls: ClassConstructor<T>
-) => {
-    return createDtoDecorator(async (ctx) => {
-
-      const dto = plainToInstance(
-          cls,
-          ctx.body
-      );
-
-      const errors = await validate(dto);
-
-      if (errors.length > 0) {
-          throw {
-            message: "Validation failed",
-            issues: errors.flatMap((error) => {
-              const constraints = error.constraints ?? {};
-
-              const firstError = Object.values(constraints)[0] ?? "Validation error";
-
-              return {
-                  path: error.property,
-                  message: firstError,
-              };
-            })
-          };
-      }
-
-      ctx.body = dto;
-    }
-  );
-};
-
 const catSchema = z.object({
   name: z.string(),
   age: z.number(),
@@ -712,7 +671,6 @@ class CreateCatDto {
   age!: number;
 }
 
-
 // file cat-controller.ts
 @Controller('/cats')
 export class CatController {
@@ -721,47 +679,40 @@ export class CatController {
   // only required validation without type checking
   @Validate(["name", "age"], { required: { allowEmptyString: false, allowNull: false } })
   public async basic(ctx : T.Context<{ body : { name : any , age : any }}>) {
-    const body = ctx.body;
     return {
-      body
+      body : ctx.body
     }
   }
 
-  @Post('/')
+  @Post('/custom')
   @ValidateDtoCustomBody(["name", "age"])
   public async custom(ctx : T.Context<{ body : { name : string , age : number }}>) {
-    const body = ctx.body;
     return {
-      body
-    }
-  }
-
-  @Post('/zod')
-  @ValidateDtoZodBody(catSchema)
-  public async zod(ctx : T.Context<z.infer<typeof catSchema>>) {
-    const body = ctx.body;
-    return {
-      body
+      body : ctx.body
     }
   }
 
   @Post('/promise')
   @ValidateDtoPromiseBody(['name'])
   public async promise(ctx : T.Context<{ body : { name : string }}>) {
-    const body = ctx.body;
-
     return {
-      body
+      body : ctx.body
+    }
+  }
+
+  @Post('/zod')
+  @ValidateDto(catSchema, { adaptor : "zod" })
+  public async zod(ctx : T.Context<{ body : z.infer<typeof catSchema>}>) {
+    return {
+      body : ctx.body
     }
   }
 
   @Post('/cls')
-  @ValidateDtoClsBody(CreateCatDto)
+  @ValidateDto(CreateCatDto)
   public async cls(ctx : T.Context<{ body : CreateCatDto }>) {
-    const body = ctx.body;
-
     return {
-      body
+      body : ctx.body
     }
   }
 }
