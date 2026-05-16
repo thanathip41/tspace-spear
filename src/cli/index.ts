@@ -68,9 +68,10 @@ Usage:
 
 Generators:
 
-  spear g module <name>
+  spear g module <names>
   spear g controller <name>
   spear g service <name>
+  spear g dto <name>
   spear g middleware <name>
 `);
 }
