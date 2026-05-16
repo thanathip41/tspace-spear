@@ -8,7 +8,7 @@
     "dist"
   ],
   "bin": {
-    "tspace-spear": "./dist/cli/index.js"
+    "spear": "./dist/cli/index.js"
   },
   "type": "commonjs",
   "repository": {

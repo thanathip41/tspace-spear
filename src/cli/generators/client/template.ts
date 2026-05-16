@@ -1,5 +1,5 @@
 
-export const client = `
+export const ClientTemplate = `
 // for example E2E
 import { AppRouter } from ".";
 import { ApiClient } from "tspace-spear/client";

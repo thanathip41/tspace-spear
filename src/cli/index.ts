@@ -1,156 +1,72 @@
 #!/usr/bin/env node
 
-import fs from "fs";
-import path from "path";
-import { app } from "./app";
-import { CatController } from "./controller";
-import { client } from "./client";
+import { createApp } from "./generators/app";
+import { createModule } from "./generators/module";
+import { createController } from "./generators/controller";
+import { createService } from "./generators/service";
+import { createMiddleware } from "./generators/middleware";
 
-const [, , action, type, target] = process.argv;
+const [, , command, type, name] = process.argv;
 
-switch (`${action}:${type}`) {
+/**
+ * spear create new <name>
+ * spear g module <name>
+ * spear g controller <name>
+ * spear g service <name>
+ * spear g middleware <name>
+ */
 
-  case "create:app":
-    createApp(target);
-    break;
+if (command === "create" && type === "new") {
+  createApp(name);
+  process.exit(0);
+}
 
-  case "create:controller":
-    createController(target);
-    break;
+if (command === "g") {
+  if (!name) {
+    printUsage();
+    process.exit(1);
+  }
 
-  default:
-    console.log(`
+  const root = 'ddd';
+
+  switch (type) {
+    
+    case "module":
+      createModule(root,name);
+      break;
+
+    case "controller":
+      createController(root,name);
+      break;
+
+    case "service":
+      createService(root,name);
+      break;
+
+    case "middleware":
+      createMiddleware(root,name);
+      break;
+
+    default:
+      printUsage();
+  }
+
+  process.exit(0);
+}
+
+printUsage();
+
+function printUsage() {
+  console.log(`
 Usage:
 
-tspace-spear create app ./src
-tspace-spear create controller ./src/controllers/dogs
+  spear create new <project>
+
+Generators:
+
+  spear g module <name>
+  spear g controller <name>
+  spear g service <name>
+  spear g middleware <name>
 `);
-}
-
-function createApp(targetPath?: string) {
-
-  if (!targetPath) {
-    console.log("Missing target path");
-    process.exit(1);
-  }
-
-  const root = path.resolve(
-    process.cwd(),
-    targetPath
-  );
-
-  fs.mkdirSync(root, {
-    recursive: true
-  });
-
-  fs.mkdirSync(
-    path.join(root, "controllers"),
-    {
-      recursive: true
-    }
-  );
-
-  fs.writeFileSync(
-    path.join(root, "index.ts"),
-    app
-  );
-
-  fs.writeFileSync(
-    path.join(root, "client.ts"),
-    client
-  );
-
-  fs.writeFileSync(
-    path.join(
-      root,
-      "controllers",
-      "cat.controller.ts"
-    ),CatController
-  );
-
-  console.log(
-    `App created at: ${root}`
-  );
-}
-
-function createController(inputPath?: string) {
-  if (!inputPath) {
-    console.log("Missing controller path");
-    process.exit(1);
-  }
-
-  const resolvedPath = path.resolve(process.cwd(), inputPath);
-
-  const name = path.basename(resolvedPath);
-  const fileName = `${name}.controller.ts`;
-
-  const target = path.join(resolvedPath, fileName);
-
-  fs.mkdirSync(resolvedPath, { recursive: true });
-
-  const className = capitalize(name) + "Controller";
-
-  fs.writeFileSync(
-    target,
-    `
-import {
-  type T,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete
-} from "tspace-spear";
-
-@Controller("/${name}")
-export default class ${className} {
-
-  @Get("/")
-  async index() {
-    return {};
-  }
-
-  @Get("/:id")
-  async show({
-    params
-  }: T.Context<{ params: { id: number } }>) {
-    return { id: params.id };
-  }
-
-  @Post("/")
-  async create({
-    body
-  }: T.Context<{ body: {} }>) {
-    return { body };
-  }
-
-  @Put("/:id")
-  async update({
-    params,
-    body
-  }: T.Context<{ params: { id: number }; body: {} }>) {
-    return { id: params.id, body };
-  }
-
-  @Delete("/:id")
-  async remove({
-    params
-  }: T.Context<{ params: { id: number } }>) {
-    return { id: params.id };
-  }
-
-}
-`
-  );
-
-  console.log(`Controller created: ${target}`);
-}
-
-function capitalize(
-  value: string
-) {
-  return (
-    value.charAt(0).toUpperCase() +
-    value.slice(1)
-  );
 }
