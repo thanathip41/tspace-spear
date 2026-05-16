@@ -9,8 +9,8 @@ import {
   Delete,
   ValidateDto
 } from "tspace-spear";
-import { CatService }    from "./cat.service.ts";
-import { CreateCatDto , UpdateCatDto }  from "./cat.dto.ts";
+import { CatService }    from "./cat.service";
+import { CreateCatDto , UpdateCatDto }  from "./cat.dto";
 import { LogMiddleware } from "../../common/middlewares/log.middleware";
 
 @Controller("/cats")

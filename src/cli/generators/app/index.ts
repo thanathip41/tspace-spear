@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { exec, execSync, spawn } from "child_process";
 import { AppTemplate } from "./template";
 import { ClientTemplate } from "../client/template";
 import { MiddlewareTemplate } from "../middleware/template";
@@ -9,7 +9,18 @@ import { ServiceTemplate } from "../service/template";
 import { DtoTemplate } from "../dto/template";
 
 
-export function createApp(inputPath?: string) {
+const c = {
+  bold: (text: string) => `\x1b[1m${text}\x1b[0m`,
+  dim: (text: string) => `\x1b[2m${text}\x1b[0m`,
+  green: (text: string) => `\x1b[32m${text}\x1b[0m`,
+  cyan: (text: string) => `\x1b[36m${text}\x1b[0m`,
+  underline: (text: string) => `\x1b[4m${text}\x1b[0m`,
+  gray: (text: string) => `\x1b[90m${text}\x1b[0m`,
+  reset: "\x1b[0m"
+};
+
+
+export async function createApp(inputPath?: string) {
   if (!inputPath) {
     console.log("Missing target path, try: spear g app src");
     process.exit(1);
@@ -19,7 +30,7 @@ export function createApp(inputPath?: string) {
 
   fs.mkdirSync(root, { recursive: true });
 
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(root, "package.json"),
     JSON.stringify(
       {
@@ -27,15 +38,19 @@ export function createApp(inputPath?: string) {
         version: "1.0.0",
         main: "dist/index.js",
         scripts: {
-          dev: "ts-node src/index.ts",
           build: "tsc",
           start: "node dist/index.js",
+          dev: "ts-node src/index.ts",
         },
-        dependencies: {},
+        dependencies: {
+          "tspace-spear": "latest",
+          "class-transformer": "0.5.1",
+          "class-validator": "0.15.1"
+        },
         devDependencies: {
-          typescript: "^5.0.0",
-          "ts-node": "^10.9.0",
-          "@types/node": "^20.0.0",
+          "typescript": "5.6.2",
+          "ts-node": "10.9.2",
+          "@types/node": "16.18.126"
         },
       },
       null,
@@ -43,18 +58,25 @@ export function createApp(inputPath?: string) {
     )
   );
 
-  // 3. tsconfig.json
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(root, "tsconfig.json"),
     JSON.stringify(
       {
         compilerOptions: {
-          target: "ES2020",
-          module: "commonjs",
-          outDir: "dist",
-          rootDir: "src",
-          strict: true,
-          esModuleInterop: true,
+          "target": "esnext",
+          "module": "commonjs",
+          "lib": ["esnext","DOM"],
+          "types": ["node"],
+          "allowJs": true,
+          "checkJs": false,
+          "outDir": "dist",
+          "rootDir": "src",
+          "strict": true,
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "forceConsistentCasingInFileNames": true,
+          "emitDecoratorMetadata": true,
+          "experimentalDecorators": true,
         },
       },
       null,
@@ -62,46 +84,90 @@ export function createApp(inputPath?: string) {
     )
   );
 
-  // 4. src structure
   const src = path.join(root, "src");
 
-  fs.mkdirSync(src, { recursive: true });
+  await fs.promises.mkdir(src, { recursive: true });
 
-  fs.mkdirSync(path.join(src, "common", "middlewares"), { recursive: true });
-  fs.mkdirSync(path.join(src, "modules", "cats"), { recursive: true });
+  await fs.promises.mkdir(path.join(src, "common", "middlewares"), { recursive: true });
+  await fs.promises.mkdir(path.join(src, "modules", "cats"), { recursive: true });
 
-  // 5. core files
-  fs.writeFileSync(path.join(src, "index.ts"), AppTemplate);
-  fs.writeFileSync(path.join(src, "client.ts"), ClientTemplate);
+  await fs.promises.writeFile(path.join(src, "index.ts"), AppTemplate);
+  await fs.promises.writeFile(path.join(src, "client.ts"), ClientTemplate);
 
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(src, "common", "middlewares", "log.middleware.ts"),
     MiddlewareTemplate
   );
 
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(src, "modules", "cats", "cat.controller.ts"),
     ControllerTemplate
   );
 
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(src, "modules", "cats", "cat.service.ts"),
     ServiceTemplate
   );
 
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     path.join(src, "modules", "cats", "cat.dto.ts"),
     DtoTemplate
   );
 
-  // 6. install dependencies automatically
-  console.log("Installing dependencies...");
+  console.log(`\n${c.bold("$ npm install")}\n`);
+ 
+  const startTime = Date.now();
 
-  execSync("npm install", {
-    cwd: root,
-    stdio: "inherit",
+  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  let i = 0;
+
+  const spinner = setInterval(() => {
+    process.stdout.write(`\r  ${c.cyan(frames[i])} Installing dependencies...`);
+    i = (i + 1) % frames.length;
+  }, 50);
+
+  await new Promise<void>((resolve, reject) => {
+    exec("npm install", { cwd: root }, (error) => {
+      if (error) return reject(error);
+      return resolve();
+    });
   });
 
-  console.log(`\n✅ App created at: ${root}`);
-  console.log(`👉 Next: cd ${inputPath} && npm run dev`);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const nodeModulesPath = path.join(root, "node_modules");
+  let totalPhysicalPackages = 0;
+
+  if (fs.existsSync(nodeModulesPath)) {
+    const files = await fs.promises.readdir(nodeModulesPath);
+    const packages = files.filter(file => !file.startsWith(".") && !file.startsWith("@"));
+    totalPhysicalPackages = packages.length;
+  }
+
+  clearInterval(spinner);
+  process.stdout.write("\r\x1b[K");
+
+  const endTime = Date.now();
+  const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
+
+  console.log(`${c.bold(c.cyan("dependencies"))}`);
+  console.log(`${c.gray("├──")} ${c.green("+")} tspace-spear${c.dim("@latest")}`);
+  console.log(`${c.gray("├──")} ${c.green("+")} class-transformer${c.dim("@0.5.1")}`);
+  console.log(`${c.gray("└──")} ${c.green("+")} class-validator${c.dim("@0.15.1")}`);
+  console.log(`${c.gray("│")}`);
+
+  console.log(`${c.bold(c.gray("devDependencies"))}`);
+  console.log(`${c.gray("├──")} ${c.green("+")} typescript${c.dim("@5.6.2")}`);
+  console.log(`${c.gray("├──")} ${c.green("+")} ts-node${c.dim("@10.9.2")}`);
+  console.log(`${c.gray("└──")} ${c.green("+")} @types/node${c.dim("@16.18.126")}\n`);
+
+  console.log(`\n${c.green(`${totalPhysicalPackages} packages installed`)} ${c.dim(`[${elapsedSeconds}s]`)}`);
+  console.log(`${c.dim(`[${elapsedSeconds}s] npm install`)}`);
+
+  console.log(`\n--------`)
+  console.log("A local project was created for you and dependencies were installed automatically.\n");
+  console.log(`${c.green("Created spear project successfully")}\n`);
+
+  console.log(c.bold(c.gray("# To get started, run:")));
+  console.log(`\n  cd ${inputPath}\n  ${c.cyan("npm run dev")}\n`);
 }

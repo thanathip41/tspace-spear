@@ -17,7 +17,7 @@ export function createMiddleware(root: string, name?: string) {
 
   fs.mkdirSync(resolvedPath, { recursive: true });
 
-  const middleName = capitalize(name) + "Middleware";
+  const middleName = capitalize(toSingular(name)) + "Middleware";
 
   fs.writeFileSync(
     target,
@@ -25,6 +25,7 @@ export function createMiddleware(root: string, name?: string) {
 import { type T } from "tspace-spear";
 
 const ${middleName} = async (ctx : T.Context, next: T.NextFunction) => {
+  console.log('hello: ${middleName}')
   return next();
 }
 
@@ -33,5 +34,10 @@ export default ${middleName};
 `
   );
 
-  console.log(`Middleware created: ${target}`);
+  console.log(`
+CREATE   ${target}
+
+✔ Successfully generated middleware "${name}"
+
+`)
 }

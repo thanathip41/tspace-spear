@@ -1,10 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { capitalize, toPlural, toSingular } from "../shared";
+import { 
+    capitalize, 
+    toPlural, 
+    toSingular 
+} from "../shared";
 
 export function createService(root : string,name?: string) {
   if (!name) {
-    console.log("Missing service path, try spear g service dogs");
+    console.log("Missing service path, try spear g service dog");
     process.exit(1);
   }
 
@@ -16,7 +20,7 @@ export function createService(root : string,name?: string) {
 
   fs.mkdirSync(resolvedPath, { recursive: true });
 
-  const className = capitalize(name) + "Service";
+  const className = capitalize(toSingular(name)) + "Service";
 
   fs.writeFileSync(
     target,
@@ -48,5 +52,10 @@ export default ${className};
 `
   );
 
-  console.log(`Service created: ${target}`);
+ console.log(`
+CREATE   ${target}
+
+✔ Successfully generated service "${name}"
+
+`)
 }

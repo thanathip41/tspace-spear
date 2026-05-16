@@ -1,10 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { capitalize, toPlural, toSingular } from "../shared";
+import { 
+    capitalize, 
+    toPlural, 
+    toSingular 
+} from "../shared";
 
 export function createController(root : string,name?: string) {
   if (!name) {
-    console.log("Missing controller path, try spear g controller dogs");
+    console.log("Missing controller path, try spear g controller dog");
     process.exit(1);
   }
 
@@ -16,7 +20,7 @@ export function createController(root : string,name?: string) {
 
   fs.mkdirSync(resolvedPath, { recursive: true });
 
-  const className = capitalize(name) + "Controller";
+  const className = capitalize(toSingular(name)) + "Controller";
 
   fs.writeFileSync(
     target,
@@ -73,5 +77,10 @@ export default ${className};
 `
   );
 
-  console.log(`Controller created: ${target}`);
+  console.log(`
+CREATE   ${target}
+
+✔ Successfully generated controller "${name}"
+
+`)
 }

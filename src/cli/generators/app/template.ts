@@ -31,6 +31,8 @@ app.listen(8000 , ({ port , server }) =>  {
 });
 
 type AppRouter = typeof app.contract;
+
 export { AppRouter };
 export { app };
+export default app;
 `;

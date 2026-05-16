@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { capitalize, toPlural, toSingular } from "../shared";
-import { MiddlewareTemplate } from "../middleware/template";
-import { ControllerTemplate } from "../controller/template";
-import { ServiceTemplate } from "../service/template";
-import { DtoTemplate } from "../dto/template";
+import { 
+    capitalize, 
+    toPlural, 
+    toSingular 
+} from "../shared";
 
 export function createModule(root : string,name?: string) {
 
@@ -13,24 +13,41 @@ export function createModule(root : string,name?: string) {
         process.exit(1);
     }
 
-    const resolvedPath = path.resolve(process.cwd(), root , 'modules', toPlural(name));
+    const modulePath = path.resolve(process.cwd(), root , 'modules', toPlural(name));
 
-    const target = path.join(resolvedPath);
+    fs.mkdirSync(modulePath, { recursive: true });
 
-    fs.mkdirSync(resolvedPath, { recursive: true });
+    const controllerPath = path.resolve(
+        process.cwd(),
+        root,
+        "modules",
+        toPlural(name),
+        `${toSingular(name)}.controller.ts`
+    )
+
+    const servicePath = path.resolve(
+        process.cwd(),
+        root,
+        "modules",
+        toPlural(name),
+        `${toSingular(name)}.service.ts`
+    )
+
+    const dtoPath = path.resolve(
+        process.cwd(),
+        root,
+        "modules",
+        toPlural(name),
+        `${toSingular(name)}.dto.ts`
+    )
 
     const controllerName = capitalize(toSingular(name)) + "Controller";
     const serviceName = capitalize(toSingular(name)) + "Service";
     const dtoName = capitalize(toSingular(name)) + "Dto";
 
     fs.writeFileSync(
-      path.join(
-        root,
-        "modules",
-        toPlural(name),
-        `${toSingular(name)}.controller.ts`
-      ),`
-import {
+      controllerPath,
+`import {
   type T,
   Controller,
   Get,
@@ -41,11 +58,12 @@ import {
   ValidateDto
 } from "tspace-spear";
 
-import { ${serviceName} } from "./${toSingular(name)}.service.ts";
+import { ${serviceName} } from "./${toSingular(name)}.service";
+
 import { 
     Create${dtoName}, 
     Update${dtoName} 
-}  from "./${toSingular(name)}.dto.ts";
+}  from "./${toSingular(name)}.dto";
 
 @Controller("/${name}")
 class ${controllerName} {
@@ -111,17 +129,11 @@ export default ${controllerName};
     );
 
     fs.writeFileSync(
-      path.join(
-        root,
-        "modules",
-        toPlural(name),
-        `${toSingular(name)}.service.ts`
-      ),
-        `
-import { 
+      servicePath,
+`import { 
     Create${dtoName}, 
     Update${dtoName} 
-}  from "./${toSingular(name)}.dto.ts";
+}  from "./${toSingular(name)}.dto";
 
 class ${serviceName} {
     public async index() {
@@ -151,13 +163,8 @@ export default ${serviceName};
     );
   
     fs.writeFileSync(
-      path.join(
-        root,
-        "modules",
-        toPlural(name),
-        `${toSingular(name)}.dto.ts`
-      ),`
-import {
+     dtoPath,
+`import {
   IsString,
   Min,
   IsNotEmpty,
@@ -186,5 +193,17 @@ export class Update${dtoName} {
       
 `
     );
-    console.log(`Service created: ${target}`);
+
+    console.log(`
+CREATE   ${modulePath}
+CREATE   ${controllerPath}
+CREATE   ${servicePath}
+CREATE   ${dtoPath}
+
+✔ Successfully generated module "${name}"
+
+Controller  ${controllerName}
+Service     ${serviceName}
+DTO         ${dtoName}
+`)
 }

@@ -5,6 +5,7 @@ import { createModule } from "./generators/module";
 import { createController } from "./generators/controller";
 import { createService } from "./generators/service";
 import { createMiddleware } from "./generators/middleware";
+import { createDto } from "./generators/dto";
 
 const [, , command, type, name] = process.argv;
 
@@ -17,8 +18,9 @@ const [, , command, type, name] = process.argv;
  */
 
 if (command === "create" && type === "new") {
-  createApp(name);
-  process.exit(0);
+  createApp(name)
+  .then(_ => process.exit(1))
+  .catch(_ => process.exit(1))
 }
 
 if (command === "g") {
@@ -27,7 +29,7 @@ if (command === "g") {
     process.exit(1);
   }
 
-  const root = 'ddd';
+  const root = 'src';
 
   switch (type) {
     
@@ -43,6 +45,10 @@ if (command === "g") {
       createService(root,name);
       break;
 
+    case "dto":
+      createDto(root,name);
+      break;
+
     case "middleware":
       createMiddleware(root,name);
       break;
@@ -53,8 +59,6 @@ if (command === "g") {
 
   process.exit(0);
 }
-
-printUsage();
 
 function printUsage() {
   console.log(`
