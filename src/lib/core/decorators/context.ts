@@ -1,4 +1,17 @@
+import Package from '../package';
 import { type T } from '../types';
+
+type ClassConstructor<T = any> =
+  new (...args: any[]) => T;
+
+type ZodSchemaLike = {
+  parse: (input: unknown) => any;   
+  parseAsync: (input: unknown) => Promise<any>;
+  safeParseAsync: (input: unknown) => Promise<{ success: boolean; data?: any; error?: any }>;
+  safeParse: (input: unknown) => { success: boolean; data?: any; error?: any };
+};
+
+type Target = "params" | "query" | "body" | "files";
 
 export function createDtoDecorator(
     validator: (ctx: T.Context) => void | Promise<void>,
@@ -14,7 +27,7 @@ export function createDtoDecorator(
                 return await original.call(this, ctx, next);
 
             } catch (err: any) {
-
+                
                 if (onError) {
                     return onError(ctx, err);
                 }
@@ -229,10 +242,9 @@ export const Cookies = (...keys: string[]): MethodDecorator => {
  *
  * @param keys - List of required field names.
  * @param options - Validation options.
- * @param options.target - Request source to validate.
- * Defaults to `"body"`.
- * 
- * @param options.required - Enables required-value validation.
+ * @property options.target - Request source to validate. defaults to `"body"`.
+ *
+ * @property options.required - Enables required-value validation.
  *
  * - `true`
  *   - Rejects `null`
@@ -241,11 +253,9 @@ export const Cookies = (...keys: string[]): MethodDecorator => {
  * - `object`
  *   - Allows customizing required rules.
  *
- * @param options.required.allowNull - Allow `null` values.
- * Default: `false`
+ * @property options.required.allowNull - Allow `null` values. Default: `false`
  *
- * @param options.required.allowEmptyString - Allow empty string values.
- * Default: `false`
+ * @property options.required.allowEmptyString - Allow empty string values. Default: `false`
  * @returns {MethodDecorator}
  *
  * @throws {Object} Throws a validation error object when
@@ -267,12 +277,7 @@ export const Cookies = (...keys: string[]): MethodDecorator => {
  * ```
  */
 export const Validate = ( keys: string[], { target, required } : { 
-    target ?: 
-    | 'params' 
-    | 'query' 
-    | 'body' 
-    | 'files'
-
+    target ?: Target;
     required ?: boolean | {
         allowNull?: boolean;
         allowEmptyString?: boolean;
@@ -328,5 +333,170 @@ export const Validate = ( keys: string[], { target, required } : {
         }
 
         return;
+    });
+}
+
+/**
+ * Validate request using either
+ * `class-validator` or `zod`. 
+ * 
+ * Please install the required validation library before using this decorator.
+ * @install
+ * npm install class-validator class-transformer
+ * 
+ * npm install zod
+ *
+ * @example
+ * // class-validator (default)
+ * \@ValidateDto(UserDto)
+ *
+ * @example
+ * // explicit class-validator
+ * \@ValidateDto(UserDto, {
+ *   adaptor: "class-validator"
+ * })
+ *
+ * @example
+ * // zod
+ * \@ValidateDto(UserSchema, {
+ *   adaptor: "zod"
+ * })
+ *
+ * @param schema
+ * Validation schema/class.
+ *
+ * - `class-validator`:
+ *   Must be a class constructor.
+ *
+ * - `zod`:
+ *   Must be a schema containing `.safeParseAsync()`.
+ *
+ * @param {Object} options Validation options.
+ *
+ * @property options.adaptor Validation adaptor. default "class-validator"
+ * @property options.message Validation error message.
+ * @property options.status Validation error status code.
+ * @property options.target Request target to validate. default "body"
+ *
+ * @returns MethodDecorator
+ */
+export function ValidateDto(
+    schema: ZodSchemaLike,
+    options: { 
+        adaptor : "zod"  
+        message ?: string;
+        status  ?: 400 | 422 | 500;
+        target  ?: Target;
+    }
+): MethodDecorator;
+export function ValidateDto(
+    schema: ClassConstructor,
+    options?: { 
+        adaptor : "class-validator";
+        message ?: string;
+        status  ?: 400 | 422 | 500;
+        target ?: Target;
+    }
+): MethodDecorator;
+export function ValidateDto(
+    schema: ZodSchemaLike | ClassConstructor,
+    options?: {
+        adaptor ?: "zod" | "class-validator";
+        message ?: string;
+        status  ?: 400 | 422 | 500;
+        target ?: Target;
+    }
+): MethodDecorator {
+   
+    const status = options?.status ?? 422;
+    const message = options?.message ?? "Validation failed";
+    const adaptor = options?.adaptor ?? "class-validator";
+    const target = options?.target ?? "body";
+
+    return createDtoDecorator(async (ctx) => {
+
+        if (adaptor === "zod") {
+            const result = await (schema as ZodSchemaLike).safeParseAsync(ctx[target]);
+           
+            if(result.success) {
+                ctx[target] = result.data;
+                return;
+            }
+
+            const issues = result.error?.issues;
+
+            const errors = Object
+            .values(
+                issues.reduce((acc:any, issue:any) => {
+
+                    const key = issue.path.join(".");
+
+                    if (!acc[key]) {
+
+                    acc[key] = {
+                        path: key,
+                        constraints: {
+                            [issue.code]: issue.message
+                        },
+                        message: issue.message
+                    };
+
+                    } else {
+                        acc[key].constraints[issue.code] = issue.message;
+                        acc[key].message +=`, ${issue.message}`;
+                    }
+
+                    return acc;
+
+                }, {} as Record<string, {
+                    path: string;
+                    constraints: Record<string, string>;
+                    message: string;
+                }>)
+            );
+
+            return ctx.res.status(status).json({
+                message: message,
+                issues: errors
+            });
+        } 
+    
+        if (adaptor === "class-validator") {
+
+            const dto = Package
+            .classTransformer
+            .plainToInstance(
+                schema as ClassConstructor,
+                ctx[target]
+            );
+
+            const errors = await Package
+            .classValidator
+            .validate(dto);
+
+            if(!errors.length) {
+                ctx[target] = dto;
+                return;
+            }
+
+            const issues = errors.flatMap((error:any) => {
+                const constraints = error.constraints ?? {};
+
+                return {
+                    path: error.property,
+                    constraints,
+                    message: Object.values(constraints).join(","),
+                };
+            })
+
+            return ctx.res
+            .status(status)
+            .json({
+                message: message,
+                issues: issues
+            });
+        }
+
+        throw new Error("Invalid validation adaptor specified");
     });
 }
