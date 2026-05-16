@@ -81,7 +81,7 @@ class ${controllerName} {
     async show({
         params
     }: T.Context<{ params: { id: number } }>) {
-        return this.${toSingular(name)}Service.show(params.id);
+        return this.${toSingular(name)}Service.show(+params.id);
     }
 
     @Post("/")
@@ -108,7 +108,7 @@ class ${controllerName} {
     }>) {
 
         return this.${toSingular(name)}Service
-        .update(params.id, { 
+        .update(+params.id, { 
             name: body.name, 
             age: body.age 
         });
@@ -119,7 +119,7 @@ class ${controllerName} {
         params
     }: T.Context<{ params: { id: number } }>) {
         return this.${toSingular(name)}Service
-        .remove(params.id);
+        .remove(+params.id);
     }
 }
 

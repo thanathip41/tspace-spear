@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { exec, execSync, spawn } from "child_process";
+import { exec } from "child_process";
 import { AppTemplate } from "./template";
 import { ClientTemplate } from "../client/template";
 import { MiddlewareTemplate } from "../middleware/template";

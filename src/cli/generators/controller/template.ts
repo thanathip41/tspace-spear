@@ -23,7 +23,8 @@ class CatController {
   @Get("/")
   @Middleware(LogMiddleware)
   async index() {
-    return this.catService.index();
+    const cats = this.catService.index();
+    return { cats };
   }
 
   @Get("/:id")
@@ -35,8 +36,8 @@ class CatController {
       id: number;
     };
   }>) {
-
-    return this.catService.show(params.id);
+    const cat = this.catService.show(+params.id);
+    return { cat }
   }
 
   @Post("/")
@@ -48,11 +49,13 @@ class CatController {
     body: CreateCatDto;
   }>) {
 
-    return this.catService
+    const cat = this.catService
     .create({ 
       name: body.name, 
       age: body.age 
     });
+
+    return { cat };
   }
 
   @Put("/:id")
@@ -68,11 +71,13 @@ class CatController {
     body: UpdateCatDto;
   }>) {
 
-    return this.catService
-    .update(params.id, { 
+    const cat = this.catService
+    .update(+params.id, { 
       name: body.name, 
       age: body.age 
     });
+
+    return { cat }
   }
 
   @Delete("/:id")
@@ -85,8 +90,10 @@ class CatController {
     };
   }>) {
 
-    return this.catService
-    .remove(params.id);
+    const deleted = this.catService
+    .remove(+params.id);
+
+    return deleted;
   }
 }
 

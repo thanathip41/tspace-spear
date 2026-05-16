@@ -1,5 +1,10 @@
 
 export const ServiceTemplate = `
+import { 
+    CreateCatDto, 
+    UpdateCatDto 
+}  from "./cat.dto";
+
 type Cat = {
     id: number;
     name: string;
@@ -16,12 +21,14 @@ export class CatService {
     };
 
     public async show(id: number) {
-        return this.cats.find(cat => cat.id === id);
+        const cat = this.cats.find(cat => cat.id === id);
+        if(cat == null) return null;
+        return cat;
     };
 
-    public async create({ name, age }: Omit<Cat, "id">) {
+    public async create({ name, age }: CreateCatDto) {
 
-        const cat: Cat = {
+        const cat = {
             id: this.cats.length + 1,
             name: name,
             age: age
@@ -29,13 +36,10 @@ export class CatService {
 
         this.cats.push(cat);
 
-        return {
-            message: "Created",
-            cat
-        };
+        return cat;
     }
     
-    public async update(id: number, { name, age }: Omit<Cat, "id">) {
+    public async update(id: number, { name, age }: UpdateCatDto) {
         const index = this.cats.findIndex(d => d.id === id);
 
         if (index === -1) {
@@ -47,10 +51,9 @@ export class CatService {
             ...{ name, age }        
         };
 
-        return {
-            message: "Updated",
-            cat: this.cats[index]
-        };
+        const cat = this.cats[index];
+
+        return cat;
     }
 
     public async remove(id: number) {
@@ -60,12 +63,9 @@ export class CatService {
             throw new Error("Cat not found");
         }
 
-        const [removedCat] = this.cats.splice(index, 1);
+        this.cats.splice(index, 1);
 
-        return {
-            message: "Deleted",
-            cat: removedCat
-        };
+        return true;
     }
 }
 `;
