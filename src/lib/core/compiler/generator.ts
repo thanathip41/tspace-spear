@@ -18,21 +18,19 @@ const HTTP_METHODS = {
 } as const
 
 type Route = {
-  method: string
-  path: string
-  response: string
-  body: string
-  params: string
-  query: string
-  files: string
+  method: string;
+  path: string;
+  body: string;
+  params: string;
+  query: string;
+  files: string;
+  response: string;
 }
 
 type Options = {
-  controllers: {
-    folder: string
-    name: RegExp
-  }
-  output?: string
+  folder: string;
+  name: RegExp;
+  output?: string;
 }
 
 function normalizePath(p: string) {
@@ -76,7 +74,7 @@ function parseType(type: string): any {
   type = type.trim();
 
   if (type === "never") {
-    return null;
+    return undefined;
   }
 
   if (type.startsWith("Record<")) {
@@ -164,11 +162,13 @@ function parseType(type: string): any {
   if (type === "number") return "number";
   if (type === "boolean") return "boolean";
   if (type === "date") return "date";
+  if (type === "Date") return "Date";
 
   if (type === "string | undefined") return "string";
   if (type === "number | undefined") return "number";
   if (type === "boolean | undefined") return "boolean";
   if (type === "date | undefined") return "date";
+  if (type === "Date | undefined") return "Date";
   
   if(type.includes("| undefined")) {
     return type
@@ -195,7 +195,6 @@ function resolveType(type: Type): string {
   }
   
   if (type.isString())    return "string";
-  
   if (type.isNumber())    return "number";
   if (type.isBoolean())   return "boolean";
   if (type.isNull())      return "null";
@@ -203,6 +202,11 @@ function resolveType(type: Type): string {
   if (type.isAny())       return "any";
   if (type.isUnknown())   return "unknown";
   if (type.isStringLiteral()) return type.getText();
+  if (type.getText() === 'Date' && 
+      type.getSymbol()?.getName() === 'Date'
+  ) {
+    return "Date";
+  }
 
   if (type.isUnion())     {
     const text = type.getText();
@@ -237,9 +241,10 @@ function resolveType(type: Type): string {
     return `${resolveType(el)}[]`;
   }
 
-  const props = type.getProperties();
+  if (type.getProperties().length) {
+    
+    const props = type.getProperties();
 
-  if (props.length) {
     const obj: string[] = [];
 
     for (const prop of props) {
@@ -298,13 +303,13 @@ function extractPropertyType(
   return resolveType(t) ?? "never";
 }
 
-export async function generateRoutes(options: Options) {
+export async function generateRoutes(globalPrefix: string, options: Options) {
   const project = new Project({
     tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
   })
 
   project.addSourceFilesAtPaths(
-    path.join(options.controllers.folder, "**/*")
+    path.join(options.folder, "**/*")
   )
 
   const files = project.getSourceFiles()
@@ -319,7 +324,7 @@ export async function generateRoutes(options: Options) {
   for (const file of files) {
     const filename = file.getBaseName()
 
-    if (!options.controllers.name.test(filename)) continue
+    if (!options.name.test(filename)) continue
 
     for (const cls of file.getClasses()) {
       const controller = cls.getDecorator("Controller")
@@ -349,16 +354,17 @@ export async function generateRoutes(options: Options) {
           let params = "never"
           let query = "never"
           let files = "never"
+          let cookies = "never"
 
           const firstParam = method.getParameters()[0]
 
           if (firstParam) {
             const type = firstParam.getType()
 
-            body   = extractPropertyType(type, "body", firstParam)
-            params = extractPropertyType(type, "params", firstParam)
-            query  = extractPropertyType(type, "query", firstParam)
-            files  = extractPropertyType(type, "files", firstParam)
+            params  = extractPropertyType(type, "params", firstParam)
+            query   = extractPropertyType(type, "query", firstParam)
+            body    = extractPropertyType(type, "body", firstParam)
+            files   = extractPropertyType(type, "files", firstParam)
           }
 
           routes.push({
@@ -368,7 +374,7 @@ export async function generateRoutes(options: Options) {
             body,
             params,
             query,
-            files,
+            files
           })
         }
       }
@@ -407,10 +413,85 @@ export async function generateRoutes(options: Options) {
   ${methodBlock}
   }`
   })
-  .join("\n")
+  .join("\n");
 
-  const formatValue = (v: any) => {
-    if (typeof v === "string") return `"${v.replace(/"/g,'')}"`;
+  const normalizeType = (t: string) => {
+    return t
+      .split("|")
+      .map(v => v.trim())
+      .filter(v =>
+        v !== "null" &&
+        v !== "undefined"
+      )[0] || "string";
+  };
+
+  const formatExampleValue = (v: any): string => {
+
+    if (v === null) {
+      return "null";
+    }
+
+    if(v === undefined) {
+      return "undefined"
+    }
+
+    if (typeof v === "string") {
+      const t = normalizeType(v.trim());
+
+      switch (t) {
+        case "string":
+        case "String":
+          return `"example"`;
+
+        case "number":
+        case "Number":
+          return "123";
+
+        case "boolean":
+        case "Boolean":
+          return "true";
+
+        case "null":
+          return "null";
+
+        case "undefined":
+          return "undefined";
+
+        case "date":
+        case "Date":
+          return `"2000-01-01T00:00:00.000Z"`;
+
+        default:
+          return `"${t.replace(/"/g, "")}"`;
+      }
+    }
+
+    if (Array.isArray(v)) {
+      if (v.length === 0) {
+        return "[]";
+      }
+
+      return `[${formatExampleValue(v[0])}]`;
+    }
+
+    if (typeof v === "object") {
+      const entries = Object.entries(v).map(
+        ([key, value]) => {
+
+          if (key.includes("uuid")) {
+            return `${key}: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`;
+          }
+   
+          if (key === "id" || key.endsWith("id")) {
+            return `${key}: 123`;
+          }
+
+          return `${key}: ${formatExampleValue(value)}`;
+        }
+      );
+      return `{ ${entries.map(v => `${v}`).join(", ")} }`;
+    }
+
     return JSON.stringify(v);
   };
 
@@ -435,11 +516,11 @@ export async function generateRoutes(options: Options) {
     const methodBlock = Object.entries(methods)
       .map(([method, c]: any) => `
     ${method}: {
-      params: ${formatValue(c.params)},
-      query: ${formatValue(c.query)},
-      body: ${formatValue(c.body)},
-      files: ${formatValue(c.files)},
-      response: ${formatValue(c.response)}
+      params: ${formatExampleValue(c.params)},
+      query: ${formatExampleValue(c.query)},
+      body: ${formatExampleValue(c.body)},
+      files: ${formatExampleValue(c.files)},
+      response: ${formatExampleValue(c.response)}
     }`).join(",\n");
 
     return `
@@ -453,16 +534,21 @@ export async function generateRoutes(options: Options) {
 // @ts-nocheck
 // AUTO GENERATED FILE
 // DO NOT EDIT
+// **Response values shown here are examples only.
+${globalPrefix ? 
+`// **The App is using the configuration:
+// globalPrefix: '${globalPrefix}'` : ''
+}
 
 export const appRoutes = {
 ${routerMapValues}
-}
+};
 
 export interface AppRoutes {
 ${routeMapTypes}
-}
+};
 
-export type AppRoute = keyof AppRoutes
+export type AppRoute = keyof AppRoutes;
 `
 
   const outPath = options.output
@@ -473,25 +559,20 @@ export type AppRoute = keyof AppRoutes
     recursive: true,
   })
 
-  await fs.promises.writeFile(outPath, output)
-
   const compiled = ts.transpileModule(output, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
+      target: ts.ScriptTarget.ESNext
     },
   })
 
-  const jsPath = outPath.replace(
-    /\.ts$/,
-    ".js"
-  )
-
-  await fs.promises.writeFile(
-    jsPath,
-    compiled.outputText,
-    "utf8"
-  )
+  await Promise.all([
+    fs.promises.writeFile(outPath, output),
+    fs.promises.writeFile(
+      outPath.replace(/\.ts$/, ".js"),
+      compiled.outputText
+    )
+  ])
 
   return routes
 }

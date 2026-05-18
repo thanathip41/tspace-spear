@@ -7,6 +7,20 @@ import http, {
 import WebSocket from "ws";
 import net from 'net';
 
+type TPrimitive =
+  | string
+  | number
+  | boolean
+  | Date
+  | null
+  | undefined;
+
+type TObject = {
+  [key: string]: TPrimitive | TObject;
+}
+
+type TValue = TPrimitive | TObject;
+
 type TContextBase = {
   req     : TRequest
   res     : TResponse
@@ -37,17 +51,17 @@ type TQuery<T = Record<string, string | undefined>> = T
 
 type TParams<T = Record<string, string | number | undefined>> = T
 
-type TBody<T = Record<string,any>> = T
+type TBody<T = Record<string, TValue>> = T;
 
-type TCookies<T = Record<string, any | undefined>> = T
+type TCookies<T = Record<string, string | undefined>> = T
 
 type TFile = {
     size: number;
     sizes : {
-        bytes : number,
-        kb    : number,
-        mb    : number,
-        gb    : number
+        bytes : number;
+        kb    : number;
+        mb    : number;
+        gb    : number;
     };
     tempFilePath: string;
     tempFileName : string;
@@ -385,7 +399,7 @@ type TWSHandler = {
 export declare namespace T {
     type Context<
         O extends Partial<Pick<
-            TContextBase, "body" | "query" | "files" | "params">
+            TContextBase, "query" | "params" | "body" | "cookies" | "files">
         > = {}
     >                     = TContext<O>
     type Adapter          = TAdapter

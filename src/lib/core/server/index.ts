@@ -217,7 +217,7 @@ class Spear {
      * @returns {this} Returns the current instance for method chaining.
      */
     public useGlobalPrefix(globalPrefix: string | null): this {
-        this._globalPrefix = globalPrefix == null ? '' : globalPrefix;
+        this._globalPrefix = globalPrefix == null ? '' : globalPrefix.replace(/^\/+|\/+$/g, '');
         return this;
     }
 
@@ -512,7 +512,10 @@ class Spear {
         const server = await this._createServer();
 
         if(this._generatePreRouteTypes) {
-            await new Compiler().generateRoutes(this._generatePreRouteTypes)
+            await new Compiler().generateRoutes(
+                this._globalPrefix,
+                this._generatePreRouteTypes
+            )
         }
 
         if(
