@@ -33,7 +33,7 @@ type Options = {
   output?: string;
 }
 
-function normalizePath(p: string) {
+const normalizePath = (p: string) => {
   return (
     "/" +
     p
@@ -44,7 +44,7 @@ function normalizePath(p: string) {
   )
 }
 
-function splitTopLevel(input: string) {
+const splitTopLevel = (input: string) => {
   const parts: string[] = [];
 
   let current = "";
@@ -70,7 +70,7 @@ function splitTopLevel(input: string) {
   return parts;
 }
 
-function parseType(type: string): any {
+const parseType = (type: string): any => {
   type = type.trim();
 
   if (type === "never") {
@@ -188,7 +188,7 @@ function parseType(type: string): any {
   };
 }
 
-function resolveType(type: Type): string {
+const resolveType = (type: Type): string => {
 
   if (type.getSymbol()?.getName() === "Promise") {
     type = type.getTypeArguments()[0];
@@ -201,7 +201,13 @@ function resolveType(type: Type): string {
   if (type.isUndefined()) return "undefined";
   if (type.isAny())       return "any";
   if (type.isUnknown())   return "unknown";
-  if (type.isStringLiteral()) return type.getText();
+
+  if (
+    type.isStringLiteral()  || 
+    type.isBooleanLiteral() ||
+    type.isNumberLiteral()
+  ) return type.getText();
+  
   if (type.getText() === 'Date' && 
       type.getSymbol()?.getName() === 'Date'
   ) {
@@ -284,11 +290,11 @@ function resolveType(type: Type): string {
   return type.getText();
 }
 
-function extractPropertyType(
+const extractPropertyType = (
   type: Type,
   key: string,
   node: ParameterDeclaration
-) {
+) => {
   const prop = type.getProperty(key)
   if (!prop) return "never"
 
@@ -303,7 +309,7 @@ function extractPropertyType(
   return resolveType(t) ?? "never";
 }
 
-export async function generateRoutes(globalPrefix: string, options: Options) {
+export const generateRoutes = async (globalPrefix: string, options: Options) => {
   const project = new Project({
     tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
   })
@@ -354,8 +360,7 @@ export async function generateRoutes(globalPrefix: string, options: Options) {
           let params = "never"
           let query = "never"
           let files = "never"
-          let cookies = "never"
-
+          
           const firstParam = method.getParameters()[0]
 
           if (firstParam) {
@@ -425,6 +430,16 @@ export async function generateRoutes(globalPrefix: string, options: Options) {
       )[0] || "string";
   };
 
+  const maybeObject = (v : string) => {
+    const s = v.trim();
+    return s.startsWith("{") && s.endsWith("}");
+  }
+
+  const maybeArrayObject = (v : string) => {
+    const s = v.trim();
+    return s.endsWith("}[]");
+  }
+
   const formatExampleValue = (v: any): string => {
 
     if (v === null) {
@@ -438,28 +453,88 @@ export async function generateRoutes(globalPrefix: string, options: Options) {
     if (typeof v === "string") {
       const t = normalizeType(v.trim());
 
+      if (maybeObject(t)) {
+        const inner = t.trim().slice(1, -1);
+        
+        const result = Object.fromEntries(
+          splitTopLevel(inner)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(pair => {
+              const idx = pair.indexOf(":");
+              const key = pair.slice(0, idx).trim();
+              const type = pair.slice(idx + 1).trim();
+              return [key.replace(/\?/g, ''), type];
+            })
+        );
+
+        return formatExampleValue(result);
+      } 
+
+      if(maybeArrayObject(t)) {
+
+        const s = v.trim();
+
+        const output = s.replace(
+          /(\w+):\s*(\{[^}]+\})\[\]/,
+          '$1: [$2]'
+        ).match(/\{(.*)\}/)?.[1]
+       
+        if(!output) return `[]`;
+        
+        const result = Object.fromEntries(
+          splitTopLevel(output)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(pair => {
+              const idx = pair.indexOf(":");
+              const key = pair.slice(0, idx).trim();
+              const type = pair.slice(idx + 1).trim();
+              return [key, type];
+            })
+        );
+
+        return formatExampleValue(result)
+      }
+   
       switch (t) {
         case "string":
-        case "String":
           return `"example"`;
 
+        case "string[]":
+          return `["example1", "example2", "example3"]`;
+
         case "number":
-        case "Number":
           return "123";
+        
+        case "number[]":
+          return "[1 ,2, 3]"
 
         case "boolean":
-        case "Boolean":
           return "true";
+
+        case "boolean[]":
+          return "[true, false, true]";
 
         case "null":
           return "null";
 
+        case "null[]":
+          return "[null, null, null]";
+
         case "undefined":
           return "undefined";
+
+        case "undefined[]":
+          return "[undefined, undefined, undefined]";
 
         case "date":
         case "Date":
           return `"2000-01-01T00:00:00.000Z"`;
+
+        case "date[]":
+        case "Date[]":
+          return `["2000-01-01T00:00:00.000Z","2000-01-02T00:00:00.000Z","2000-01-03T00:00:00.000Z"]`;
 
         default:
           return `"${t.replace(/"/g, "")}"`;
