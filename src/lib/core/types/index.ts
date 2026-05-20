@@ -91,49 +91,49 @@ type THttpResponder = {
     uWS: any; // typeof import('uWebSockets.js').HttpResponse
 
     /** 200 OK - Standard successful response */
-    ok: (data?: Record<string, any>) => any;
+    ok: <T extends Record<string, any>>(data?: T) => T
 
     /** 201 Created - Resource successfully created */
-    created: (data?: Record<string, any>) => any;
+    created: <T extends Record<string, any>>(data?: T) => T
 
     /** 202 Accepted - Request accepted for processing */
-    accepted: (data?: Record<string, any>) => any;
+    accepted: <T extends Record<string, any>>(data?: T) => T
 
     /** 204 No Content - Successful request with no response body */
-    noContent: (message?: string) => any;
+    noContent: (message?: string) => any
 
     /** 400 Bad Request - Invalid request from client */
-    badRequest: (message?: string) => any;
+    badRequest: <T extends string> (message?: T) => T
 
     /** 401 Unauthorized - Authentication required or failed */
-    unauthorized: (message?: string) => any;
+    unauthorized: <T extends string> (message?: T) => T
 
     /** 402 Payment Required - Reserved for future/payment flow */
-    paymentRequired: (message?: string) => any;
+    paymentRequired: <T extends string> (message?: T) => T
 
     /** 403 Forbidden - Client does not have access rights */
-    forbidden: (message?: string) => any;
-
-    /** 422 Unprocessable Entity - Valid request but semantic errors */
-    unprocessable: (message?: string) => any;
-
-    /** 429 Too Many Requests - Rate limit exceeded */
-    tooManyRequests: (message?: string) => any;
+    forbidden: <T extends string> (message?: T) => T
 
     /** 404 Not Found - Resource does not exist */
-    notFound: (message?: string) => any;
+    notFound: <T extends string> (message?: T) => T
+
+    /** 422 Unprocessable Entity - Valid request but semantic errors */
+    unprocessable: <T extends string> (message?: T) => T
+
+    /** 429 Too Many Requests - Rate limit exceeded */
+    tooManyRequests: <T extends string> (message?: T) => T
 
     /** 500 Internal Server Error - Generic server failure */
-    serverError: (message?: string) => any;
+    serverError: <T extends string> (message?: T) => T
 
     /** 502 Bad Gateway - Invalid response from upstream server */
-    badGateway: (message?: string) => any;
+    badGateway: <T extends string> (message?: T) => T
 
     /** 503 Service Unavailable - Server temporarily unavailable */
-    unavailable: (message?: string) => any;
+    unavailable: <T extends string> (message?: T) => T
 
     /** 504 Gateway Timeout - Upstream server timeout */
-    gatewayTimeout: (message?: string) => any;
+    gatewayTimeout: <T extends string> (message?: T) => T
 
     /**
      * Serve a media file (video, image, PDF, etc.) from file system.
@@ -151,7 +151,7 @@ type THttpResponder = {
      * Send error response (generic wrapper).
      * @param err Error object or message
      */
-    error: (err: any) => any;
+    error: (err: any) => any
 
     /**
      * Send plain text response.
