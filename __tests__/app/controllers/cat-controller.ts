@@ -52,7 +52,7 @@ class CatController {
     const cat = cats.find((d) => d.id === Number(params.id));
 
     if(cat == null) {
-      return res.notFound('not found cat')
+      throw res.notFound('not found cat')
     }
 
     return {
@@ -94,7 +94,7 @@ class CatController {
     const index = cats.findIndex((d) => d.id === id);
 
     if (index === -1) {
-      return res.notFound('not found cat')
+      throw res.notFound('not found cat')
     }
 
     cats[index] = {
