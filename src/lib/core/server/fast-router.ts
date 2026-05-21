@@ -18,9 +18,33 @@ type Node = {
 const METHODS = [
   "GET", "POST", "PUT", "PATCH",
   "DELETE", "OPTIONS", "HEAD"
-] as const
+] as const;
 
 type Method = typeof METHODS[number];
+
+const parseValue = (value: string) : any => {
+
+  if (/^-?\d+(\.\d+)?$/.test(value)) {
+
+    const num = Number(value);
+
+    if (
+      Number.isFinite(num) &&
+      Number.isSafeInteger(num)
+    ) {
+      return num;
+    }
+
+    if (
+      Number.isFinite(num) &&
+      !Number.isInteger(num)
+    ) {
+      return num;
+    }
+  }
+
+  return value;
+}
 export class FastRouter {
   private trees: Record<string, Node> = Object.create(null);
   private _routes: T.Route[] = [] 
@@ -173,8 +197,8 @@ export class FastRouter {
    * It supports parameterized routes, static routes, and (optionally)
    * wildcard matching depending on router implementation.
    *
-   * @param req Incoming HTTP request object
-   * @param res Server response object used to send output
+   * @param {IncomingMessage} req Incoming HTTP request object
+   * @param {ServerResponse} res Server response object used to send output
    *
    * @returns void
    *
@@ -226,9 +250,10 @@ export class FastRouter {
         }
 
         if (node.param) {
-          params[node.param.paramName!] = part
+          params[node.param.paramName!] = parseValue(part);
           node = node.param
           start = i + 1
+
           continue
         }
 
