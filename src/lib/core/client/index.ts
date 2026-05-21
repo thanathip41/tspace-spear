@@ -1,53 +1,29 @@
 import type {
   AnyRoutes,
   RoutesWithMethod,
-  RequestBody,
-  RequestQuery,
-  RequestParams,
-  RequestFiles,
   ResponseType,
-} from "../compiler/types";
-
-type RequestInput<
-  TRoutes extends AnyRoutes,
-  TPath extends keyof TRoutes,
-  TMethod extends keyof TRoutes[TPath],
-> =
-  RequestParams<TRoutes,TPath,TMethod> extends never
-    ? {
-        params ?: never;
-
-        query  ?: RequestQuery<TRoutes,TPath,TMethod>;
-
-        body   ?: RequestBody<TRoutes,TPath,TMethod>;
-
-        files  ?: RequestFiles<TRoutes,TPath,TMethod>;
-      }
-    : {
-        params : RequestParams<TRoutes,TPath,TMethod>;
-
-        query  ?: RequestQuery<TRoutes,TPath,TMethod>;
-
-        body   ?: RequestBody<TRoutes,TPath,TMethod>;
-
-        files  ?: RequestFiles<TRoutes,TPath,TMethod>;
-      };
+  RequestInput,
+  OptionalIfEmpty,
+  ApiResponse,
+} from "./types";
 
 let fetchFn: typeof fetch | null = null;
 
-async function getFetch() {
+export const getFetch = async () => {
   if (fetchFn) return fetchFn;
 
-  if (globalThis.fetch) {
-    fetchFn = globalThis.fetch;
+  // Browser OR modern Node v18+ (preferred)
+  if (typeof globalThis.fetch === "function") {
+    fetchFn = globalThis.fetch.bind(globalThis);
     return fetchFn;
   }
 
+  // Legacy Node fallback
   const mod = await import("node-fetch");
   fetchFn = mod.default as unknown as typeof fetch;
 
   return fetchFn;
-}
+};
 
 /**
  * Type-safe HTTP client built on top of the native Fetch API.
@@ -80,7 +56,8 @@ async function getFetch() {
  * })
  *
  * // fully typed response
- * console.log(res.cats)
+ * if(res.ok)
+ *  console.log(res.cats)
  * ```
  */
 class ApiClient<
@@ -92,7 +69,7 @@ class ApiClient<
     this.baseURL = baseURL;
   }
 
-  protected async request<
+  private async request<
     TPath extends keyof TRoutes,
     TMethod extends keyof TRoutes[TPath],
   >(
@@ -103,15 +80,15 @@ class ApiClient<
       TPath,
       TMethod
     >,
-  ): Promise<{
-    ok     : boolean;
-    status : number;
-    data   : ResponseType<
-      TRoutes,
-      TPath,
-      TMethod
-    >  
-  }> {
+  ): Promise<
+      ApiResponse<
+        ResponseType<
+          TRoutes,
+          TPath,
+          TMethod
+        >
+      >
+    > {
     
       let url = this.baseURL + (path as string)
 
@@ -143,7 +120,6 @@ class ApiClient<
 
     const res = await fetchFn(url, {
       method: method as string,
-
       headers: {
         "Content-Type":
           "application/json",
@@ -166,20 +142,11 @@ class ApiClient<
       ? await res.json()
       : await res.text();
 
-    // if (!res.ok) {
-    //   throw new Error(
-    //     data?.message ||
-    //       data?.error ||
-    //       (typeof data === "string"
-    //         ? data
-    //         : `HTTP ${res.status}`),
-    //   );
-    // }
-
     return {
-      ok : res.ok,
-      status: res.status,
-      data,
+      ok      : res.ok,
+      headers : res.headers,
+      status  : res.status as any,
+      data    : data,
     }
   }
 
@@ -190,12 +157,9 @@ class ApiClient<
     >,
   >(
     path: TPath,
-    input?: RequestInput<
-      TRoutes,
-      TPath,
-      "GET"
-    >
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "GET">>
   ) {
+    const input = args[0];
     return this.request(
       "GET",
       path,
@@ -210,12 +174,10 @@ class ApiClient<
     >,
   >(
     path: TPath,
-    input: RequestInput<
-      TRoutes,
-      TPath,
-      "POST"
-    >,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "POST">>
   ) {
+    const input = args[0];
+
     return this.request(
       "POST",
       path,
@@ -230,12 +192,10 @@ class ApiClient<
     >,
   >(
     path: TPath,
-    input: RequestInput<
-      TRoutes,
-      TPath,
-      "PUT"
-    >,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "PUT">>
   ) {
+    const input = args[0];
+
     return this.request(
       "PUT",
       path,
@@ -250,12 +210,10 @@ class ApiClient<
     >,
   >(
     path: TPath,
-    input: RequestInput<
-      TRoutes,
-      TPath,
-      "PATCH"
-    >,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "PATCH">>
   ) {
+    const input = args[0];
+
     return this.request(
       "PATCH",
       path,
@@ -270,12 +228,10 @@ class ApiClient<
     >,
   >(
     path: TPath,
-    input?: RequestInput<
-      TRoutes,
-      TPath,
-      "DELETE"
-    >,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "DELETE">>
   ) {
+    const input = args[0];
+
     return this.request(
       "DELETE",
       path,
