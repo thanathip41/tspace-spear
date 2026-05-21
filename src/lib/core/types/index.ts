@@ -411,7 +411,7 @@ export declare namespace T {
     type Route            = TRoute
     type Method           = TMethod
     type ErrorFunction    = TErrorFunction
-    type HttpStatus       = THttpResponder
+    type HttpResponder    = THttpResponder
     type ContextHandler   = TContextHandler
     type WebSocketHandler = TWSHandler
     type StatusCode       = TStatusCode
@@ -419,15 +419,16 @@ export declare namespace T {
     type Response         = TResponse
     type Request          = TRequest
 
-    type FileUpload<T = Record<string, TFile[] | undefined>> = T
-    type FileInput                           = TFile
-    type Cookies<T = Record<string, any>>    = TCookies<T>
-    type Params<T = Record<string, string>>  = TParams<T>
-    type Query<T = Record<string, string>>   = TQuery<T>
-    type Body<T = Record<string, any>>       = TBody<T>
-    type Headers<T = IncomingHttpHeaders>    = THeaders<T>
-    type Ip                                  = TIp
-    type Ips                                 = TIps
+    type Headers<T = IncomingHttpHeaders>  = THeaders<T>
+    type Ip                                = TIp
+    type Ips                               = TIps
+    type FileInput                         = TFile
+
+    type FileUpload<T = Record<string, TFile[] | undefined>>     = T
+    type Cookies<T = Record<string, string | undefined>>         = TCookies<T>
+    type Params<T = Record<string, string | number | undefined>> = TParams<T>
+    type Query<T = Record<string, string  | undefined>>          = TQuery<T>
+    type Body<T = Record<string, TValue>>                        = TBody<T>
     namespace Swagger {
         export type Spec   = TSwagger
         export type Format = TSwaggerFormat
