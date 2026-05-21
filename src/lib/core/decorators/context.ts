@@ -13,6 +13,26 @@ type ZodSchemaLike = {
 
 type Target = "params" | "query" | "body" | "files";
 
+class ValidateError<T = unknown> extends Error {
+    protected issues !: T[];
+    protected status !: number;
+
+    constructor(
+        message: string,
+        { issues = [], status = 400 }: {  
+            issues?: T[];
+            status?: number;
+        } = {},
+    ) {
+        super(message);
+        this.name = "ValidateError";
+        this.issues = issues;
+        this.status = status;
+
+        Object.setPrototypeOf(this, ValidateError.prototype);
+    }
+}
+
 export function createDtoDecorator(
     validator: (ctx: T.Context) => void | Promise<void>,
     onError?: (ctx: T.Context, error: any) => any
@@ -34,11 +54,15 @@ export function createDtoDecorator(
 
                 let message = err?.message ?? "Bad Request";
                 let issues = err.issues ?? err.errors ?? [];
-                let status : 400 | 422 = 400;
+                let status : number = +(err.status ?? 400);
+
+                if (!Number.isInteger(status) || status < 100 || status > 599) {
+                    status = 400;
+                }
 
                 if(err.name === "ZodError") {
                     const zodIssues = err.issues
-                    .map((i: { path: any[]; message: string; }) => ({
+                    .map((i: { path: string[]; message: string; }) => ({
                         path: i.path.join("."),
                         message: i.message,
                     }));
@@ -48,7 +72,9 @@ export function createDtoDecorator(
                     status = 422;
                 }
 
-                return ctx.res.status(status).json({
+                return ctx.res
+                .status(status as 400 | 422)
+                .json({
                     message,
                     issues,
                 });
@@ -408,10 +434,10 @@ export function ValidateDto(
     }
 ): MethodDecorator {
    
-    const status = options?.status ?? 422;
+    const status  = options?.status ?? 422;
     const message = options?.message ?? "Validation failed";
     const adaptor = options?.adaptor ?? "class-validator";
-    const target = options?.target ?? "body";
+    const target  = options?.target ?? "body";
 
     return createDtoDecorator(async (ctx) => {
 
@@ -423,11 +449,11 @@ export function ValidateDto(
                 return;
             }
 
-            const issues = result.error?.issues;
+            const errors = result.error?.issues;
 
-            const errors = Object
+            const issues = Object
             .values(
-                issues.reduce((acc:any, issue:any) => {
+                errors.reduce((acc:any, issue:any) => {
 
                     const key = issue.path.join(".");
 
@@ -455,10 +481,7 @@ export function ValidateDto(
                 }>)
             );
 
-            return ctx.res.status(status).json({
-                message: message,
-                issues: errors
-            });
+            throw new ValidateError(message, { issues , status });
         } 
     
         if (adaptor === "class-validator") {
@@ -489,12 +512,7 @@ export function ValidateDto(
                 };
             })
 
-            return ctx.res
-            .status(status)
-            .json({
-                message: message,
-                issues: issues
-            });
+            throw new ValidateError(message, { issues , status });
         }
 
         throw new Error("Invalid validation adaptor specified");
