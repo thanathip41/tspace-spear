@@ -30,6 +30,7 @@ import {
   Min,
   IsNotEmpty,
   IsNumber,
+  IsOptional
 } from "class-validator";
 
 export class Create${className} {
@@ -43,13 +44,14 @@ export class Create${className} {
 }
 
 export class Update${className} {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  name?: string;
 
+  @IsOptional()
   @IsNumber()
   @Min(0.1)
-  age!: number;
+  age?: number;
 }
 `
   );

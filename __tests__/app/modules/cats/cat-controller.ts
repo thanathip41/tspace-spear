@@ -1,38 +1,30 @@
-import z from 'zod';
 import {
   type T,
   Controller,
   Get,
   Post,
   Put,
+  Patch,
   Delete,
-  createDtoDecorator
-} from "../../../src/lib";
+  ValidateDto
+} from "../../../../src/lib";
 
-const catSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  age: z.number(),
-});
+import { 
+  CreateCatDto, 
+  UpdateCatDto 
+} from "./cat-dto";
 
-const catSchemaAction = z.object({
-  name: z.string(),
-  age: z.number(),
-});
+type Cat = {
+  id   : number;
+  name : string;
+  age  : number;
+}
 
-type Cat = z.infer<typeof catSchema>
-
-let cats: z.infer<typeof catSchema>[] = [
+let cats: Cat[] = [
   { id: 1, name: 'cat1', age: 1.6 },
   { id: 2, name: 'cat2', age: 1.8 },
 ];
 
-const ValidateDtoBody = (schema: z.ZodTypeAny) => {
-  return createDtoDecorator((ctx) => {
-    const result = schema.parse(ctx.body);
-    ctx.body = result as T.Body;
-  });
-};
 @Controller('/cats')
 class CatController {
   @Get('/')
@@ -61,10 +53,10 @@ class CatController {
   }
 
   @Post('/')
-  @ValidateDtoBody(catSchemaAction)
+  @ValidateDto(CreateCatDto)
   public async create({
     body,
-  }: T.Context<{ body: z.infer<typeof catSchemaAction> }>) {
+  }: T.Context<{ body: CreateCatDto }>) {
 
     const cat = {
       id: cats.length + 1,
@@ -80,15 +72,17 @@ class CatController {
   }
 
   @Put('/:id')
-  @ValidateDtoBody(catSchemaAction.partial())
+  @Patch('/:id')
+  @ValidateDto(UpdateCatDto)
   public async update({
     res,
     params,
     body,
   }: T.Context<{
     params: { id: number };
-    body: Partial<z.infer<typeof catSchemaAction>>;
+    body: UpdateCatDto;
   }>) {
+
     const id = Number(params.id);
 
     const index = cats.findIndex((d) => d.id === id);

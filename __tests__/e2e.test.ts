@@ -35,18 +35,42 @@ describe("TSpear E2E Test", () => {
     server?.close(() => done());
   });
 
-  it("should get cats", async () => {
+  it("should return all cats", async () => {
     const res = await client.get("/cats");
 
+    expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
 
-    expect(res.data.cats).to.deep.equal([
-      { id: 1, name: "cat1", age: 1.6 },
-      { id: 2, name: "cat2", age: 1.8 }
-    ]);
+    if(res.ok)
+      expect(res.data.cats).to.deep.equal([
+        { id: 1, name: "cat1", age: 1.6 },
+        { id: 2, name: "cat2", age: 1.8 }
+      ]);
   });
 
-  it("should create new cat id = 3", async () => {
+  it("should return an error when the request body is empty", async () => {
+
+    const res = await client.post("/cats");
+
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(422);
+
+    if(!res.ok) {
+      expect(res.data).to.have.property("message");
+      expect(res.data).to.have.property("issues");
+      expect(res.data).to.have.property("message").that.is.a("string");
+      expect(res.data).to.have.property("issues").that.is.an("array");
+
+      for (const issue of res.data.issues) {
+        expect(issue).to.have.property("path").that.is.a("string");
+        expect(issue).to.have.property("constraints").that.is.an("object");
+        expect(issue).to.have.property("message").that.is.a("string");
+      }
+    }
+    
+  });
+
+  it("should return a newly created cat with id 3", async () => {
 
     const res = await client.post("/cats", { 
       body : { 
@@ -55,57 +79,95 @@ describe("TSpear E2E Test", () => {
       }
     });
 
+    expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
 
-    expect(res.data.cat).to.deep.equal({
-      id : 3,
-      name: 'new cat',
-      age: 1
-    });
+    if(res.ok)
+      expect(res.data.cat).to.deep.equal({
+        id : 3,
+        name: 'new cat',
+        age: 1
+      });
   });
 
-  it("should get cat by id 3", async () => {
+  it("should return the cat with id 3", async () => {
     const res = await client.get("/cats/:id", { params: { id : 3 }});
 
+    expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
 
-    expect(res.data.cat).to.deep.equal({
-      id : 3,
-      name: 'new cat',
-      age: 1
-    });
+    if(res.ok) 
+      expect(res.data.cat).to.deep.equal({
+        id : 3,
+        name: 'new cat',
+        age: 1
+      });
   });
 
-  it("should get cat by id 4", async () => {
-    const res = await client.get("/cats/:id", { params: { id : 4 }})
+  it("should return 404 when getting a cat by id 4", async () => {
+    const res = await client.get("/cats/:id", { params: { id : 44 }})
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(404);
-
   });
 
-  it("should update cat by id 3", async () => {
+  it("should update the cat with id 3 using PUT", async () => {
     const res = await client.put("/cats/:id", { 
       params: { id : 3 },
-      body : { name : 'update cat' , age : 5 }
+      body : { name : 'update cat PUT' , age : 5 }
     });
+
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
     
-    expect(res.data.cat).to.deep.equal({
-      id : 3,
-      name: 'update cat',
-      age: 5
-    });
+    if(res.ok)
+      expect(res.data.cat).to.deep.equal({
+        id : 3,
+        name: 'update cat PUT',
+        age: 5
+      });
   });
 
-  it("should delete cat by id 3", async () => {
+  it("should update the cat with id 3 using PATCH", async () => {
+    const res = await client.patch("/cats/:id", { 
+      params: { id : 3 },
+      body : { name : 'update cat PATCH' , age : 5 }
+    });
+  
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
+    
+    if(res.ok)
+      expect(res.data.cat).to.deep.equal({
+        id : 3,
+        name: 'update cat PATCH',
+        age: 5
+      });
+  });
+
+  it("should return 404 when updating the cat with id 4", async () => {
+    const res = await client.put("/cats/:id", { 
+      params: { id : 4 },
+      body : { name : 'update cat' , age : 5 }
+    });
+
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(404);
+  });
+
+  it("should delete the cat with id 3", async () => {
 
     const res = await client.delete("/cats/:id", { 
       params: { id : 3 }
     });
-    
-    expect(res.data.message).to.deep.equal('deleted');
+
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
+
+    if(res.ok)
+      expect(res.data.message).to.deep.equal('deleted');
   });
 
-  it("should delete cat by id 3 after deleted", async () => {
+  it("should return 404 after deleting the cat with id 3", async () => {
 
     const res = await client.delete("/cats/:id", { 
       params: { id : 3 }
@@ -114,5 +176,4 @@ describe("TSpear E2E Test", () => {
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(404);
   });
-
 });
