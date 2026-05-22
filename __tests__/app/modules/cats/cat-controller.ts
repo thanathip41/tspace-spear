@@ -6,7 +6,8 @@ import {
   Put,
   Patch,
   Delete,
-  ValidateDto
+  ValidateDto,
+  Validate
 } from "../../../../src/lib";
 
 import { 
@@ -120,6 +121,14 @@ class CatController {
     return {
       message: 'deleted',
     };
+  }
+
+  @Post('/upload')
+  @Validate(['image'], { target : 'files'})
+  public async upload({ files } : T.Context<{ files: { image : T.FileInput[] }}>) {
+    return {
+     image: files.image[0]
+    }
   }
 }
 

@@ -10,3 +10,6 @@ export const app = new Spear({
 })
 .useGlobalPrefix('api')
 .useBodyParser()
+.useFileUpload()
+
+// app.listen(5000)

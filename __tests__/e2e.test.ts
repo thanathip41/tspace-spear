@@ -1,4 +1,6 @@
 import { Server }     from 'http';
+import fs             from "fs";
+import path           from 'path';
 import chai           from "chai";
 import chaiJsonSchema from "chai-json-schema";
 import { 
@@ -7,9 +9,9 @@ import {
   before, 
   after 
 } from "mocha";
-
 import { app }       from "./app";
 import { ApiClient } from "../src/lib/core/client";
+
 
 
 chai.use(chaiJsonSchema);
@@ -50,7 +52,17 @@ describe("TSpear E2E Test", () => {
 
   it("should return an error when the request body is empty", async () => {
 
-    const res = await client.post("/cats");
+    // type checked
+    // const res = await client.post("/cats",{
+    //   body : {} // Type '{}' is missing the following properties from type '{ name: string; age: number; }': name
+    // });
+   
+    const res = await client.post("/cats",{
+      body : {
+        name : '',
+        age  : 0
+      }
+    });
 
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(422);
@@ -130,7 +142,7 @@ describe("TSpear E2E Test", () => {
   it("should update the cat with id 3 using PATCH", async () => {
     const res = await client.patch("/cats/:id", { 
       params: { id : 3 },
-      body : { name : 'update cat PATCH' , age : 5 }
+      body : { name : 'update cat PATCH' }
     });
   
     expect(res.ok).to.be.equal(true);
@@ -139,8 +151,7 @@ describe("TSpear E2E Test", () => {
     if(res.ok)
       expect(res.data.cat).to.deep.equal({
         id : 3,
-        name: 'update cat PATCH',
-        age: 5
+        name: 'update cat PATCH'
       });
   });
 
@@ -175,5 +186,33 @@ describe("TSpear E2E Test", () => {
     
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(404);
+  });
+
+  it("should upload file", async () => {
+    const catPath = path.join(path.resolve(),'__tests__','app/modules/cats/cat-image.jpg')
+    const buffer = await fs.promises.readFile(catPath);
+
+    const formData = new FormData();
+
+    formData.append(
+      "image",
+      new Blob([buffer as any], { type: "image/png" }),
+      "cat.png",
+    );
+
+    const res = await client.upload("/cats/upload", { formdata : formData });
+
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
+
+    if(res.ok)
+      expect(res.data).to.have.property("image").that.is.an("object");
+      expect(res.data.image).to.have.property("name");
+      expect(res.data.image).to.have.property("tempFilePath");
+      expect(res.data.image).to.have.property("tempFileName");
+      expect(res.data.image).to.have.property("mimetype");
+      expect(res.data.image).to.have.property("extension");
+      expect(res.data.image).to.have.property("size");
+
   });
 });

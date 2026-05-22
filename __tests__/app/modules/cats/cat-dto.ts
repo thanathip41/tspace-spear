@@ -2,11 +2,13 @@ import {
   IsString, 
   IsInt,
   IsOptional,
+  IsNotEmpty
 } from "class-validator";
 
 
 export class CreateCatDto {
   @IsString()
+  @IsNotEmpty()
   name!: string;
 
   @IsInt()
