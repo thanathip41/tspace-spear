@@ -79,6 +79,13 @@ export type ResponseType<
     ? Awaited<R>
     : never;
 
+export type Prettify<T> = { [K in keyof T]: T[K] } & {};
+
+export type ExactProperty<Key extends string, T> =
+  [T] extends [never] ? { [K in Key]?: never } :
+  undefined extends T ? { [K in Key]?: T } :
+  {} extends T ? { [K in Key]?: T } : 
+  { [K in Key]: T };
 
 export type OptionalIfEmpty<T> = {} extends T ? [input?: T] : [input: T];
 
@@ -86,26 +93,12 @@ export type RequestInput<
   TRoutes extends AnyRoutes,
   TPath extends keyof TRoutes,
   TMethod extends keyof TRoutes[TPath],
-> =
-  RequestParams<TRoutes,TPath,TMethod> extends never
-  ? {
-      params ?: never;
-
-      query  ?: RequestQuery<TRoutes,TPath,TMethod>;
-
-      body   ?: RequestBody<TRoutes,TPath,TMethod>;
-
-      files  ?: RequestFiles<TRoutes,TPath,TMethod>;
-    }
-  : {
-      params : RequestParams<TRoutes,TPath,TMethod>;
-
-      query  ?: RequestQuery<TRoutes,TPath,TMethod>;
-
-      body   ?: RequestBody<TRoutes,TPath,TMethod>;
-
-      files  ?: RequestFiles<TRoutes,TPath,TMethod>;
-    };
+> = Prettify<
+  ExactProperty<"params", RequestParams<TRoutes, TPath, TMethod>> &
+  ExactProperty<"query", RequestQuery<TRoutes, TPath, TMethod>> &
+  ExactProperty<"body", RequestBody<TRoutes, TPath, TMethod>> &
+  ExactProperty<"files", RequestFiles<TRoutes, TPath, TMethod>>
+>;
 
 export type SuccessStatus =
   | 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 226

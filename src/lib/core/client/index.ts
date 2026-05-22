@@ -118,16 +118,26 @@ class ApiClient<
       throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
     }
 
+    let body :any = input?.body
+      ? JSON.stringify(input.body)
+      : undefined
+
+    let headers :any = {
+      "Content-Type":
+        "application/json",
+    }
+
+    const isFileUpload = input?.body instanceof FormData;
+   
+    if(isFileUpload) {
+      body = input.body;
+      headers = undefined;
+    }
+
     const res = await fetchFn(url, {
       method: method as string,
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
-
-      body: input?.body
-        ? JSON.stringify(input.body)
-        : undefined,
+      headers,
+      body
     });
 
     const contentType =
@@ -238,6 +248,29 @@ class ApiClient<
       input,
     );
   }
+
+  public async upload<
+    TMethod extends "POST" | "PUT" | "PATCH" = "POST",
+    TPath extends RoutesWithMethod<TRoutes, TMethod> = RoutesWithMethod<TRoutes, TMethod>,
+  >(
+    path: TPath,
+    options: {
+      method?: TMethod;
+      formdata: FormData;
+    }
+  ) {
+    const { method = "POST" as TMethod, formdata } = options;
+
+    return this.request(
+      method, 
+      path,
+      //@ts-ignore
+      {
+        body : formdata
+      },
+    );
+  }
+
 }
 
 export { ApiClient };

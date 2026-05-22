@@ -13,7 +13,9 @@ type TPrimitive =
   | boolean
   | Date
   | null
-  | undefined;
+  | undefined
+  | object
+  | Record<string, any>
 
 type TObject = {
   [key: string]: TPrimitive | TObject;
@@ -51,7 +53,7 @@ type TQuery<T = Record<string, string | undefined>> = T
 
 type TParams<T = Record<string, string | number | undefined>> = T
 
-type TBody<T = Record<string, TValue>> = T;
+type TBody<T = Record<string, any>> = T;
 
 type TCookies<T = Record<string, string | undefined>> = T
 
