@@ -254,5 +254,14 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         res.setHeader('Set-Cookie', cookieLists)
     }
 
+    response.setStatusCode = (code : T.StatusCode) => {
+       
+        if(!response.headersSent) {
+            response.writeHead(code, HEADER_CONTENT_TYPES['json']);
+        }
+        
+        return;
+    }
+
     return response
 }

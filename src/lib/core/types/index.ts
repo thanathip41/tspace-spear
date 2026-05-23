@@ -7,22 +7,6 @@ import http, {
 import WebSocket from "ws";
 import net from 'net';
 
-type TPrimitive =
-  | string
-  | number
-  | boolean
-  | Date
-  | null
-  | undefined
-  | object
-  | Record<string, any>
-
-type TObject = {
-  [key: string]: TPrimitive | TObject;
-}
-
-type TValue = TPrimitive | TObject;
-
 type TContextBase = {
   req     : TRequest
   res     : TResponse
@@ -230,6 +214,12 @@ type THttpResponder = {
               }
         >
     ) => any;
+
+    /**
+     * Set HTTP status code.
+     * @param code http status code
+     */
+    setStatusCode : (code : TStatusCode) => void
 };
 
 type TStatusCode = 
@@ -430,7 +420,7 @@ export declare namespace T {
     type Cookies<T = Record<string, string | undefined>>         = TCookies<T>
     type Params<T = Record<string, string | number | undefined>> = TParams<T>
     type Query<T = Record<string, string  | undefined>>          = TQuery<T>
-    type Body<T = Record<string, TValue>>                        = TBody<T>
+    type Body<T = Record<string, any>>                           = TBody<T>
     namespace Swagger {
         export type Spec   = TSwagger
         export type Format = TSwaggerFormat
