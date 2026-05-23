@@ -9,7 +9,7 @@ import type {
 
 let fetchFn: typeof fetch | null = null;
 
-export const getFetch = async () => {
+const getFetch = async () => {
   if (fetchFn) return fetchFn;
 
   // Browser OR modern Node v18+ (preferred)
@@ -23,6 +23,15 @@ export const getFetch = async () => {
   fetchFn = mod.default as unknown as typeof fetch;
 
   return fetchFn;
+};
+
+const isFormData = (value: unknown): boolean => {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    typeof (value as any).append === "function" &&
+    typeof (value as any).getHeaders === "function"
+  );
 };
 
 /**
@@ -127,10 +136,10 @@ class ApiClient<
         "application/json",
     }
 
-    const isFileUpload = input?.body instanceof FormData;
+    const isFileUpload = isFormData(input?.body);
    
     if(isFileUpload) {
-      body = input.body;
+      body = input?.body;
       headers = undefined;
     }
 
