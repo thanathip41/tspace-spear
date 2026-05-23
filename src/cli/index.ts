@@ -60,6 +60,8 @@ if (command === "g") {
   process.exit(0);
 }
 
+printUsage();
+
 function printUsage() {
   console.log(`
 Usage:
