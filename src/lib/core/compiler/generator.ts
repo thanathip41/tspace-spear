@@ -370,6 +370,8 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
             query   = extractPropertyType(type, "query", firstParam)
             body    = extractPropertyType(type, "body", firstParam)
             files   = extractPropertyType(type, "files", firstParam)
+
+            if(body === 'Record<string, any>') body = "never";
           }
 
           routes.push({
