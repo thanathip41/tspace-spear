@@ -32,16 +32,17 @@ class CatController {
   public async index({
     query,
   }: T.Context<{ query: { id?: string ; name?: string } }>) {
+
     return {
+      message: "ok",
       query,
       cats,
     };
   }
 
   @Get('/:id')
-  public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
-    cat : Cat
-  }> {
+  public async show({ res, params }: T.Context<{ params: { id: number } }>) {
+
     const cat = cats.find((d) => d.id === Number(params.id));
 
     if(cat == null) {
@@ -49,6 +50,7 @@ class CatController {
     }
 
     return {
+      message: "ok",
       cat
     };
   }
@@ -67,8 +69,8 @@ class CatController {
     cats.push(cat);
 
     return {
-      cat,
       message: 'created',
+      cat
     };
   }
 
@@ -84,9 +86,7 @@ class CatController {
     body: UpdateCatDto;
   }>) {
 
-    const id = Number(params.id);
-
-    const index = cats.findIndex((d) => d.id === id);
+    const index = cats.findIndex((d) => d.id === params.id);
 
     if (index === -1) {
       throw res.notFound('not found cat')
@@ -95,7 +95,7 @@ class CatController {
     cats[index] = {
       ...cats[index],
       ...body,
-      id
+      id : params.id
     };
 
     const cat = cats[index]
@@ -120,6 +120,7 @@ class CatController {
 
     return {
       message: 'deleted',
+      deleted : true
     };
   }
 
@@ -127,7 +128,8 @@ class CatController {
   @Validate(['image'], { target : 'files'})
   public async upload({ files } : T.Context<{ files: { image : T.FileInput[] }}>) {
     return {
-     image: files.image[0]
+      message: "uploaded",
+      image: files.image[0]
     }
   }
 }

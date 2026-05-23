@@ -1,5 +1,6 @@
 import { Server }     from 'http';
 import fs             from "fs";
+import FormData       from 'form-data';
 import path           from 'path';
 import chai           from "chai";
 import chaiJsonSchema from "chai-json-schema";
@@ -11,8 +12,6 @@ import {
 } from "mocha";
 import { app }       from "./app";
 import { ApiClient } from "../src/lib/core/client";
-
-
 
 chai.use(chaiJsonSchema);
 const { expect } = chai;
@@ -53,7 +52,7 @@ describe("TSpear E2E Test", () => {
   it("should return an error when the request body is empty", async () => {
 
     // type checked
-    // const res = await client.post("/cats",{
+    // const t = await client.post("/cats",{
     //   body : {} // Type '{}' is missing the following properties from type '{ name: string; age: number; }': name
     // });
    
@@ -189,17 +188,19 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should upload file", async () => {
-    const catPath = path.join(path.resolve(),'__tests__','app/modules/cats/cat-image.jpg')
+    const catPath = path.join(path.resolve(),'__tests__','app/image.png')
     const buffer = await fs.promises.readFile(catPath);
 
     const formData = new FormData();
 
-    formData.append(
-      "image",
-      new Blob([buffer as any], { type: "image/png" }),
-      "cat.png",
-    );
+    formData.append("image", buffer, {
+      filename: "cat.png",
+      contentType: "image/png",
+    });
 
+    // @ts-ignore
+    // In Node.js, FormData is not the same as in the browser, 
+    // but in Node.js 18+ it is compatible with the browser implementation.
     const res = await client.upload("/cats/upload", { formdata : formData });
 
     expect(res.ok).to.be.equal(true);
