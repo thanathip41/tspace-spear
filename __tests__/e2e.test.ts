@@ -188,7 +188,7 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should upload file", async () => {
-    const catPath = path.join(path.resolve(),'__tests__','app/image.png')
+    const catPath = path.join(path.resolve(),'__tests__','image.png')
     const buffer = await fs.promises.readFile(catPath);
 
     const formData = new FormData();
