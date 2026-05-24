@@ -33,6 +33,27 @@ type Options = {
   output?: string;
 }
 
+const normalizeType = (t: string) => {
+  return t
+    .split("|")
+    .map(v => v.trim())
+    .filter(v =>
+      v !== "null" &&
+      v !== "undefined"
+    )[0] || "string";
+};
+
+const maybeObject = (v : string) => {
+  const s = v.trim();
+  return s.startsWith("{") && s.endsWith("}");
+}
+
+const maybeArrayObject = (v : string) => {
+  const s = v.trim();
+  return s.endsWith("}[]");
+}
+
+
 const normalizePath = (p: string) => {
   return (
     "/" +
@@ -183,9 +204,7 @@ const parseType = (type: string): any => {
   }
 
   // fallback
-  return {
-    $ref: type
-  };
+  return "string"
 }
 
 const resolveType = (type: Type): string => {
@@ -193,7 +212,7 @@ const resolveType = (type: Type): string => {
   if (type.getSymbol()?.getName() === "Promise") {
     type = type.getTypeArguments()[0];
   }
-  
+ 
   if (type.isString())    return "string";
   if (type.isNumber())    return "number";
   if (type.isBoolean())   return "boolean";
@@ -212,6 +231,29 @@ const resolveType = (type: Type): string => {
       type.getSymbol()?.getName() === 'Date'
   ) {
     return "Date";
+  }
+
+  if (
+    type.getText().includes("ServerResponse") &&
+    type.getText().includes("THttpResponder")
+  ) {
+    
+    const filtered = type
+    .getIntersectionTypes()
+    .filter((t) => {
+      const text = t.getText();
+
+      return (
+        !text.includes("ServerResponse") &&
+        !text.includes("THttpResponder")
+      );
+    })
+   
+    const t = filtered[0];
+
+    if(t == null) return 'never';
+
+    return resolveType(t);
   }
 
   if (type.isUnion())     {
@@ -355,7 +397,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
           const fullPath = normalizePath(`${basePath}/${methodPath}`)
 
           const response = resolveType(method.getReturnType())
-          
+
           let body = "never"
           let params = "never"
           let query = "never"
@@ -421,26 +463,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
   }`
   })
   .join("\n");
-
-  const normalizeType = (t: string) => {
-    return t
-      .split("|")
-      .map(v => v.trim())
-      .filter(v =>
-        v !== "null" &&
-        v !== "undefined"
-      )[0] || "string";
-  };
-
-  const maybeObject = (v : string) => {
-    const s = v.trim();
-    return s.startsWith("{") && s.endsWith("}");
-  }
-
-  const maybeArrayObject = (v : string) => {
-    const s = v.trim();
-    return s.endsWith("}[]");
-  }
 
   const formatExampleValue = (v: any): string => {
 
