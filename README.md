@@ -12,12 +12,19 @@ It is designed with a strong focus on developer experience and provides end-to-e
 ## Features
 
 - ⚡ High-performance core built on native Node.js HTTP
-- 🚀 Optional uWebSockets.js support via adapter for ultra-low latency and maximum throughput
-- 🧠 End-to-end (E2E) type safety across request → response lifecycle
-- 🧪 Built-in testing support for E2E validation
+- 🚀 Optional [uWebSockets.js](#adapter) adapter support for ultra-low latency and maximum throughput
+- 🧠 End-to-end [E2E](#e2e) type safety across the entire request → response lifecycle
+- 🎮 Built-in support for [Controllers](#controller) and route-based architecture
+- 🏷️ Powerful Decorator system for routes, middleware, validation, and metadata
+- 📦 [DTO](#dto) (Data Transfer Object) support for structured and type-safe request handling
+- 📂 Built-in [File Upload](#file-upload) support via `useFileUpload()` with zero configuration required
+- 🔌 Native [WebSocket](#web-socket) support for real-time applications and event-driven systems
+- ⚛️ [GraphQL](#graphql) support with flexible schema integration and HTTP adapters
+- 🖥️ Built-in [cluster mode](#cluster) support for multi-core scalability and higher throughput
+- 🧪 Built-in testing utilities for [E2E](#e2e) validation
 - 🧩 Simple and intuitive developer experience
-- 🔌 Flexible architecture for plugins and extensions
-- 📘 Auto-generated Swagger documentation via `app.useSwagger()` (zero manual configuration required)
+- 📘 Auto-generated [Swagger](#swagger) documentation via `app.useSwagger()` with zero manual configuration
+- 🔥 Lightweight and optimized for high-performance APIs and microservices
 
 ---
 
@@ -36,7 +43,7 @@ See the [`docs`](https://thanathip41.github.io/tspace-spear) directory for full 
 
 ## Basic Usage
 - [Getting Started](#getting-started)
-- [Cli](#cli)
+- [Quick Started](#quick-started)
 - [Adapter](#adapter)
 - [Cluster](#cluster)
 - [Global Prefix](#global-prefix)
@@ -55,8 +62,8 @@ See the [`docs`](https://thanathip41.github.io/tspace-spear) directory for full 
 - [Router](#router)
 - [Swagger](#swagger)
 - [WebSocket](#websocket)
+- [Graphql](#graphql)
 - [E2E](#e2e)
-- [Example CRUD](#example-crud)
 
 ## Getting Started
 ```js
@@ -72,7 +79,7 @@ new Spear()
 .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 ```
 
-## Cli
+## Quick Started
 Generate applications, modules, controllers, services, and middleware with the Spear CLI.
 ```sh
 # Install CLI globally
@@ -1083,6 +1090,244 @@ new Spear()
 
 ```
 
+## Graphql
+GraphQL CRUD Example with graphql-http + tspace-spear
+
+This example shows how to build a simple GraphQL CRUD API using graphql-http and tspace-spear.
+
+It includes:
+
+- GraphQL schema setup
+- Query and Mutation examples
+- Create / Read / Update / Delete operations
+- HTTP integration with graphql-http
+- cURL testing examples
+
+The server uses an in-memory array as a fake database for simplicity.
+
+Features
+- High performance HTTP server with tspace-spear
+- Native GraphQL schema definitions
+- Full CRUD operations
+- Simple and dependency-light setup
+- Works with standard GraphQL clients and tools
+
+```sh
+npm install graphql graphql-http
+```
+
+```js
+
+import {
+  GraphQLSchema,
+  GraphQLObjectType,
+  GraphQLString,
+  GraphQLList,
+  GraphQLNonNull,
+  GraphQLID,
+} from 'graphql';
+
+import { createHandler } from 'graphql-http/lib/use/http';
+import { type T, Spear } from "tspace-spear";
+
+/**
+ * Fake database
+ */
+const users : { 
+  id    : string;
+  name  : string;
+  email :string
+}[] = [];
+
+/**
+ * User Type
+ */
+const UserType = new GraphQLObjectType({
+  name: 'User',
+
+  fields: {
+    id: { type: GraphQLID },
+    name: { type: GraphQLString },
+    email: { type: GraphQLString },
+  },
+});
+
+/**
+ * Queries (READ)
+ */
+const QueryType = new GraphQLObjectType({
+  name: 'Query',
+
+  fields: {
+    users: {
+      type: new GraphQLList(UserType),
+
+      resolve: () => {
+        return users;
+      },
+    },
+
+    user: {
+      type: UserType,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+
+      resolve: (_, args) => {
+        return users.find((v) => v.id === args.id);
+      },
+    },
+  },
+});
+
+/**
+ * Mutations (CREATE UPDATE DELETE)
+ */
+const MutationType = new GraphQLObjectType({
+  name: 'Mutation',
+
+  fields: {
+    /**
+     * CREATE
+     */
+    createUser: {
+      type: UserType,
+
+      args: {
+        name: { type: new GraphQLNonNull(GraphQLString) },
+        email: { type: new GraphQLNonNull(GraphQLString) },
+      },
+
+      resolve: (_, args) => {
+        const user = {
+          id: String(users.length + 1),
+          name: args.name,
+          email: args.email,
+        };
+
+        users.push(user);
+
+        return user;
+      },
+    },
+
+    /**
+     * UPDATE
+     */
+    updateUser: {
+      type: UserType,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLString },
+        email: { type: GraphQLString },
+      },
+
+      resolve: (_, args) => {
+        const user = users.find((v) => v.id === args.id);
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        if (args.name !== undefined) {
+          user.name = args.name;
+        }
+
+        if (args.email !== undefined) {
+          user.email = args.email;
+        }
+
+        return user;
+      },
+    },
+
+    /**
+     * DELETE
+     */
+    deleteUser: {
+      type: GraphQLString,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+
+      resolve: (_, args) => {
+        const index = users.findIndex((v) => v.id === args.id);
+
+        if (index === -1) {
+          throw new Error('User not found');
+        }
+
+        users.splice(index, 1);
+
+        return 'Deleted';
+      },
+    },
+  },
+});
+
+/**
+ * Schema
+ */
+const schema = new GraphQLSchema({
+  query: QueryType,
+  mutation: MutationType,
+});
+
+/**
+ * Handler
+ */
+const graphqlHandler = createHandler({
+  schema,
+});
+
+const app =  new Spear()
+.post('/graphql',({ req , res }) => graphqlHandler(req , res))
+
+app.listen(4000 , ({ port , server }) =>  {
+  console.log(`server listening on : http://localhost:${port}/graphql`)
+})
+```
+
+```sh
+## Create
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { createUser(name:\"John\", email:\"john@example.com\") { id name email } }"
+  }'
+
+## Read all
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { id name email } }"
+  }'
+
+## Read one
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { user(id:\"1\") { id name email } }"
+  }'
+
+## Update
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { updateUser(id:\"1\", name:\"Johnny\") { id name email } }"
+  }'
+
+## Delete
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { deleteUser(id:\"1\") }"
+  }'
+```
+
 ## E2E
 Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
 response output. It allows you to:
@@ -1264,66 +1509,3 @@ const res = await client.get("/cats");
  
 ```
 
-## Example CRUD
-```js
-import { Spear } from "tspace-spear";
-
-const spears = [
-  {
-    id : 1,
-    damage : 100
-  },
-  {
-    id : 2,
-    damage : 75
-  },
-  {
-    id : 3,
-    damage : 50
-  }
-]
-
-new Spear()
-// enable body payload
-.useBodyParser()
-.get('/' , () => spears)
-.get('/:id' , ({ params }) => spears.find(spear => spear.id === Number(params.id ?? 0)))
-.post('/' , ({ body }) =>  {
-    // please validation the your body 
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
-
-    const id = spears.reduce((max, spear) => spear.id > max ? spear.id : max, 0) + 1
-
-    spears.push({ id , damage })
-
-    return spears.find(spear => spear.id === id)
-})
-.patch('/:id' , ({ params , body , res }) =>  {
-    
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
-
-    const id = Number(params.id)
-
-    const spear = spears.find(spear => spear.id === id)
-
-    if (spear == null) return res.status(404).json({ message : 'Spear not found'})
-
-    spear.damage = damage;
-
-    return spears.find(spear => spear.id === id)
-})
-.delete('/:id', ({ params , res }) => {
-
-  const id = Number(params.id)
-
-  const spear = spears.find(spear => spear.id === id)
-
-  if (spear == null) return res.status(404).json({ message : 'Spear not found'})
-
-  spears.splice(spears.findIndex(spear => spear.id === Number(params.id ?? 0)), 1)
-
-  return res.status(204).json()
-})
-.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
-
-```
