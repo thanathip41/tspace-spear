@@ -12,12 +12,19 @@ It is designed with a strong focus on developer experience and provides end-to-e
 ### Features
 
 - ⚡ High-performance core built on native Node.js HTTP
-- 🚀 Optional uWebSockets.js support via adapter for ultra-low latency and maximum throughput
-- 🧠 End-to-end (E2E) type safety across request → response lifecycle
-- 🧪 Built-in testing support for E2E validation
+- 🚀 Optional [uWebSockets.js](#adapter) adapter support for ultra-low latency and maximum throughput
+- 🧠 End-to-end [E2E](#e2e) type safety across the entire request → response lifecycle
+- 🎮 Built-in support for [Controllers](#controller) and route-based architecture
+- 🏷️ Powerful Decorator system for routes, middleware, validation, and metadata
+- 📦 [DTO](#dto) (Data Transfer Object) support for structured and type-safe request handling
+- 📂 Built-in [File Upload](#file-upload) support via `useFileUpload()` with zero configuration required
+- 🔌 Native [WebSocket](#web-socket) support for real-time applications and event-driven systems
+- ⚛️ [GraphQL](#graphql) support with flexible schema integration and HTTP adapters
+- 🖥️ Built-in [cluster mode](#cluster) support for multi-core scalability and higher throughput
+- 🧪 Built-in testing utilities for [E2E](#e2e) validation
 - 🧩 Simple and intuitive developer experience
-- 🔌 Flexible architecture for plugins and extensions
-- 📘 Auto-generated Swagger documentation via `app.useSwagger()` (zero manual configuration required)
+- 📘 Auto-generated [Swagger](#swagger) documentation via `app.useSwagger()` with zero manual configuration
+- 🔥 Lightweight and optimized for high-performance APIs and microservices
 
 ---
 
@@ -43,7 +50,7 @@ new Spear()
 .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 ```
 
-### Cli
+### Quick Started
 Generate applications, modules, controllers, services, and middleware with the Spear CLI.
 ```sh
 # Install CLI globally
@@ -922,193 +929,6 @@ class CatController {
 })()
 
 ```
-
-### E2E
-Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
-response output. It allows you to:
-```js
-// file cat-controller.ts
-import z from 'zod';
-import {
-  type T,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  createDtoDecorator
-} from "tspace-spear";
-
-const catSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  age: z.number(),
-});
-
-const catSchemaAction = z.object({
-  name: z.string(),
-  age: z.number(),
-});
-
-type Cat = z.infer<typeof catSchema>
-
-let cats: z.infer<typeof catSchema>[] = [
-  { id: 1, name: 'cat1', age: 1.6 },
-  { id: 2, name: 'cat2', age: 1.8 },
-];
-
-const ValidateDtoBody = (schema: z.ZodTypeAny) => {
-  return createDtoDecorator((ctx) => {
-    const result = schema.parse(ctx.body);
-    ctx.body = result as T.Body;
-  });
-};
-@Controller('/cats')
-class CatController {
-
-  @Get('/')
-  @Swagger()
-  public async index({
-    query,
-  }: T.Context) {
-    return {
-      cats,
-    };
-  }
-
-  @Get('/:id')
-  @Swagger()
-  public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
-    cat : Cat
-  }> {
-    const cat = cats.find((d) => d.id === Number(params.id));
-
-    if(cat == null) {
-      return res.notFound('not found cat')
-    }
-
-    return {
-      cat
-    };
-  }
-
-  @Post('/')
-  @Swagger()
-  @ValidateDtoBody(catSchemaAction)
-  public async create({
-    body,
-  }: T.Context<{ body: z.infer<typeof catSchemaAction> }>) {
-
-    const cat = {
-      id: cats.length + 1,
-      ...body
-    }
-
-    cats.push(cat);
-
-    return {
-      cat,
-      message: 'created',
-    };
-  }
-
-  @Put('/:id')
-  @Swagger()
-  @ValidateDtoBody(catSchemaAction.partial())
-  public async update({
-    res,
-    params,
-    body,
-  }: T.Context<{
-    params: { id: number };
-    body: Partial<z.infer<typeof catSchemaAction>>;
-  }>) {
-    const id = Number(params.id);
-
-    const index = cats.findIndex((d) => d.id === id);
-
-    if (index === -1) {
-      return res.notFound('not found cat')
-    }
-
-    cats[index] = {
-      ...cats[index],
-      ...body,
-      id
-    };
-
-    const cat = cats[index]
-
-    return {
-      message: 'updated',
-      cat,
-    };
-  }
-
-  @Delete('/:id')
-  @Swagger()
-  public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
-    const id = Number(params.id);
-
-    const index = cats.findIndex((d) => d.id === id);
-
-    if (index === -1) {
-      throw res.notFound('not found cat')
-    }
-
-    cats = cats.filter((d) => d.id !== id);
-
-    return {
-      message: 'deleted',
-    };
-  }
-}
-
-export { CatController };
-export default CatController;
-
-// file server/app.ts
-import Spear from "tspace-spear";
-const app = new Spear({
-  logger : true,
-  controllers: {
-      folder : `${__dirname}/controllers`,
-      name:/controller\.(ts|js)$/i,
-      // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
-      // and swagger documentation. By default if use .useSwagger() no need to set any description
-      preRouteTypes: true
-  }
-})
-
-app.useGlobalPrefix('api');
-app.useBodyParser();
-app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
-
-type AppRouter = typeof app.contract;
-export { AppRouter }
-export default app;
-
-// file frontend/index.ts
-import { AppRouter } from "./server/app";
-import { ApiClient } from "tspace-spear/client";
-
-const client: ApiClient<AppRouter> = new ApiClient(
-  `http://localhost:8000/api`
-);
-
-const test = await client.get("/catsq"); // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
-const res = await client.get("/cats");
-  res.data.cats = 1 // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
-  res.data.cats[0].name = 1 // Type error: Type 'number' is not assignable to type 'string'
-  res.data.cats[0].age = "1.6" // Type error: Type 'string' is not assignable to type 'number'
-
-  console.log(res) 
-  // res.ok -> boolean
-  // res.status -> number
-  // res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
- 
-```
-
 ### Web Socket
 provides built-in WebSocket support for real-time communication. <br>
 
@@ -1190,66 +1010,438 @@ new Spear()
 
 ```
 
-### Example CRUD
+## Graphql
+GraphQL CRUD Example with graphql-http + tspace-spear
+
+This example shows how to build a simple GraphQL CRUD API using graphql-http and tspace-spear.
+
+It includes:
+
+- GraphQL schema setup
+- Query and Mutation examples
+- Create / Read / Update / Delete operations
+- HTTP integration with graphql-http
+- cURL testing examples
+
+The server uses an in-memory array as a fake database for simplicity.
+
+Features
+- High performance HTTP server with tspace-spear
+- Native GraphQL schema definitions
+- Full CRUD operations
+- Simple and dependency-light setup
+- Works with standard GraphQL clients and tools
+
+### Install
+```sh
+npm install graphql graphql-http
+```
+
 ```js
-import { Spear } from "tspace-spear";
 
-const spears = [
-  {
-    id : 1,
-    damage : 100
+import {
+  GraphQLSchema,
+  GraphQLObjectType,
+  GraphQLString,
+  GraphQLList,
+  GraphQLNonNull,
+  GraphQLID,
+} from 'graphql';
+
+import { createHandler } from 'graphql-http/lib/use/http';
+import { type T, Spear } from "tspace-spear";
+
+/**
+ * Fake database
+ */
+const users : { 
+  id    : string;
+  name  : string;
+  email :string
+}[] = [];
+
+/**
+ * User Type
+ */
+const UserType = new GraphQLObjectType({
+  name: 'User',
+
+  fields: {
+    id: { type: GraphQLID },
+    name: { type: GraphQLString },
+    email: { type: GraphQLString },
   },
-  {
-    id : 2,
-    damage : 75
+});
+
+/**
+ * Queries (READ)
+ */
+const QueryType = new GraphQLObjectType({
+  name: 'Query',
+
+  fields: {
+    users: {
+      type: new GraphQLList(UserType),
+
+      resolve: () => {
+        return users;
+      },
+    },
+
+    user: {
+      type: UserType,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+
+      resolve: (_, args) => {
+        return users.find((v) => v.id === args.id);
+      },
+    },
   },
-  {
-    id : 3,
-    damage : 50
+});
+
+/**
+ * Mutations (CREATE UPDATE DELETE)
+ */
+const MutationType = new GraphQLObjectType({
+  name: 'Mutation',
+
+  fields: {
+    /**
+     * CREATE
+     */
+    createUser: {
+      type: UserType,
+
+      args: {
+        name: { type: new GraphQLNonNull(GraphQLString) },
+        email: { type: new GraphQLNonNull(GraphQLString) },
+      },
+
+      resolve: (_, args) => {
+        const user = {
+          id: String(users.length + 1),
+          name: args.name,
+          email: args.email,
+        };
+
+        users.push(user);
+
+        return user;
+      },
+    },
+
+    /**
+     * UPDATE
+     */
+    updateUser: {
+      type: UserType,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLString },
+        email: { type: GraphQLString },
+      },
+
+      resolve: (_, args) => {
+        const user = users.find((v) => v.id === args.id);
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        if (args.name !== undefined) {
+          user.name = args.name;
+        }
+
+        if (args.email !== undefined) {
+          user.email = args.email;
+        }
+
+        return user;
+      },
+    },
+
+    /**
+     * DELETE
+     */
+    deleteUser: {
+      type: GraphQLString,
+
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+
+      resolve: (_, args) => {
+        const index = users.findIndex((v) => v.id === args.id);
+
+        if (index === -1) {
+          throw new Error('User not found');
+        }
+
+        users.splice(index, 1);
+
+        return 'Deleted';
+      },
+    },
+  },
+});
+
+/**
+ * Schema
+ */
+const schema = new GraphQLSchema({
+  query: QueryType,
+  mutation: MutationType,
+});
+
+/**
+ * Handler
+ */
+const graphqlHandler = createHandler({
+  schema,
+});
+
+const app =  new Spear()
+.post('/graphql',({ req , res }) => graphqlHandler(req , res))
+
+app.listen(4000 , ({ port , server }) =>  {
+  console.log(`server listening on : http://localhost:${port}/graphql`)
+})
+```
+### Available Operations
+
+#### Query (Read)
+
+| Operation | Description |
+|---|---|
+| `users` | Get all users |
+| `user(id)` | Get a single user by ID |
+
+#### Mutation (Write)
+
+| Operation | Description |
+|---|---|
+| `createUser(name, email)` | Create a new user |
+| `updateUser(id, name, email)` | Update an existing user |
+| `deleteUser(id)` | Delete a user by ID |
+
+```sh
+## Create
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { createUser(name:\"John\", email:\"john@example.com\") { id name email } }"
+  }'
+
+## Read all
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { id name email } }"
+  }'
+
+## Read one
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { user(id:\"1\") { id name email } }"
+  }'
+
+## Update
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { updateUser(id:\"1\", name:\"Johnny\") { id name email } }"
+  }'
+
+## Delete
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "mutation { deleteUser(id:\"1\") }"
+  }'
+```
+
+## E2E
+Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
+response output. It allows you to:
+```js
+// file cat-controller.ts
+import z from 'zod';
+import {
+  type T,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  createDtoDecorator
+} from "tspace-spear";
+
+const catSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  age: z.number(),
+});
+
+const catSchemaAction = z.object({
+  name: z.string(),
+  age: z.number(),
+});
+
+type Cat = z.infer<typeof catSchema>
+
+let cats: z.infer<typeof catSchema>[] = [
+  { id: 1, name: 'cat1', age: 1.6 },
+  { id: 2, name: 'cat2', age: 1.8 },
+];
+
+const ValidateDtoBody = (schema: z.ZodTypeAny) => {
+  return createDtoDecorator((ctx) => {
+    const result = schema.parse(ctx.body);
+    ctx.body = result as T.Body;
+  });
+};
+@Controller('/cats')
+class CatController {
+
+  @Get('/')
+  public async index({
+    query,
+  }: T.Context) {
+    return {
+      cats,
+    };
   }
-]
 
-new Spear()
-// enable body payload
-.useBodyParser()
-.get('/' , () => spears)
-.get('/:id' , ({ params }) => spears.find(spear => spear.id === Number(params.id ?? 0)))
-.post('/' , ({ body }) =>  {
-    // please validation the your body 
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
+  @Get('/:id')
+  public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
+    cat : Cat
+  }> {
+    const cat = cats.find((d) => d.id === Number(params.id));
 
-    const id = spears.reduce((max, spear) => spear.id > max ? spear.id : max, 0) + 1
+    if(cat == null) {
+      return res.notFound('not found cat')
+    }
 
-    spears.push({ id , damage })
+    return {
+      cat
+    };
+  }
 
-    return spears.find(spear => spear.id === id)
+  @Post('/')
+  @ValidateDtoBody(catSchemaAction)
+  public async create({
+    body,
+  }: T.Context<{ body: z.infer<typeof catSchemaAction> }>) {
+
+    const cat = {
+      id: cats.length + 1,
+      ...body
+    }
+
+    cats.push(cat);
+
+    return {
+      cat,
+      message: 'created',
+    };
+  }
+
+  @Put('/:id')
+  @ValidateDtoBody(catSchemaAction.partial())
+  public async update({
+    res,
+    params,
+    body,
+  }: T.Context<{
+    params: { id: number };
+    body: Partial<z.infer<typeof catSchemaAction>>;
+  }>) {
+    const id = Number(params.id);
+
+    const index = cats.findIndex((d) => d.id === id);
+
+    if (index === -1) {
+      return res.notFound('not found cat')
+    }
+
+    cats[index] = {
+      ...cats[index],
+      ...body,
+      id
+    };
+
+    const cat = cats[index]
+
+    return {
+      message: 'updated',
+      cat,
+    };
+  }
+
+  @Delete('/:id')
+  public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
+    const id = Number(params.id);
+
+    const index = cats.findIndex((d) => d.id === id);
+
+    if (index === -1) {
+      throw res.notFound('not found cat')
+    }
+
+    cats = cats.filter((d) => d.id !== id);
+
+    return {
+      message: 'deleted',
+    };
+  }
+}
+
+export { CatController };
+export default CatController;
+
+// file server/app.ts
+import Spear from "tspace-spear";
+const app = new Spear({
+  logger : true,
+  controllers: {
+      folder : `${__dirname}/controllers`,
+      name:/controller\.(ts|js)$/i,
+      // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
+      // and swagger documentation. By default if use .useSwagger() in app no need to set any description
+      preRouteTypes: true
+  }
 })
-.patch('/:id' , ({ params , body , res }) =>  {
-    
-    const damage  = Number(body.damage ?? (Math.random() * 100).toFixed(0))
 
-    const id = Number(params.id)
+app.useGlobalPrefix('api');
+app.useBodyParser();
+app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
 
-    const spear = spears.find(spear => spear.id === id)
+type AppRouter = typeof app.contract;
+export { AppRouter }
+export default app;
 
-    if (spear == null) return res.status(404).json({ message : 'Spear not found'})
+// file frontend/index.ts
+import { AppRouter } from "./server/app";
+import { ApiClient } from "tspace-spear/client";
 
-    spear.damage = damage;
+const client: ApiClient<AppRouter> = new ApiClient(
+  `http://localhost:8000/api`
+);
 
-    return spears.find(spear => spear.id === id)
-})
-.delete('/:id', ({ params , res }) => {
+const test = await client.get("/catsq"); // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
+const res = await client.get("/cats");
+  res.data.cats = 1 // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
+  res.data.cats[0].name = 1 // Type error: Type 'number' is not assignable to type 'string'
+  res.data.cats[0].age = "1.6" // Type error: Type 'string' is not assignable to type 'number'
 
-  const id = Number(params.id)
-
-  const spear = spears.find(spear => spear.id === id)
-
-  if (spear == null) return res.status(404).json({ message : 'Spear not found'})
-
-  spears.splice(spears.findIndex(spear => spear.id === Number(params.id ?? 0)), 1)
-
-  return res.status(204).json()
-})
-.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
-
+  console.log(res) 
+  // res.ok -> boolean
+  // res.status -> number
+  // res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
+ 
 ```

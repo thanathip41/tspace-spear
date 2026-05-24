@@ -1,5 +1,5 @@
 - [Getting Started](#getting-started)
-- [Cli](#cli)
+- [Quick Started](#quick-started)
 - [Adapter](#adapter)
 - [Cluster](#cluster)
 - [Global Prefix](#global-prefix)
@@ -18,5 +18,5 @@
 - [Router](#router)
 - [Swagger](#swagger)
 - [Web Socket](#web-socket)
+- [Graphql](#graphql)
 - [E2E](#e2e)
-- [Example CRUD](#example-crud)
