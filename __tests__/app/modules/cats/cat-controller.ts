@@ -30,6 +30,7 @@ let cats: Cat[] = [
 class CatController {
   @Get('/')
   public async index({
+    res,
     query,
   }: T.Context<{ query: { id?: string ; name?: string } }>) {
 

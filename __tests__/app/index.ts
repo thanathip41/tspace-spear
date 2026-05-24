@@ -12,4 +12,6 @@ export const app = new Spear({
 .useBodyParser()
 .useFileUpload()
 
-// app.listen(5000)
+// app.listen(5000,({ port , server : sCallback }) => {
+//     console.log(`server listening on http://localhost:${port}`);
+// })
