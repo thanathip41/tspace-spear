@@ -25,6 +25,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return pipeStream({ req , res , filePath, isUwebSocket })
     }
 
+    //@ts-ignore
     response.status = (code : number) => {
         
         return {
@@ -46,6 +47,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         }
     }
 
+    //@ts-ignore
     response.json = (results ?: Record<string,any>) => {
 
         if (res.writableEnded) return;
@@ -140,22 +142,27 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return res.end(JSON.stringify(payload))
     }
 
+    //@ts-ignore
     response.ok = (results ?: Record<string,any> ) => {
-        return response.json(results)
+        return response.status(200).json(results);
     }
 
+     //@ts-ignore
     response.created = (results ?: Record<string,any>) => {
         return response.status(201).json(results);
     }
 
+    //@ts-ignore
     response.accepted = (results ?: Record<string,any>) => {
         return response.status(202).json(results);
     }
 
+    //@ts-ignore
     response.noContent = () => {
         return response.status(204).end();
     }
 
+    //@ts-ignore
     response.badRequest = (message ?: string) => {
 
         message = message ?? `The request '${req.url}' resulted in a bad request. Please review the data and try again.`;
@@ -163,6 +170,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(400).json({ message })
     }
 
+    //@ts-ignore
     response.unauthorized = (message ?: string) => {
        
         message = message ?? `The request '${req.url}' is unauthorized. Please verify.`
@@ -170,6 +178,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(401).json({ message })
     }
 
+    //@ts-ignore
     response.paymentRequired = (message ?: string) => {
 
         message = message ?? `The request '${req.url}' requires payment. Please proceed with payment.`
@@ -177,6 +186,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
        return response.status(402).json({ message })
     }
 
+    //@ts-ignore
     response.forbidden = (message ?: string) => {
 
         message = message ?? `The request '${req.url}' is forbidden. Please check the permissions or access rights.`
@@ -184,6 +194,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(403).json({ message })
     }
 
+    //@ts-ignore
     response.notFound = (message ?: string) => {
 
         message = message ?? `The request '${req.url}' was not found. Please re-check the your url again.`
@@ -191,6 +202,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(404).json({ message })
     }
 
+    //@ts-ignore
     response.unprocessable = (message ?: string) => {
 
         message = message ?? `The request to '${req.url}' failed validation.`
@@ -198,6 +210,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(422).json({ message })
     }
 
+    //@ts-ignore
     response.tooManyRequests = (message ?: string) => {
 
         message = message ?? `The request '${req.url}' is too many request. Please wait and try agian.`;
@@ -205,6 +218,7 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
         return response.status(429).json({ message });
     }
 
+    //@ts-ignore
     response.serverError = (message ?: string) => {
         
         message = message ?? `The request '${req.url}' resulted in a server error. Please investigate.`

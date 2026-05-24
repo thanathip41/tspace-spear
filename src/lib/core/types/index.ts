@@ -77,49 +77,49 @@ type THttpResponder = {
     uWS: any; // typeof import('uWebSockets.js').HttpResponse
 
     /** 200 OK - Standard successful response */
-    ok: <T extends Record<string, any>>(data?: T) => T
+    ok: <T extends Record<string, any>>(data?: T) => T.Response & T
 
     /** 201 Created - Resource successfully created */
-    created: <T extends Record<string, any>>(data?: T) => T
+    created: <T extends Record<string, any>>(data?: T) => T.Response & T
 
     /** 202 Accepted - Request accepted for processing */
-    accepted: <T extends Record<string, any>>(data?: T) => T
+    accepted: <T extends Record<string, any>>(data?: T) => T.Response & T
 
     /** 204 No Content - Successful request with no response body */
-    noContent: (message?: string) => any
+    noContent: <T extends string> (message?: T) => T.Response & T
 
     /** 400 Bad Request - Invalid request from client */
-    badRequest: <T extends string> (message?: T) => T
+    badRequest: <T extends string> (message?: T) => T.Response & T
 
     /** 401 Unauthorized - Authentication required or failed */
-    unauthorized: <T extends string> (message?: T) => T
+    unauthorized: <T extends string> (message?: T) => T.Response & T
 
     /** 402 Payment Required - Reserved for future/payment flow */
-    paymentRequired: <T extends string> (message?: T) => T
+    paymentRequired: <T extends string> (message?: T) => T.Response & T
 
     /** 403 Forbidden - Client does not have access rights */
-    forbidden: <T extends string> (message?: T) => T
+    forbidden: <T extends string> (message?: T) => T.Response & T
 
     /** 404 Not Found - Resource does not exist */
-    notFound: <T extends string> (message?: T) => T
+    notFound: <T extends string> (message?: T) => T.Response & T
 
     /** 422 Unprocessable Entity - Valid request but semantic errors */
-    unprocessable: <T extends string> (message?: T) => T
+    unprocessable: <T extends string> (message?: T) => T.Response & T
 
     /** 429 Too Many Requests - Rate limit exceeded */
-    tooManyRequests: <T extends string> (message?: T) => T
+    tooManyRequests: <T extends string> (message?: T) => T.Response & T
 
     /** 500 Internal Server Error - Generic server failure */
-    serverError: <T extends string> (message?: T) => T
+    serverError: <T extends string> (message?: T) => T.Response & T
 
     /** 502 Bad Gateway - Invalid response from upstream server */
-    badGateway: <T extends string> (message?: T) => T
+    badGateway: <T extends string> (message?: T) => T.Response & T
 
     /** 503 Service Unavailable - Server temporarily unavailable */
-    unavailable: <T extends string> (message?: T) => T
+    unavailable: <T extends string> (message?: T) => T.Response & T
 
     /** 504 Gateway Timeout - Upstream server timeout */
-    gatewayTimeout: <T extends string> (message?: T) => T
+    gatewayTimeout: <T extends string> (message?: T) => T.Response & T
 
     /**
      * Serve a media file (video, image, PDF, etc.) from file system.
@@ -131,7 +131,7 @@ type THttpResponder = {
      * Send JSON response.
      * @param data JSON serializable object
      */
-    json: (data?: Record<string, any>) => any;
+    json: <T extends Record<string, any>>(data?:T) => T.Response & T
 
     /**
      * Send error response (generic wrapper).
@@ -176,7 +176,7 @@ type THttpResponder = {
          *
          * @param data JSON-serializable object to send as response body
          */
-        json: (data?: Record<string, any>) => any;
+        json: <T extends Record<string, any>>(data?:T) => T.Response & T
 
         /**
          * Send plain text response with the previously set status code.
