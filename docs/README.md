@@ -1029,18 +1029,17 @@ new Spear()
 
 ```
 
-## Graphql
-GraphQL CRUD Example with graphql-http + tspace-spear
+### Graphql
+GraphQL CRUD Example with graphql-yoga + tspace-spear
 
-This example shows how to build a simple GraphQL CRUD API using graphql-http and tspace-spear.
+This example shows how to build a simple GraphQL CRUD API using graphql-yoga and tspace-spear.
 
 It includes:
 
 - GraphQL schema setup
 - Query and Mutation examples
 - Create / Read / Update / Delete operations
-- HTTP integration with graphql-http
-- cURL testing examples
+- HTTP integration with graphql-yoga
 
 The server uses an in-memory array as a fake database for simplicity.
 
@@ -1051,237 +1050,140 @@ Features
 - Simple and dependency-light setup
 - Works with standard GraphQL clients and tools
 
-### Install
 ```sh
-npm install graphql graphql-http
+npm install graphql graphql-yoga
 ```
 
 ```js
-
-import {
-  GraphQLSchema,
-  GraphQLObjectType,
-  GraphQLString,
-  GraphQLList,
-  GraphQLNonNull,
-  GraphQLID,
-} from 'graphql';
-
-import { createHandler } from 'graphql-http/lib/use/http';
 import { type T, Spear } from "tspace-spear";
 
-/**
- * Fake database
- */
-const users : { 
-  id    : string;
-  name  : string;
-  email :string
-}[] = [];
+import {
+  createYoga,
+  createSchema,
+} from 'graphql-yoga';
 
-/**
- * User Type
- */
-const UserType = new GraphQLObjectType({
-  name: 'User',
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
 
-  fields: {
-    id: { type: GraphQLID },
-    name: { type: GraphQLString },
-    email: { type: GraphQLString },
+const users: User[] = [
+  {
+    id: 1,
+    name: 'John',
+    email: 'john@gmail.com',
   },
-});
+];
 
-/**
- * Queries (READ)
- */
-const QueryType = new GraphQLObjectType({
-  name: 'Query',
+const yoga = createYoga({
+  graphqlEndpoint: '/graphql',
 
-  fields: {
-    users: {
-      type: new GraphQLList(UserType),
+  schema: createSchema({
+    typeDefs: /* GraphQL */ `
+      type User {
+        id: Int!
+        name: String!
+        email: String!
+      }
 
-      resolve: () => {
-        return users;
+      input CreateUserInput {
+        name: String!
+        email: String!
+      }
+
+      input UpdateUserInput {
+        id: Int!
+        name: String
+        email: String
+      }
+
+      type Query {
+        users: [User!]!
+        user(id: Int!): User
+      }
+
+      type Mutation {
+        createUser(input: CreateUserInput!): User!
+        updateUser(input: UpdateUserInput!): User!
+        removeUser(id: Int!): User!
+      }
+    `,
+
+    resolvers: {
+      Query: {
+        users: () => users,
+
+        user: (_root, args) => {
+          return users.find(
+            (u) => u.id === args.id,
+          );
+        },
+      },
+
+      Mutation: {
+        createUser: (_root, args) => {
+          const user = {
+            id: Date.now(),
+            name: args.input.name,
+            email: args.input.email,
+          };
+
+          users.push(user);
+
+          return user;
+        },
+
+        updateUser: (_root, args) => {
+          const user = users.find(
+            (u) => u.id === args.input.id,
+          );
+
+          if (!user) {
+            throw new Error(
+              'User not found',
+            );
+          }
+
+          if (args.input.name !== undefined) {
+            user.name = args.input.name;
+          }
+
+          if (args.input.email !== undefined) {
+            user.email = args.input.email;
+          }
+
+          return user;
+        },
+
+        removeUser: (_root, args) => {
+          const index = users.findIndex(
+            (u) => u.id === args.id,
+          );
+
+          if (index === -1) {
+            throw new Error(
+              'User not found',
+            );
+          }
+
+          const deleted = users[index];
+
+          users.splice(index, 1);
+
+          return deleted;
+        },
       },
     },
-
-    user: {
-      type: UserType,
-
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLID) },
-      },
-
-      resolve: (_, args) => {
-        return users.find((v) => v.id === args.id);
-      },
-    },
-  },
+  }),
 });
 
-/**
- * Mutations (CREATE UPDATE DELETE)
- */
-const MutationType = new GraphQLObjectType({
-  name: 'Mutation',
-
-  fields: {
-    /**
-     * CREATE
-     */
-    createUser: {
-      type: UserType,
-
-      args: {
-        name: { type: new GraphQLNonNull(GraphQLString) },
-        email: { type: new GraphQLNonNull(GraphQLString) },
-      },
-
-      resolve: (_, args) => {
-        const user = {
-          id: String(users.length + 1),
-          name: args.name,
-          email: args.email,
-        };
-
-        users.push(user);
-
-        return user;
-      },
-    },
-
-    /**
-     * UPDATE
-     */
-    updateUser: {
-      type: UserType,
-
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLID) },
-        name: { type: GraphQLString },
-        email: { type: GraphQLString },
-      },
-
-      resolve: (_, args) => {
-        const user = users.find((v) => v.id === args.id);
-
-        if (!user) {
-          throw new Error('User not found');
-        }
-
-        if (args.name !== undefined) {
-          user.name = args.name;
-        }
-
-        if (args.email !== undefined) {
-          user.email = args.email;
-        }
-
-        return user;
-      },
-    },
-
-    /**
-     * DELETE
-     */
-    deleteUser: {
-      type: GraphQLString,
-
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLID) },
-      },
-
-      resolve: (_, args) => {
-        const index = users.findIndex((v) => v.id === args.id);
-
-        if (index === -1) {
-          throw new Error('User not found');
-        }
-
-        users.splice(index, 1);
-
-        return 'Deleted';
-      },
-    },
-  },
-});
-
-/**
- * Schema
- */
-const schema = new GraphQLSchema({
-  query: QueryType,
-  mutation: MutationType,
-});
-
-/**
- * Handler
- */
-const graphqlHandler = createHandler({
-  schema,
-});
-
-const app =  new Spear()
-.post('/graphql',({ req , res }) => graphqlHandler(req , res))
-
-app.listen(4000 , ({ port , server }) =>  {
+const app = new Spear()
+.get('/graphql',({ req , res }) => yoga(req , res))
+.post('/graphql',({ req , res }) => yoga(req , res)) 
+.listen(4000 , ({ port , server }) =>  {
   console.log(`server listening on : http://localhost:${port}/graphql`)
 })
-```
-### Available Operations
-
-#### Query (Read)
-
-| Operation | Description |
-|---|---|
-| `users` | Get all users |
-| `user(id)` | Get a single user by ID |
-
-#### Mutation (Write)
-
-| Operation | Description |
-|---|---|
-| `createUser(name, email)` | Create a new user |
-| `updateUser(id, name, email)` | Update an existing user |
-| `deleteUser(id)` | Delete a user by ID |
-
-```sh
-## Create
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "mutation { createUser(name:\"John\", email:\"john@example.com\") { id name email } }"
-  }'
-
-## Read all
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "query { users { id name email } }"
-  }'
-
-## Read one
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "query { user(id:\"1\") { id name email } }"
-  }'
-
-## Update
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "mutation { updateUser(id:\"1\", name:\"Johnny\") { id name email } }"
-  }'
-
-## Delete
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "mutation { deleteUser(id:\"1\") }"
-  }'
 ```
 
 ## E2E
