@@ -1245,7 +1245,7 @@ class CatController {
     const cat = cats.find((d) => d.id === Number(params.id));
 
     if(cat == null) {
-      return res.notFound('not found cat')
+      throw res.notFound('not found cat')
     }
 
     return {
@@ -1287,7 +1287,7 @@ class CatController {
     const index = cats.findIndex((d) => d.id === id);
 
     if (index === -1) {
-      return res.notFound('not found cat')
+      throw res.notFound('not found cat')
     }
 
     cats[index] = {
@@ -1330,7 +1330,7 @@ import Spear from "tspace-spear";
 const app = new Spear({
   logger : true,
   controllers: {
-      folder : `${__dirname}/controllers`,
+      folder : `${__dirname}/controllers/*`,
       name:/controller\.(ts|js)$/i,
       // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
       // and swagger documentation. By default if use .useSwagger() in app no need to set any description
@@ -1356,18 +1356,52 @@ const client: ApiClient<AppRouter> = new ApiClient(
 
 await client.get("/catsq"); ❌ // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
 const res = await client.get("/cats");
+// res.ok -> true or false
+// res.status -> number
+// res.headers -> Hearders
+// res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
+
+// Without checking `res.ok`, `res.data` is always typed as `any`.
+if(res.ok) {
   res.data.cats = 1 ❌ // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
   res.data.cats[0].name = 1 ❌ // Type error: Type 'number' is not assignable to type 'string'
   res.data.cats[0].age = "1.6" ❌ // Type error: Type 'string' is not assignable to type 'number'
+}
 
-  console.log(res) 
-  // res.ok -> boolean
-  // res.status -> number
-  // res.headers -> Hearders
-  // res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
+await client.get("/cats/:id") ❌ // Expected 2 arguments, but got 1.
+await client.get("/cats/:id", { params : { id : "1" }}) ❌ 
+// The expected type comes from property 'id' which is declared here on type '{ id: number; }'
+await client.get("/cats/:id", { params : { id : 1 }}) ✅
 
-  await client.get("/cats/:id") ❌ // Expected 2 arguments, but got 1.
-  await client.get("/cats/:id", { params : { id : "1" }}) ❌ // The expected type comes from property 'id' which is declared here on type '{ id: number; }'
-  await client.get("/cats/:id", { params : { id : 1 }}) ✅
+await client.post("/cats") ❌ // Expected 2 arguments, but got 1.
+await client.post("/cats",{
+  body : {}  ❌ // Type '{}' is missing the following properties from type '{ name: string; age: number; }'
+});
+await client.post("/cats",{
+  body : { name : "super cat" } ❌ 
+  // Property 'age' is missing in type '{ name: string; }' 
+  // but required in type '{ name: string; age: number; }'.
+});
+await client.post("/cats",{
+  body : { name : "super cat" , age : 5 }  ✅
+});
+
+await client.put("/cats") ✅
+
+await client.put("/cats",{
+  body : {}  ✅
+});
+
+await client.put("/cats",{
+  body : { name : 1 } ❌ // Type 'number' is not assignable to type 'string'.
+});
+
+await client.put("/cats",{
+  body : { name : "super cat" } ✅
+});
+
+await client.put("/cats",{
+  body : { name : "super cat" , age : 5 }  ✅
+});
  
 ```
