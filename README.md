@@ -176,12 +176,31 @@ Global Prefix allows you to define a base path for all routes in your applicatio
 It helps keep your API structured and consistent (e.g. /api, /v1, /app).
 ```js
 const app = new Spear({
-  globalPrefix : '/api' // prefix all routes
+  globalPrefix : '/api', // prefix all routes
 })
-.get('/' , () => 'Hello world!')
+.get('/' , () => 'Hello world!') // http://localhost:8000/api
+.get('/cats' , () => `Hello all cats`) // http://localhost:8000/api/cats
+.get('/cats/:id' , ({ params }) => `Hello cat: ${params.id}`) // http://localhost:8000/api/cats/1
 .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 
 // http://localhost:8000/api => 'Hello world!'
+
+// Or this
+
+const app = new Spear()
+.useGlobalPrefix('api', {
+  exclude : [
+    {
+      path : '/cats/*',
+      // method : '*'
+      // method : ['GET','POST']
+    }
+  ]
+})
+.get('/' , () => 'Hello world!') // http://localhost:8000/api
+.get('/cats' , () => `Hello all cats`) // http://localhost:8000/cats
+.get('/cats/:id' , ({ params }) => `Hello cat: ${params.id}`) // http://localhost:8000/cats/1
+.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
 ```
 
 ## Logger
