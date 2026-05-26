@@ -246,7 +246,7 @@ type TRoute = {
 
 type TMethod = |'get' | 'post' | 'patch' | 'put' | 'delete' | 'all' | 'head' | 'options';
 
-type TMethodInput = Uppercase<TMethod>;
+type TMethodInput = Uppercase<Exclude<TMethod, 'all'>>;
 
 type HandlerUWS = (res: unknown, req: unknown) => void | Promise<void>;
 

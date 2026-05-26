@@ -50,7 +50,21 @@ class Spear {
     private readonly _middlewares ?: T.ContextHandler[] | { folder : string , name ?: RegExp};
     private readonly _router : FastRouter = new FastRouter(); 
     private readonly _parser = new ParserFactory();
-    private _globalPrefix : string = '';
+    private _globalPrefix : {
+        path : string;
+        options : {
+            exclude    : {
+                path: string;
+                method ?: T.MethodInput[] | '*';
+            }[]
+        }
+    } = {
+        path: '',
+        options: {
+            exclude : []
+        }
+    }
+
     private _adapter : T.Adapter = { kind : 'http', server : http };
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
@@ -210,14 +224,63 @@ class Spear {
     /**
      * The 'useGlobalPrefix' method is used to sets a global prefix for all routes in the router.
      *
-     * If `globalPrefix` is `null` or `undefined`, it will default to an empty string,
-     * meaning no prefix will be applied.
+     * This prefix will be prepended to every route path in the application.
+     * If `path` is `null`, `undefined`, or an empty string, no global prefix
+     * will be applied.
      *
-     * @param {string | null} globalPrefix - The base path prefix to apply to all routes.
-     * @returns {this} Returns the current instance for method chaining.
+     * @param {string} path - The global route prefix.
+     *
+     * @param {Object} [options] - Additional configuration options.
+     * @param {Array<{ path: string; method?: TMethod | TMethod[] }>} [options.exclude]
+     * Routes to exclude from the global prefix.
+     *
+     * @returns {this} Returns the current router instance for chaining.
+     *
+     * @example
+     * import Spear from "tspace-spear";
+     * const app = new Spear()
+     * 
+     * app.useGlobalPrefix('/api');
+     *
+     * @example
+     * app.useGlobalPrefix('/api', {
+     *   exclude: [
+     *     { path: '/health' },
+     *     { path: '/auth/login', method: 'POST' }
+     *   ]
+     * });
      */
-    public useGlobalPrefix(globalPrefix: string | null): this {
-        this._globalPrefix = globalPrefix == null ? '' : globalPrefix.replace(/^\/+|\/+$/g, '');
+    public useGlobalPrefix(
+        path: string | null,
+        options?: {
+            exclude?: {
+                path: string;
+                method?: T.MethodInput[] | '*';
+            }[];
+        }
+    ): this {
+
+        this._globalPrefix.path = path == null
+            ? ''
+            : path.replace(/^\/+|\/+$/g, '');
+
+        this._globalPrefix.options.exclude = (
+            options?.exclude ?? []
+        ).map(route => {
+
+            const method: T.MethodInput[] | '*' =
+                route.method == null || route.method === '*'
+                    ? '*'
+                    : route.method.map(
+                        m => m.toUpperCase() as T.MethodInput
+                    );
+
+            return {
+                path: route.path.replace(/^\/+|\/+$/g, ''),
+                method
+            };
+        });
+
         return this;
     }
 
@@ -276,6 +339,7 @@ class Spear {
         this._globalMiddlewares.push(({ req , res } : T.Context , next : T.NextFunction) => {
            
             const diffTime = (hrtime?: [number, number]) => {
+                
                 const MS = 1000
     
                 if (hrtime == null) return 0
@@ -465,7 +529,7 @@ class Spear {
         const routes = router.routes
 
         for(const { path , method , handlers } of routes) {
-            this[method](this._normalizePath(this._globalPrefix , path) , ...handlers)
+            this[method](this._normalizePath(this._resolveGlobalPrefix({ path , method }) , path) , ...handlers)
         }
 
         return this
@@ -513,7 +577,7 @@ class Spear {
 
         if(this._generatePreRouteTypes) {
             await new Compiler().generateRoutes(
-                this._globalPrefix,
+                this._globalPrefix.path,
                 this._generatePreRouteTypes
             )
         }
@@ -678,7 +742,7 @@ class Spear {
 
         this._onListeners.push(() => {
             return this._router.get(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'get' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -698,7 +762,7 @@ class Spear {
     public post (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.post(
-                this._normalizePath(this._globalPrefix, path),  
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'post' }), path),  
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -717,7 +781,7 @@ class Spear {
     public put (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.put(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'put' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -736,7 +800,7 @@ class Spear {
     public patch (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.patch(
-                this._normalizePath(this._globalPrefix, path),  
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'patch' }), path),  
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -755,7 +819,7 @@ class Spear {
     public delete (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.delete(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'delete' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -774,7 +838,7 @@ class Spear {
     public head (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.head(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'head' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -793,7 +857,7 @@ class Spear {
     public options (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.options(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'options' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -812,7 +876,7 @@ class Spear {
     public all (path : string , ...handlers : T.ContextHandler[]): this {
         this._onListeners.push(() => {
             return this._router.all(
-                this._normalizePath(this._globalPrefix, path), 
+                this._normalizePath(this._resolveGlobalPrefix({ path , method : 'all' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
@@ -880,7 +944,7 @@ class Spear {
 
     private async _registerControllers(): Promise<void> {
         
-        if(this._controllers == null) return
+        if(this._controllers == null) return;
 
         if(!Array.isArray(this._controllers)) {
            
@@ -943,14 +1007,15 @@ class Spear {
 
                 const controllerInstance = new controller();
     
-                const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? ''
+                const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
 
-                const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? []
+                const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? [];
 
-                const swaggers: any[] = Reflect.getMetadata("swaggers", controller) ?? []
+                const swaggers: (
+                    T.Swagger.Spec & 
+                    { handler : string | symbol }
+                )[] = Reflect.getMetadata("swaggers", controller) ?? [];
 
-                if(prefixPath == null) continue
-    
                 for(const { method, path, handler } of Array.from(routers)) {
 
                     const find = Array.from(swaggers).find(s => s.handler === handler)
@@ -960,14 +1025,21 @@ class Spear {
                             ...this._swaggerSpecs , 
                             {
                                 ...find,
-                                path : this._normalizePath(this._globalPrefix , prefixPath, path),
+                                path : this._normalizePath( 
+                                    this._resolveGlobalPrefix({ path , method }), 
+                                    prefixPath, 
+                                    path
+                                ),
                                 method
                             }
                         ]
                     }
                 
                     this[method](
-                        this._normalizePath(this._globalPrefix ,prefixPath ,path), 
+                        this._normalizePath(
+                            prefixPath,
+                            path
+                        ), 
                         controllerInstance[String(handler)].bind(controllerInstance)
                     )
                 }
@@ -980,15 +1052,16 @@ class Spear {
 
             const controllerInstance = new controller();
 
-            const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? ''
+            const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
 
-            const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? []
+            const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? [];
 
-            const swaggers: any[] = Reflect.getMetadata("swaggers", controller) ?? []
+            const swaggers: (
+                T.Swagger.Spec & 
+                { handler : string | symbol }
+            )[] = Reflect.getMetadata("swaggers", controller) ?? [];
 
-            if(prefixPath == null) continue
-
-            for(const { method, path, handler} of Array.from(routers)) {
+            for(const { method, path, handler } of Array.from(routers)) {
 
                 const find = Array.from(swaggers).find(s => s.handler === handler)
 
@@ -997,14 +1070,20 @@ class Spear {
                         ...this._swaggerSpecs , 
                         {
                             ...find,
-                            path : this._normalizePath(this._globalPrefix , prefixPath, path),
+                            path : this._normalizePath(
+                                this._resolveGlobalPrefix({ path , method }),
+                                prefixPath, path
+                            ),
                             method
                         }
                     ]
                 }
 
                 this[method](
-                    this._normalizePath(this._globalPrefix , prefixPath, path), 
+                    this._normalizePath(
+                        prefixPath, 
+                        path
+                    ), 
                     controllerInstance[String(handler)].bind(controllerInstance)
                 )
             }
@@ -1452,17 +1531,43 @@ class Spear {
         }
     }
 
-    private _normalizePath (...paths: string[]) : string {
-        const path = paths
-        .join('/')
-        .replace(/\/+/g, '/')
-        .replace(/\/+$/, '')
+    private _normalizePath(...paths: string[]): string {
 
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`
-    
-        return /\/api\/api/.test(normalizedPath) 
-            ? normalizedPath.replace(/\/api\/api\//, "/api/") 
-            : normalizedPath
+        const path = paths
+            .filter(Boolean)
+            .join('/')
+            .replace(/\/+/g, '/')
+            .replace(/\/+$/, '');
+
+        let normalizedPath =
+            path.startsWith('/')
+                ? path
+                : `/${path}`;
+
+        const globalPrefix =
+            this._globalPrefix.path
+                .replace(/^\/+|\/+$/g, '');
+
+        if (globalPrefix) {
+
+            const duplicatedPrefix =
+                `/${globalPrefix}/${globalPrefix}/`;
+
+            normalizedPath =
+                normalizedPath.replace(
+                    duplicatedPrefix,
+                    `/${globalPrefix}/`
+                );
+
+            if (
+                normalizedPath ===
+                `/${globalPrefix}/${globalPrefix}`
+            ) {
+                normalizedPath = `/${globalPrefix}`;
+            }
+        }
+
+        return normalizedPath || '/';
     }
 
     private async _swaggerHandler () {
@@ -1487,7 +1592,7 @@ class Spear {
             ...this._swagger,
             specs : this._swaggerSpecs,
             routes,
-            globalPrefix: this._globalPrefix
+            globalPrefix: this._globalPrefix.path
         })
 
         this._router.get(staticUrl, staticSwaggerHandler)
@@ -1502,6 +1607,65 @@ class Spear {
         })
 
         return
+    }
+
+    private _resolveGlobalPrefix(
+        {
+            path,
+            method
+        }: {
+            path: string | '*';
+            method: T.Method | '*';
+        }
+    ): string {
+
+        const globalPrefix = this._globalPrefix.path;
+
+        if (!globalPrefix) {
+            return '';
+        }
+
+        if (path === '*') {
+            return `/${globalPrefix}`;
+        }
+
+        const cleanPath = path.replace(/^\/+|\/+$/g, '');
+        const upperMethod = method.toUpperCase();
+        const exclude = this._globalPrefix.options.exclude;
+
+        const isExcluded = exclude.some(route => {
+
+            const methods = route.method ?? '*';
+
+            if (
+                methods !== '*' &&
+                !methods.includes(upperMethod as T.MethodInput)
+            ) {
+                return false;
+            }
+
+            const routePath = route.path.replace(/^\/+|\/+$/g, '');
+
+            if (routePath === cleanPath) {
+                return true;
+            }
+
+            if (routePath.endsWith('/*')) {
+
+                const basePath = routePath.slice(0, -2);
+
+                return (
+                    cleanPath === basePath ||
+                    cleanPath.startsWith(basePath + '/')
+                );
+            }
+
+            return false;
+        });
+
+        return isExcluded
+            ? ''
+            : `/${globalPrefix}`;
     }
 }
 
