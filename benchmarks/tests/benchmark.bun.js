@@ -1,13 +1,11 @@
 const { runBenchmark, sleep } = require('./utils')
 
+const { ServerSpear } = require('../servers/spear')
 const { ServerExpress } = require('../servers/express')
 const { ServerFastify } = require('../servers/fastify')
 const { ServerHttp } = require('../servers/http')
 const { ServerElysia } = require('../servers/elysia')
-const { ServerSpear } = require('../servers/spear')
 const { ServerHono } = require('../servers/hono')
-const { Server0Http } = require('../servers/0http')
-const { ServerNet } = require('../servers/net')
 
 const runApps = async () => {
   const apps = [
@@ -16,13 +14,13 @@ const runApps = async () => {
     { name: 'http', app: ServerHttp },
     { name: 'fastify', app: ServerFastify },
     { name: 'tspace-spear', app: ServerSpear },
-    { name: '0http', app: Server0Http },
-    { name: 'net', app: ServerNet },
 
     // base on bun
     { name: 'elysia', app: ServerElysia },
     { name: 'hono', app: ServerHono },
-  ].map((s, i) => {
+  ]
+  .sort(() => Math.random() - 0.5)
+  .map((s, i) => {
     return {
       ...s,
       port: 6000 + i,
