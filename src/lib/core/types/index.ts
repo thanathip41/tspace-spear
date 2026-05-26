@@ -246,7 +246,7 @@ type TRoute = {
 
 type TMethod = |'get' | 'post' | 'patch' | 'put' | 'delete' | 'all' | 'head' | 'options';
 
-type TMethodInput = Uppercase<TMethod>;
+type TMethodInput = Uppercase<Exclude<TMethod, 'all'>>;
 
 type HandlerUWS = (res: unknown, req: unknown) => void | Promise<void>;
 
@@ -313,7 +313,15 @@ type TSwaggerDoc = {
         method : string;
         params : string[]
     }[];
-    globalPrefix ?: string;
+    globalPrefix ?:  {
+        path : string;
+        options : {
+            exclude    : {
+                path: string;
+                method ?: T.MethodInput[] | '*';
+            }[]
+        }
+    }
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false

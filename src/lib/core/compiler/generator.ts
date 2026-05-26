@@ -566,11 +566,15 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
     }
 
     if (Array.isArray(v)) {
-      if (v.length === 0) {
+      if (!v.length) {
         return "[]";
       }
 
-      return `[${formatExampleValue(v[0])}]`;
+      return `[
+        ${formatExampleValue(v[0])},
+        ${formatExampleValue(v[0])},
+        ${formatExampleValue(v[0])}
+      ]`;
     }
 
     if (typeof v === "object") {

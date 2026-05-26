@@ -1,6 +1,5 @@
 import { Server }     from 'http';
 import fs             from "fs";
-import FormData       from 'form-data';
 import path           from 'path';
 import chai           from "chai";
 import chaiJsonSchema from "chai-json-schema";
@@ -191,16 +190,36 @@ describe("TSpear E2E Test", () => {
     const catPath = path.join(path.resolve(),'__tests__','image.png')
     const buffer = await fs.promises.readFile(catPath);
 
-    const formData = new FormData();
-
-    formData.append("image", buffer, {
-      filename: "cat.png",
-      contentType: "image/png",
-    });
-
-    // @ts-ignore
     // In Node.js, FormData is not the same as in the browser, 
     // but in Node.js 18+ it is compatible with the browser implementation.
+    let formData: any;
+
+    const useNative =
+    typeof globalThis.Blob !== "undefined" &&
+    typeof globalThis.FormData !== "undefined";
+
+    if (useNative) {
+      // Node 18+
+      formData = new FormData(); // native
+
+      const blob = new Blob([buffer as any], {
+        type: "image/png",
+      });
+
+      formData.append("image", blob, "cat.png");
+
+    } else {
+      // Node 16
+      const FormDataPkg = (await import("form-data")).default;
+
+      formData = new FormDataPkg();
+
+      formData.append("image", buffer, {
+        filename: "cat.png",
+        contentType: "image/png",
+      });
+    }
+
     const res = await client.upload("/cats/upload", { formdata : formData });
 
     expect(res.ok).to.be.equal(true);

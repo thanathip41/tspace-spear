@@ -45,7 +45,7 @@ const runBenchmark = async (apps) => {
         {
           url,
           connections: 2,
-          duration: 5,
+          duration: 2,
           pipelining: 1,
         },
         (err) => {
@@ -54,8 +54,6 @@ const runBenchmark = async (apps) => {
         }
       )
     }).catch(() => null)
-
-    await sleep(1000)
 
     // main benchmark
     const result = await new Promise((resolve, reject) => {

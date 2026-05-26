@@ -26,6 +26,14 @@ const getFetch = async () => {
 };
 
 const isFormData = (value: unknown): boolean => {
+  
+  // In Node.js 18+ it is compatible with the browser implementation.
+  if(typeof globalThis.FormData !== "undefined") {
+    return value instanceof globalThis.FormData;
+  }
+
+  // In Node.js below 18-, FormData is not the same as in the browser
+  // using from pkg form-data
   return (
     value != null &&
     typeof value === "object" &&

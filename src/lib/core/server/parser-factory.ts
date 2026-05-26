@@ -283,6 +283,67 @@ export class ParserFactory {
 
   public async swagger(doc: T.Swagger.Doc) {
 
+    const resolveGlobalPrefix = (
+        {
+            path,
+            method
+        }: {
+            path: string | '*';
+            method: T.Method | '*';
+        }
+    ): string => {
+
+        if(doc.globalPrefix == null) return '';
+
+        const globalPrefix = doc.globalPrefix.path;
+
+        if (!globalPrefix) {
+            return '';
+        }
+
+        if (path === '*') {
+            return `/${globalPrefix}`;
+        }
+
+        const cleanPath = path.replace(/^\/+|\/+$/g, '');
+        const upperMethod = method.toUpperCase();
+        const exclude = doc.globalPrefix.options.exclude;
+
+        const isExcluded = exclude.some(route => {
+
+            const methods = route.method ?? '*';
+
+            if (
+                methods !== '*' &&
+                !methods.includes(upperMethod as T.MethodInput)
+            ) {
+                return false;
+            }
+
+            const routePath = route.path.replace(/^\/+|\/+$/g, '');
+
+            if (routePath === cleanPath) {
+                return true;
+            }
+
+            if (routePath.endsWith('/*')) {
+
+                const basePath = routePath.slice(0, -2);
+
+                return (
+                    cleanPath === basePath ||
+                    cleanPath.startsWith(basePath + '/')
+                );
+            }
+
+            return false;
+        });
+
+        return isExcluded
+            ? ''
+            : `/${globalPrefix}`;
+    }
+
     const spec = {
       openapi: "3.1.0",
       info: doc.info ?? {
@@ -334,14 +395,16 @@ export class ParserFactory {
         },
       };
       
-
       for (const r of routes) {
         if (r.path === "*") continue;
 
         const path = r.path.replace(/:(\w+)/g, "{$1}");
         const method = r.method.toLowerCase();
 
-        const pathWithoutGlobalPrefix= r.path.replace(`/${doc.globalPrefix}/`, "/");
+        //@ts-ignore
+        const globalPrefix = resolveGlobalPrefix({ path , method })
+
+        const pathWithoutGlobalPrefix= r.path.replace(`/${globalPrefix}/`, "/");
 
         //@ts-ignore
         const preRoute = appRoutes[pathWithoutGlobalPrefix]?.[r.method];
