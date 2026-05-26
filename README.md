@@ -1434,16 +1434,21 @@ const client: ApiClient<AppRouter> = new ApiClient(
   `http://localhost:8000/api`
 );
 
-const test = await client.get("/catsq"); // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
+await client.get("/catsq"); ❌ // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
 const res = await client.get("/cats");
-  res.data.cats = 1 // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
-  res.data.cats[0].name = 1 // Type error: Type 'number' is not assignable to type 'string'
-  res.data.cats[0].age = "1.6" // Type error: Type 'string' is not assignable to type 'number'
+  res.data.cats = 1 ❌ // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
+  res.data.cats[0].name = 1 ❌ // Type error: Type 'number' is not assignable to type 'string'
+  res.data.cats[0].age = "1.6" ❌ // Type error: Type 'string' is not assignable to type 'number'
 
   console.log(res) 
   // res.ok -> boolean
   // res.status -> number
+  // res.headers -> Hearders
   // res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
+
+  await client.get("/cats/:id") ❌ // Expected 2 arguments, but got 1.
+  await client.get("/cats/:id", { params : { id : "1" }}) ❌ // The expected type comes from property 'id' which is declared here on type '{ id: number; }'
+  await client.get("/cats/:id", { params : { id : 1 }}) ✅
  
 ```
 
