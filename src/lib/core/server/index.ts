@@ -1021,15 +1021,16 @@ class Spear {
                     const find = Array.from(swaggers).find(s => s.handler === handler)
 
                     if(find != null) {
+                        const globalPrefix =  this._resolveGlobalPrefix({ 
+                            path : this._normalizePath( prefixPath, path), 
+                            method 
+                        });
+
                         this._swaggerSpecs = [
                             ...this._swaggerSpecs , 
                             {
                                 ...find,
-                                path : this._normalizePath( 
-                                    this._resolveGlobalPrefix({ path , method }), 
-                                    prefixPath, 
-                                    path
-                                ),
+                                path : this._normalizePath(globalPrefix , prefixPath, path),
                                 method
                             }
                         ]
@@ -1066,14 +1067,16 @@ class Spear {
                 const find = Array.from(swaggers).find(s => s.handler === handler)
 
                 if(find != null) {
+                    const globalPrefix =  this._resolveGlobalPrefix({ 
+                        path : this._normalizePath( prefixPath, path), 
+                        method 
+                    });
+                        
                     this._swaggerSpecs = [
                         ...this._swaggerSpecs , 
                         {
                             ...find,
-                            path : this._normalizePath(
-                                this._resolveGlobalPrefix({ path , method }),
-                                prefixPath, path
-                            ),
+                            path : this._normalizePath(globalPrefix , prefixPath, path),
                             method
                         }
                     ]
@@ -1592,7 +1595,7 @@ class Spear {
             ...this._swagger,
             specs : this._swaggerSpecs,
             routes,
-            globalPrefix: this._globalPrefix.path
+            globalPrefix: this._globalPrefix
         })
 
         this._router.get(staticUrl, staticSwaggerHandler)

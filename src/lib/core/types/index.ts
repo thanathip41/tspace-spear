@@ -313,7 +313,15 @@ type TSwaggerDoc = {
         method : string;
         params : string[]
     }[];
-    globalPrefix ?: string;
+    globalPrefix ?:  {
+        path : string;
+        options : {
+            exclude    : {
+                path: string;
+                method ?: T.MethodInput[] | '*';
+            }[]
+        }
+    }
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false
