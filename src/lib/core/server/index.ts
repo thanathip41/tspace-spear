@@ -1005,7 +1005,7 @@ class Spear {
                     continue;
                 }
 
-                const controllerInstance = new controller();
+                const controllerInstance = this._createController(controller)
     
                 const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
 
@@ -1051,7 +1051,7 @@ class Spear {
 
         for(const controller of this._controllers) {
 
-            const controllerInstance = new controller();
+            const controllerInstance = this._createController(controller);
 
             const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
 
@@ -1091,6 +1091,90 @@ class Spear {
                 )
             }
         }
+    }
+
+    private _createController(ControllerClass: new (...args: any[]) => any) {
+
+        const services =
+            Reflect.getMetadata(
+                'services',
+                ControllerClass
+            ) ?? [];
+
+        const constructorTypes =
+            Reflect.getMetadata(
+                'design:paramtypes',
+                ControllerClass
+            ) ?? [];
+
+        if (!constructorTypes.length) {
+            return new ControllerClass();
+        }
+
+        if (!services.length) {
+            throw new Error(
+                `\x1b[31m[ServiceLoader ERROR]\x1b[0m \x1b[36m${ControllerClass.name}\x1b[0m requires dependencies but no @Service() decorator was found`
+            );
+        }
+
+        const serviceMap = new Map<any, any>();
+
+        for (const ServiceClass of services) {
+
+            if (
+                typeof ServiceClass !== 'function'
+            ) {
+                throw new Error(
+                    `[ServiceLoader ERROR] Invalid service in @Service() of ${ControllerClass.name}`
+                );
+            }
+
+            serviceMap.set(
+                ServiceClass,
+                new ServiceClass()
+            );
+        }
+
+        const injections = [];
+
+        const available = services.length
+            ? services
+                .map((s: any) => s.name)
+            : 'None';
+
+
+        for (const DependencyClass of constructorTypes) {
+
+            const service = serviceMap.get(
+                DependencyClass
+            );
+
+            if (!service) {
+
+                throw new Error([
+                        '\x1b[31m[ServiceLoader ERROR]\x1b[0m',
+                        '',
+                        `\x1b[36mController\x1b[0m : ${ControllerClass.name}`,
+                        `\x1b[36mDependency\x1b[0m : ${DependencyClass.name}`,
+                        `\x1b[36mAvailable \x1b[0m : ${available.join(', ')}`,
+                        '',
+                        '\x1b[33mHint\x1b[0m',
+                        '@Service([',
+                        `    ${available.join(',\n    ')},`,
+                        `    ${DependencyClass.name}`,
+                        '])',
+                        '',
+                        `Register '${DependencyClass.name}' in @Service()`
+                    ].join('\n')
+                );
+            }
+
+            injections.push(service);
+        }
+
+        return new ControllerClass(
+            ...injections
+        );
     }
 
     private async _registerMiddlewares(): Promise<void> {
