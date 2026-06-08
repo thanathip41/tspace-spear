@@ -255,7 +255,7 @@ class Spear {
         options?: {
             exclude?: {
                 path: string;
-                method?: T.MethodInput[] | '*';
+                methods?: T.MethodInput[] | '*';
             }[];
         }
     ): this {
@@ -269,9 +269,9 @@ class Spear {
         ).map(route => {
 
             const method: T.MethodInput[] | '*' =
-                route.method == null || route.method === '*'
+                route.methods == null || route.methods === '*'
                     ? '*'
-                    : route.method.map(
+                    : route.methods.map(
                         m => m.toUpperCase() as T.MethodInput
                     );
 

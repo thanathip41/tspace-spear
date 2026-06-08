@@ -401,14 +401,6 @@ export class ParserFactory {
         const path = r.path.replace(/:(\w+)/g, "{$1}");
         const method = r.method.toLowerCase();
 
-        //@ts-ignore
-        const globalPrefix = resolveGlobalPrefix({ path , method })
-
-        const pathWithoutGlobalPrefix= r.path.replace(`/${globalPrefix}/`, "/");
-
-        //@ts-ignore
-        const preRoute = appRoutes[pathWithoutGlobalPrefix]?.[r.method];
-
         const swagger = (doc.specs ?? []).find((s) => {
           return s.path === r.path && s.method.toLowerCase() === method;
         });
@@ -418,6 +410,17 @@ export class ParserFactory {
         if ((swagger == null && decoratedOnly) || swagger?.disabled) {
           continue;
         }
+
+        //@ts-ignore
+        const globalPrefix = resolveGlobalPrefix({ path , method })
+
+        const pathWithoutGlobalPrefix= r.path
+        .replace(globalPrefix, "")
+        .replace(/\/+/g, '/') 
+        .replace(/\/$/, '') || '/';
+
+        //@ts-ignore
+        const preRoute = appRoutes[pathWithoutGlobalPrefix]?.[r.method];
 
         if (paths[path] == null) {
           paths[path] = {

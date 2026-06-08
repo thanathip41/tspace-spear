@@ -176,8 +176,8 @@ const app = new Spear()
   exclude : [
     {
       path : '/cats/*',
-      // method : '*'
-      // method : ['GET','POST']
+      // methods : '*'
+      // methods : ['GET','POST']
     }
   ]
 })
