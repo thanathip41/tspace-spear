@@ -15,12 +15,13 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 🚀 Optional [uWebSockets.js](#adapter) adapter support for ultra-low latency and maximum throughput
 - 🧠 End-to-end [E2E](#e2e) type safety across the entire request → response lifecycle
 - 🎮 Built-in support for [Controllers](#controller) and route-based architecture
-- 🏷️ Powerful Decorator system for routes, middleware, validation, and metadata
+- 🏷️ Powerful Decorator system for [routes](#router), [middleware](#middleware), validation, and metadata
+- 💉 Built-in constructor-based dependency injection (DI) for [Services](#service)
 - 📦 [DTO](#dto) (Data Transfer Object) support for structured and type-safe request handling
 - 📂 Built-in [File Upload](#file-upload) support via `useFileUpload()` with zero configuration required
 - 🔌 Native [WebSocket](#web-socket) support for real-time applications and event-driven systems
 - ⚛️ [GraphQL](#graphql) support with flexible schema integration and HTTP adapters
-- 🖥️ Built-in [cluster mode](#cluster) support for multi-core scalability and higher throughput
+- 🖥️ Built-in [Cluster mode](#cluster) support for multi-core scalability and higher throughput
 - 🧪 Built-in testing utilities for [E2E](#e2e) validation
 - 🧩 Simple and intuitive developer experience
 - 📘 Auto-generated [Swagger](#swagger) documentation via `app.useSwagger()` with zero manual configuration
@@ -103,8 +104,6 @@ npm run dev
 
 ✔ Run E2E client:
   ts-node src/client.ts
-
-ts-node src/client.ts // for E2E
 ```
 
 
@@ -518,6 +517,7 @@ class CatController {
   }
 }
 
+// app.ts
 import { Spear } , { Router, type T } from "tspace-spear";
 
 import CatController from './cat-controller.ts'
@@ -555,8 +555,69 @@ import CatController from './cat-controller.ts'
 })()
 ```
 
+### Service
+Registers one or more service classes for Dependency Injection.
 
-## Dto
+All registered services will be available in the controller constructor
+without manual instantiation.
+```js
+// cat-service.ts
+class CatService {
+  public index () {
+    return [
+      {
+        id: 1,
+        name: 'cat1'
+      },
+      {
+        id: 2,
+        name: 'cat2'
+      }
+    ]
+  }
+}
+
+// cat-controller.ts
+import { 
+  Controller, 
+  Get
+} from 'tspace-spear';
+import CatService from './cat-service.ts'
+
+@Service([CatService]) // don't forgot this to send CatService for Dependency Injection(DI)
+@Controller('/cats')
+class CatController {
+
+  constructor(
+    private catService: CatService
+  ) {}
+
+  @Get('/')
+  public index() {
+    return this.catService.index();
+  }
+}
+
+// app.ts
+import { Spear } from "tspace-spear";
+
+(async () => {
+
+  const app = new Spear({
+    controllers : {
+      folder : `${__dirname}/controllers`,
+      name :  /controller\.(ts|js)$/i,
+      preRouteTypes : true 
+    }
+  });
+  
+  app.useSwagger();
+
+  app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
+})()
+```
+
+### Dto
 DTO (Data Transfer Object) is used to validate and transform incoming request data before it reaches your controller logic.
 ```js
 import { 
