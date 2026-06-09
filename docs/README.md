@@ -616,6 +616,42 @@ import { Spear } from "tspace-spear";
   app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
 })()
 ```
+### Exception
+Exceptions are used to return HTTP errors from your application.
+```js
+import {
+  BadRequestException,
+  UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
+  MethodNotAllowedException,
+  ConflictException,
+  GoneException,
+  UnsupportedMediaTypeException,
+  UnprocessableEntityException,
+  TooManyRequestsException,
+  InternalServerErrorException,
+  NotImplementedException,
+  BadGatewayException,
+  ServiceUnavailableException,
+  GatewayTimeoutException,
+} from 'tspace-spear/exception';
+
+@Controller('/users')
+class UserController {
+  @Get('/:id')
+  public async show({ params }) {
+
+    if (!params.id) {
+      throw new BadRequestException('User id is required');
+    }
+
+    return {
+      id: params.id,
+    };
+  }
+}
+```
 
 ### Dto
 DTO (Data Transfer Object) is used to validate and transform incoming request data before it reaches your controller logic.

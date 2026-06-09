@@ -15,6 +15,7 @@
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Service](#service)
+- [Exception](#exception)
 - [Dto](#dto)
 - [Router](#router)
 - [Swagger](#swagger)
