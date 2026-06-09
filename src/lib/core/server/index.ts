@@ -1333,7 +1333,7 @@ class Spear {
         
         return (err ?: any) => {
         
-            const status = 
+            let statusCode = 
             typeof err?.statusCode === 'number' && 
             Number.isFinite(err.statusCode)
                 ? err.statusCode
@@ -1348,7 +1348,9 @@ class Spear {
             }
 
             if(!ctx.res.headersSent) {
-                ctx.res.writeHead(status, HEADER_CONTENT_TYPES['json']);
+                ctx.res.writeHead(statusCode, HEADER_CONTENT_TYPES['json']);
+            } else {
+                statusCode = ctx.res.statusCode
             }
 
             if(this._formatResponse != null) {
@@ -1356,14 +1358,15 @@ class Spear {
                 ctx.res.end(JSON.stringify(
                     this._formatResponse({ 
                         message : errorMessage
-                    }, ctx.res.statusCode))
+                    }, statusCode))
                 );
 
                 return;
             }
             
             ctx.res.end(JSON.stringify({
-                message : errorMessage
+                statusCode : statusCode,
+                message    : errorMessage
             }));  
 
             return;
