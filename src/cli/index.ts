@@ -23,7 +23,7 @@ if (command === "create" && type === "new") {
   .catch(_ => process.exit(1))
 }
 
-if (command === "g") {
+else if (command === "g") {
   if (!name) {
     printUsage();
     process.exit(1);
@@ -58,22 +58,22 @@ if (command === "g") {
   }
 
   process.exit(0);
+} else {
+  printUsage();
 }
-
-printUsage();
 
 function printUsage() {
   console.log(`
 Usage:
 
-  spear create new <project>
+  spear create new app
 
 Generators:
 
-  spear g module <names>
-  spear g controller <name>
-  spear g service <name>
-  spear g dto <name>
-  spear g middleware <name>
+  spear g module names
+  spear g controller name
+  spear g service name
+  spear g dto name
+  spear g middleware name
 `);
 }

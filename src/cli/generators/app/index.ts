@@ -22,7 +22,7 @@ const c = {
 
 export async function createApp(inputPath?: string) {
   if (!inputPath) {
-    console.log("Missing target path, try: spear g app src");
+    console.log("Missing target path, try: spear create new app");
     process.exit(1);
   }
 
