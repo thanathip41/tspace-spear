@@ -1,5 +1,5 @@
 import { SERVICE_METADATA } from "../metadata";
-
+type ServiceClass = new () => unknown;
 /**
  * Registers service dependencies for a controller.
  *
@@ -25,8 +25,8 @@ import { SERVICE_METADATA } from "../metadata";
  * @param services Array of service classes to register.
  * @returns Class decorator.
  */
-export const Service = (services: (new () => any)[]): ClassDecorator => {
+export const Service = (...services: (ServiceClass | ServiceClass[])[]): ClassDecorator => {
   return (target) => {
-    Reflect.defineMetadata(SERVICE_METADATA,services,target);
+    Reflect.defineMetadata(SERVICE_METADATA,services.flat(),target);
   };
 }
