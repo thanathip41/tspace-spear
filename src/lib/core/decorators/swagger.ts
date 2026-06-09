@@ -1,3 +1,4 @@
+import { SWAGGER_METADATA } from "../metadata";
 import { type T } from "../types";
 
 /**
@@ -38,8 +39,8 @@ export const Swagger = (data: T.Swagger.Spec = {}): MethodDecorator => {
   return (target: any, propertyKey: any) => {
     const controller = target.constructor;
 
-    const swaggers: any[] = Reflect.hasMetadata("swaggers", controller)
-      ? Reflect.getMetadata("swaggers", controller)
+    const swaggers: any[] = Reflect.hasMetadata(SWAGGER_METADATA, controller)
+      ? Reflect.getMetadata(SWAGGER_METADATA, controller)
       : [];
 
     swaggers.push({
@@ -47,6 +48,6 @@ export const Swagger = (data: T.Swagger.Spec = {}): MethodDecorator => {
       ...data,
     });
 
-    Reflect.defineMetadata("swaggers", swaggers, controller);
+    Reflect.defineMetadata(SWAGGER_METADATA, swaggers, controller);
   };
 };

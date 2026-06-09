@@ -1,3 +1,4 @@
+import { MIDDLEWARE_METADATA } from '../metadata';
 import { T } from '../types';
 
 /**
@@ -45,7 +46,7 @@ export const Middleware = (middleware: T.ContextHandler): MethodDecorator => {
     descriptor.value = function (ctx: T.Context, next: T.NextFunction) {
       try {
 
-        Reflect.defineMetadata("middlewares", descriptor, target);
+        Reflect.defineMetadata(MIDDLEWARE_METADATA, descriptor, target);
 
         return middleware(ctx, (err?: any) => {
           if (err != null) {

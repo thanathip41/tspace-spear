@@ -1,3 +1,4 @@
+import { ROUTE_METADATA } from '../metadata';
 import { type T } from '../types'
 
 const methodDecorator = (method: T.Method) => {
@@ -5,8 +6,8 @@ const methodDecorator = (method: T.Method) => {
     return (target:any, propertyKey:any) => {
       const controller = target.constructor;
 
-      const routers: T.Router[] = Reflect.hasMetadata("routers", controller) 
-        ? Reflect.getMetadata("routers", controller) 
+      const routers: T.Router[] = Reflect.hasMetadata(ROUTE_METADATA, controller) 
+        ? Reflect.getMetadata(ROUTE_METADATA, controller) 
         : [];
 
       routers.push({
@@ -15,7 +16,7 @@ const methodDecorator = (method: T.Method) => {
         handler: propertyKey,
       });
 
-      Reflect.defineMetadata("routers", routers, controller);
+      Reflect.defineMetadata(ROUTE_METADATA, routers, controller);
     }
   }
 }

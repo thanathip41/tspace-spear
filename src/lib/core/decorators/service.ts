@@ -1,3 +1,5 @@
+import { SERVICE_METADATA } from "../metadata";
+
 /**
  * Registers service dependencies for a controller.
  *
@@ -25,6 +27,6 @@
  */
 export const Service = (services: (new () => any)[]): ClassDecorator => {
   return (target) => {
-    Reflect.defineMetadata('services',services,target);
+    Reflect.defineMetadata(SERVICE_METADATA,services,target);
   };
 }

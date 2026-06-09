@@ -26,6 +26,7 @@ import { AppRoutes }       from '../compiler/pre-routes';
 
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
+import { CONTROLLER_METADATA, PARAMTYPES_METADATA, ROUTE_METADATA, SERVICE_METADATA, SWAGGER_METADATA } from '../metadata';
 
 
 /**
@@ -1007,14 +1008,14 @@ class Spear {
 
                 const controllerInstance = this._createController(controller)
     
-                const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
+                const prefixPath: string = Reflect.getMetadata(CONTROLLER_METADATA, controller) ?? '';
 
-                const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? [];
+                const routers: T.Router[] = Reflect.getMetadata(ROUTE_METADATA, controller) ?? [];
 
                 const swaggers: (
                     T.Swagger.Spec & 
                     { handler : string | symbol }
-                )[] = Reflect.getMetadata("swaggers", controller) ?? [];
+                )[] = Reflect.getMetadata(SWAGGER_METADATA, controller) ?? [];
 
                 for(const { method, path, handler } of Array.from(routers)) {
 
@@ -1053,14 +1054,14 @@ class Spear {
 
             const controllerInstance = this._createController(controller);
 
-            const prefixPath: string = Reflect.getMetadata("controllers", controller) ?? '';
+            const prefixPath: string = Reflect.getMetadata(CONTROLLER_METADATA, controller) ?? '';
 
-            const routers: T.Router[] = Reflect.getMetadata("routers", controller) ?? [];
+            const routers: T.Router[] = Reflect.getMetadata(ROUTE_METADATA, controller) ?? [];
 
             const swaggers: (
                 T.Swagger.Spec & 
                 { handler : string | symbol }
-            )[] = Reflect.getMetadata("swaggers", controller) ?? [];
+            )[] = Reflect.getMetadata(SWAGGER_METADATA, controller) ?? [];
 
             for(const { method, path, handler } of Array.from(routers)) {
 
@@ -1097,13 +1098,13 @@ class Spear {
 
         const services =
             Reflect.getMetadata(
-                'services',
+                SERVICE_METADATA,
                 ControllerClass
             ) ?? [];
 
         const constructorTypes =
             Reflect.getMetadata(
-                'design:paramtypes',
+                PARAMTYPES_METADATA,
                 ControllerClass
             ) ?? [];
 
@@ -1125,7 +1126,7 @@ class Spear {
                 typeof ServiceClass !== 'function'
             ) {
                 throw new Error(
-                    `[ServiceLoader ERROR] Invalid service in @Service() of ${ControllerClass.name}`
+                    `\x1b[31m[ServiceLoader ERROR]\x1b[0m Invalid service in @Service() of ${ControllerClass.name}`
                 );
             }
 

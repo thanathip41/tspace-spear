@@ -1,3 +1,5 @@
+import { CONTROLLER_METADATA } from "../metadata";
+
 /**
  * Declares a class as a controller and assigns a base route path.
  *
@@ -33,6 +35,6 @@
  */
 export const Controller = (path: `/${string}`): ClassDecorator => {
   return (target) => {
-    return Reflect.defineMetadata("controllers", path, target);
+    return Reflect.defineMetadata(CONTROLLER_METADATA, path, target);
   };
 }
