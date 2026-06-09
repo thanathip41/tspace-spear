@@ -95,7 +95,7 @@ class CatController {
     const deleted = await this.catService
     .remove(params.id);
 
-    return deleted;
+    return { deleted };
   }
 }
 
