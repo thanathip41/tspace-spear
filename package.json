@@ -44,7 +44,7 @@
     "uwebsockets.js",
     "native-http",
     "e2e",
-    "end-to-end",
+    "end-to-end"
   ],
   "author": "Thanathip (https://github.com/thanathip41)",
   "license": "MIT",
