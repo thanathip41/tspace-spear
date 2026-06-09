@@ -7,32 +7,29 @@ import {
   Patch,
   Delete,
   ValidateDto,
-  Validate
+  Validate,
+  Service
 } from "../../../../src/lib";
 
 import { 
   CreateCatDto, 
   UpdateCatDto 
 } from "./cat-dto";
+import { CatService } from "./cat-service";
 
-type Cat = {
-  id   : number;
-  name : string;
-  age  : number;
-}
-
-let cats: Cat[] = [
-  { id: 1, name: 'cat1', age: 1.6 },
-  { id: 2, name: 'cat2', age: 1.8 },
-];
-
+@Service([CatService])
 @Controller('/cats')
 class CatController {
+
+  constructor(
+    private catService: CatService
+  ){}
   @Get('/')
   public async index({
-    res,
     query,
   }: T.Context<{ query: { id?: string ; name?: string } }>) {
+
+    const cats = this.catService.index();
 
     return {
       message: "ok",
@@ -44,7 +41,7 @@ class CatController {
   @Get('/:id')
   public async show({ res, params }: T.Context<{ params: { id: number } }>) {
 
-    const cat = cats.find((d) => d.id === Number(params.id));
+    const cat = this.catService.show(params.id);
 
     if(cat == null) {
       throw res.notFound('not found cat')
@@ -62,12 +59,7 @@ class CatController {
     body,
   }: T.Context<{ body: CreateCatDto }>) {
 
-    const cat = {
-      id: cats.length + 1,
-      ...body
-    }
-
-    cats.push(cat);
+    const cat = this.catService.create(body)
 
     return {
       message: 'created',
@@ -86,20 +78,12 @@ class CatController {
     params: { id: number };
     body: UpdateCatDto;
   }>) {
+  
+    const cat = this.catService.update(params.id,body);
 
-    const index = cats.findIndex((d) => d.id === params.id);
-
-    if (index === -1) {
+    if(cat == null) {
       throw res.notFound('not found cat')
     }
-
-    cats[index] = {
-      ...cats[index],
-      ...body,
-      id : params.id
-    };
-
-    const cat = cats[index]
 
     return {
       message: 'updated',
@@ -109,15 +93,12 @@ class CatController {
 
   @Delete('/:id')
   public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
-    const id = Number(params.id);
+   
+    const cat = this.catService.remove(params.id);
 
-    const index = cats.findIndex((d) => d.id === id);
-
-    if (index === -1) {
+     if(cat == null) {
       throw res.notFound('not found cat')
     }
-
-    cats = cats.filter((d) => d.id !== id);
 
     return {
       message: 'deleted',
