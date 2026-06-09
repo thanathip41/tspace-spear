@@ -58,6 +58,11 @@
       "types": "./dist/lib/core/client/index.d.ts",
       "import": "./dist/lib/core/client/index.js",
       "require": "./dist/lib/core/client/index.js"
+    },
+    "./exception": {
+      "types": "./dist/lib/core/exception/index.d.ts",
+      "import": "./dist/lib/core/exception/index.js",
+      "require": "./dist/lib/core/exception/index.js"
     }
   },
   "engines": {

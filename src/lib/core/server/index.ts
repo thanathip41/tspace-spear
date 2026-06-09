@@ -1332,6 +1332,12 @@ class Spear {
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
         return (err ?: any) => {
+        
+            const status = 
+            typeof err?.statusCode === 'number' && 
+            Number.isFinite(err.statusCode)
+                ? err.statusCode
+                : 500;
 
             if(ctx.res.writableEnded) return;
 
@@ -1342,7 +1348,7 @@ class Spear {
             }
 
             if(!ctx.res.headersSent) {
-                ctx.res.writeHead(500, HEADER_CONTENT_TYPES['json']);
+                ctx.res.writeHead(status, HEADER_CONTENT_TYPES['json']);
             }
 
             if(this._formatResponse != null) {
