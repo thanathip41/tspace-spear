@@ -26,9 +26,11 @@ import { AppRoutes }       from '../compiler/pre-routes';
 
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
+import { httpAdaptRequestResponse } from './http';
 import { CONTROLLER_METADATA, PARAMTYPES_METADATA, ROUTE_METADATA, SERVICE_METADATA, SWAGGER_METADATA } from '../metadata';
 
-
+const EMPTY = Object.freeze(Object.create(null));
+const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
 /**
  * 
  * The 'Spear' class is used to create a server and handle HTTP requests.
@@ -1294,7 +1296,6 @@ class Spear {
 
     private _wrapResponse(handler: T.ContextHandler) {
         return (ctx: T.Context, next: T.NextFunction) => {
-
             Promise.resolve(handler(ctx, next))
             .then(result => {
 
@@ -1316,7 +1317,7 @@ class Spear {
                 }
 
                 if (typeof result === 'string') {
-                    ctx.res.send(result)
+                    ctx.res.end(result)
                     return;
                 }
 
@@ -1529,7 +1530,8 @@ class Spear {
             return server;
         }
 
-        const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
+        const server = http.createServer((hreq: IncomingMessage, hres: ServerResponse) => {
+            const { req , res } = httpAdaptRequestResponse(hreq, hres);
             if (cors) cors(req, res);
             return lookup(req, res);
         })
@@ -1569,7 +1571,7 @@ class Spear {
         req: IncomingMessage
         res: ServerResponse
         ps: Record<string, string>
-    }) {
+    }) : any {
 
         const request = req as T.Request;
 
@@ -1601,7 +1603,7 @@ class Spear {
             ips = Array.isArray(xrip) ? xrip : [xrip]
         } else {
             const addr = req.socket?.remoteAddress
-            ips = addr ? [addr] : []
+            ips = addr ? [addr] : EMPTY_ARRAY
         }
 
         const ip = (ips.length ? ips[0] : null) as T.Ip
@@ -1614,14 +1616,14 @@ class Spear {
         return {
             req: request,
             res: response,
-
-            headers: headers || Object.create(null),
-            params: params || Object.create(null),
+    
+            headers: headers ?? EMPTY,
+            params: params ?? EMPTY,
 
             query,
-            body: body  || Object.create(null),
-            files: files || Object.create(null),
-            cookies: cookies || Object.create(null),
+            body: body  ?? EMPTY,
+            files: files ?? EMPTY,
+            cookies: cookies ?? EMPTY,
 
             ip,
             ips
