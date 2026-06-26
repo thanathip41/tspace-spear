@@ -63,11 +63,12 @@ type TFileUpload<T = Record<string, TFile[] | undefined>> = T
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
 type TRequest = IncomingMessage & {
-    uWs    : any; // typeof import('uWebSockets.js').HttpRequest
-    query  : TQuery;
-    files  : TFileUpload;
-    body   : TBody;
-    params : TParams;
+    uWs     : any; // typeof import('uWebSockets.js').HttpRequest
+    query   : TQuery;
+    files   : TFileUpload;
+    body    : TBody;
+    params  : TParams;
+    headers : THeaders;
 } & Partial<any>
 
 type THttpResponder = {

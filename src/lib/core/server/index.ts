@@ -26,8 +26,13 @@ import { AppRoutes }       from '../compiler/pre-routes';
 
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
-import { httpAdaptRequestResponse } from './http';
-import { CONTROLLER_METADATA, PARAMTYPES_METADATA, ROUTE_METADATA, SERVICE_METADATA, SWAGGER_METADATA } from '../metadata';
+import { 
+    CONTROLLER_METADATA, 
+    PARAMTYPES_METADATA, 
+    ROUTE_METADATA, 
+    SERVICE_METADATA, 
+    SWAGGER_METADATA 
+} from '../metadata';
 
 const EMPTY = Object.freeze(Object.create(null));
 const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
@@ -1530,8 +1535,7 @@ class Spear {
             return server;
         }
 
-        const server = http.createServer((hreq: IncomingMessage, hres: ServerResponse) => {
-            const { req , res } = httpAdaptRequestResponse(hreq, hres);
+        const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
             if (cors) cors(req, res);
             return lookup(req, res);
         })
