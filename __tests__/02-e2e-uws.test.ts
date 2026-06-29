@@ -9,7 +9,7 @@ import {
   before, 
   after 
 } from "mocha";
-import { app }       from "./app";
+import { app }       from "./app/uWS";
 import { ApiClient } from "../src/lib/core/client";
 
 chai.use(chaiJsonSchema);
@@ -18,10 +18,10 @@ const { expect } = chai;
 let server: Server;
 let client: ApiClient<typeof app.contract>;
 
-describe("TSpear E2E Test", () => {
+describe("TSpear E2E Test with uWebSocket.js", () => {
   
   before((done) => {
-    app.listen(5001, ({ port , server : sCallback }) => {
+    app.listen(5002, ({ port , server : sCallback }) => {
       console.log(`server listening on http://localhost:${port}`);
       server = sCallback
       client = new ApiClient(

@@ -1,7 +1,9 @@
 import Spear from "../../src/lib";
+import uWS  from 'uWebSockets.js';
 
 export const app = new Spear({
     logger : true,
+    adapter : uWS,
     controllers: {
         folder : `${__dirname}/modules/*`,
         name:/controller\.(ts|js)$/i,
