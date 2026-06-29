@@ -91,7 +91,7 @@ type TResponse = {
 
     setHeader: (name: string, value: number | string | readonly string[]) => any
 
-    end<T = any>(chunk?: any, encoding?: BufferEncoding) : T.Response & T
+    end<T = any>(chunk?: string | Buffer<ArrayBufferLike> | Buffer, encoding?: BufferEncoding) : T.Response & T
 
     /** 200 OK - Standard successful response */
     ok: <T extends Record<string, any>>(data?: T) => T.Response & T

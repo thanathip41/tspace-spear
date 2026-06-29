@@ -72,12 +72,12 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       }
       return res;
     },
-    end: (str: string) => {
+    end: (chunk ?: unknown) => {
       if (res.aborted) {
         return;
       }
 
-      if (str === undefined) {
+      if (chunk === undefined) {
         return;
       }
 
@@ -90,8 +90,17 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
             _writeHead(+h, res.writeHeaders[h]);
           }
 
-          uwsRes.end(str);
+          if (
+            typeof chunk === 'string' ||
+            Buffer.isBuffer(chunk) ||
+            chunk instanceof Uint8Array
+          ) {
+            res.end(chunk);
+            return;
+          }
 
+          uwsRes.end(JSON.stringify(chunk));
+          
           return;
         }
       });

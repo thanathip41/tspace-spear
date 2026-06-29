@@ -45,15 +45,10 @@ export const httpAdaptRequestResponse = (
     headersSent: false,
     statusCode: 200,
     setHeader(key: string, value: string) {
-
       if (!response.headersSent && !response.writableEnded) {
-
         res.setHeader(key, value);
-
       }
-
       return response;
-
     },
     writeHeader(key: string, value: string) {
 
@@ -96,19 +91,33 @@ export const httpAdaptRequestResponse = (
       return response;
 
     },
-    end(body?: any) {
-      if (response.writableEnded) return response;
+    end(chunk?: unknown) {
+      
+      if (response.writableEnded) return;
+
+      if (chunk == null) {
+        res.end();
+        return;
+      }
 
       response.writableEnded = true;
 
       if (!response.headersSent) {
         res.statusCode = response.statusCode;
-
       }
 
-      res.end(body);
+      if (
+        typeof chunk === 'string' ||
+        Buffer.isBuffer(chunk) ||
+        chunk instanceof Uint8Array
+      ) {
+        res.end(chunk);
+        return;
+      }
 
-      return response;
+      res.end(JSON.stringify(chunk));
+
+      return;
 
     },
   };

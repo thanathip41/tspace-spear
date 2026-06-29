@@ -1305,7 +1305,7 @@ class Spear {
         return (ctx: T.Context, next: T.NextFunction) => {
             Promise.resolve(handler(ctx, next))
             .then(result => {
-
+               
                 if (ctx.res.writableEnded) {
                     return;
                 }
@@ -1324,14 +1324,16 @@ class Spear {
                 }
 
                 if (typeof result === 'string') {
-                    ctx.res.end(result)
+                    ctx.res.end(result);
                     return;
                 }
 
                 ctx.res.json(result);
                 return;
             })
-            .catch(err => next(err))
+            .catch(err => {
+                return next(err);
+            })
         };
     }
 
@@ -1340,14 +1342,13 @@ class Spear {
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
         return (err ?: any) => {
+            if(ctx.res.writableEnded) return;
         
             let statusCode = 
             typeof err?.statusCode === 'number' && 
             Number.isFinite(err.statusCode)
                 ? err.statusCode
                 : 500;
-
-            if(ctx.res.writableEnded) return;
 
             const errorMessage = err?.message || NEXT_MESSAGE
             
@@ -1371,7 +1372,7 @@ class Spear {
 
                 return;
             }
-            
+
             ctx.res.end(JSON.stringify({
                 statusCode : statusCode,
                 message    : errorMessage
