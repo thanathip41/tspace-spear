@@ -95,7 +95,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
             Buffer.isBuffer(chunk) ||
             chunk instanceof Uint8Array
           ) {
-            res.end(chunk);
+            uwsRes.end(chunk);
             return;
           }
 
