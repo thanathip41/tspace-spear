@@ -26,6 +26,7 @@ import { AppRoutes }       from '../compiler/pre-routes';
 
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
+import { httpAdaptRequestResponse } from './http';
 import { 
     CONTROLLER_METADATA, 
     PARAMTYPES_METADATA, 
@@ -1535,40 +1536,44 @@ class Spear {
             return server;
         }
 
-        const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
-            if (cors) cors(req, res);
-            return lookup(req, res);
-        })
+        if(adapter.kind === 'http') {
+            const server = http.createServer((httpReq: IncomingMessage, httpRes: ServerResponse) => {
+                const { req , res } = httpAdaptRequestResponse(httpReq, httpRes);
+                if (cors) cors(req, res);
+                return lookup(req, res);
+            })
 
-        if (this._ws?.handler) {
-            this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
+            if (this._ws?.handler) {
+                this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
 
-            this._ws.server.on('connection', (ws) => {
+                this._ws.server.on('connection', (ws) => {
 
-                if (this._ws.handler?.connection) {
-                    this._ws.handler.connection(ws);
-                }
-
-                ws.on('message', (data) => {
-                    this._ws.handler?.message?.(ws, data);
-                });
-
-                ws.on('close', (code, reason) => {
-                    if (this._ws.handler?.close) {
-                        this._ws.handler?.close(ws, code, reason);
+                    if (this._ws.handler?.connection) {
+                        this._ws.handler.connection(ws);
                     }
-                });
 
-                ws.on('error', (err) => {
-                    if (this._ws.handler?.error) {
-                        this._ws.handler!.error(ws, err);
-                    }
+                    ws.on('message', (data) => {
+                        this._ws.handler?.message?.(ws, data);
+                    });
+
+                    ws.on('close', (code, reason) => {
+                        if (this._ws.handler?.close) {
+                            this._ws.handler?.close(ws, code, reason);
+                        }
+                    });
+
+                    ws.on('error', (err) => {
+                        if (this._ws.handler?.error) {
+                            this._ws.handler!.error(ws, err);
+                        }
+                    });
                 });
-            });
+            }
+            
+            return server
         }
-        
-        return server
 
+        throw new Error(`Unsupported adapter`);
     }
 
     private _createContext({ req, res, ps } : {

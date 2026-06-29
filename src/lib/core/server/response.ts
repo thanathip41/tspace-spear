@@ -10,6 +10,221 @@ import {
 import type { T }  from "../types";
 import { pipeStream } from "../utils";
 
+
+function json(this:any, results?: Record<string, any>) {
+    const res = this as unknown as ServerResponse;
+
+    if (res.writableEnded) return;
+
+    if (!res.headersSent) {
+        res.writeHead(200, HEADER_CONTENT_TYPES.json);
+    }
+
+    return res.end(JSON.stringify(results));
+}
+
+function send(this:any, message: string) {
+    const res = this as unknown as ServerResponse;
+
+    if (res.writableEnded) return;
+
+    return res.end(message);
+}
+
+function html(this:any, html: string) {
+    const res = this as unknown as ServerResponse;
+
+    if (res.writableEnded) return;
+
+    res.writeHead(res.statusCode, HEADER_CONTENT_TYPES.html);
+
+    return res.end(html);
+}
+
+function status(this:any, code: number) {
+    return {
+        json: (data?: Record<string, any>) => {
+            if (!this.headersSent) {
+                this.writeHead(code, HEADER_CONTENT_TYPES.json);
+            }
+
+            return this.json(data);
+        },
+
+        send: (message: string) => {
+            if (!this.headersSent) {
+                this.writeHead(code, HEADER_CONTENT_TYPES.text);
+            }
+
+            return this.send(message);
+        },
+
+        end: (message?: string) => {
+            if (!this.headersSent) {
+                this.writeHead(code, HEADER_CONTENT_TYPES.text);
+            }
+
+            return this.end(message);
+        }
+    };
+}
+
+function ok(this:any, results?: Record<string, any>) {
+    return this.status(200).json(results);
+}
+
+function created(this:any, results?: Record<string, any>) {
+    return this.status(201).json(results);
+}
+
+function accepted(this:any, results?: Record<string, any>) {
+    return this.status(202).json(results);
+}
+
+function noContent(this:any) {
+    return this.status(204).end();
+}
+
+function badRequest(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
+    return this.status(400).json({ message });
+}
+
+function unauthorized(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' is unauthorized. Please verify.`;
+    return this.status(401).json({ message });
+}
+
+function paymentRequired(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' requires payment. Please proceed with payment.`;
+    return this.status(402).json({ message });
+}
+
+function forbidden(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
+    return this.status(403).json({ message });
+}
+
+function notFound(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' was not found. Please re-check your URL again.`;
+    return this.status(404).json({ message });
+}
+
+function unprocessable(this:any, message?: string) {
+    message ??= `The request to '${this._req.url}' failed validation.`;
+    return this.status(422).json({ message });
+}
+
+function tooManyRequests(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' is too many requests. Please wait and try again.`;
+    return this.status(429).json({ message });
+}
+
+function serverError(this:any, message?: string) {
+    message ??= `The request '${this._req.url}' resulted in a server error. Please investigate.`;
+    return this.status(500).json({ message });
+}
+
+function serveMedia(this:any, filePath: string) {
+    return pipeStream({
+        req: this._req,
+        res: this as unknown as ServerResponse,
+        filePath,
+        isUwebSocket: this._isUwebSocket
+    });
+}
+
+function setStatusCode(this:any, code: T.StatusCode) {
+    if (!this.headersSent) {
+        this.writeHead(code, HEADER_CONTENT_TYPES.json);
+    }
+}
+
+function setCookies(
+    this:any,
+    cookies: Record<
+        string,
+        string | {
+            value: string;
+            path?: string;
+            sameSite?: 'Strict' | 'Lax' | 'None';
+            domain?: string;
+            secure?: boolean;
+            httpOnly?: boolean;
+            expires?: Date;
+        }
+    >
+) {
+    const cookieLists: string[] = [];
+
+    for (const [key, v] of Object.entries(cookies)) {
+        let str = `${key}=${typeof v === 'string' ? v : v.value}`;
+
+        if (typeof v !== 'string') {
+            if (v.sameSite) str += `; SameSite=${v.sameSite}`;
+            str += `; Path=${v.path ?? '/'}`;
+
+            if (v.domain) str += `; Domain=${v.domain}`;
+            if (v.httpOnly) str += `; HttpOnly`;
+            if (v.secure) str += `; Secure`;
+
+            if (v.expires) {
+                const maxAge = Math.floor((v.expires.getTime() - Date.now()) / 1000);
+                str += `; Max-Age=${maxAge}`;
+            }
+        }
+
+        cookieLists.push(str);
+    }
+
+    //@ts-ignore
+    if (this._isUwebSocket) {
+        for (const cookie of cookieLists) {
+            this.setHeader("Set-Cookie", cookie);
+        }
+        return;
+    }
+
+    this.setHeader("Set-Cookie", cookieLists);
+}
+
+function error(this:any, err: any) {
+    const statusCandidates = [
+        err?.response?.data?.code,
+        err?.code,
+        err?.status,
+        err?.statusCode,
+        err?.response?.data?.statusCode
+    ];
+
+    const code =
+        statusCandidates
+            .map(Number)
+            .find(v => Number.isFinite(v) && v >= 400) ?? 500;
+
+    const message =
+        err?.response?.data?.errorMessage ??
+        err?.response?.data?.message ??
+        err?.message ??
+        `The request '${this._req.url}' resulted in a server error.`;
+
+    const payload = { message };
+
+    if (!this.headersSent) {
+        this.writeHead(code, HEADER_CONTENT_TYPES.json);
+    }
+
+    if (this._formatResponse) {
+        return this.end(
+            JSON.stringify(
+                this._formatResponse(payload, code)
+            )
+        );
+    }
+
+    return this.end(JSON.stringify(payload));
+}
+
 export const Response = (req : IncomingMessage, res : ServerResponse , { 
     formatResponse,
     isUwebSocket
@@ -19,263 +234,35 @@ export const Response = (req : IncomingMessage, res : ServerResponse , {
 }
 ): T.Response => {
 
-    const response = res as unknown as T.Response;
-
-    response.serveMedia = (filePath : string) => {
-        return pipeStream({ req , res , filePath, isUwebSocket })
-    }
-
-    //@ts-ignore
-    response.status = (code : number) => {
-        
-        return {
-            json : (data?: { [key: string]: any }) => {
-                if(!res.headersSent)
-                    res.writeHead(code, HEADER_CONTENT_TYPES['json'])
-                return response.json(data)
-            },
-            send : (message : string) => {
-                if(!res.headersSent)
-                    res.writeHead(code, HEADER_CONTENT_TYPES['text'])
-                return response.send(message)
-            },
-            end : (message ?: string) => {
-                if(!res.headersSent)
-                    res.writeHead(code, HEADER_CONTENT_TYPES['text'])
-                return response.end(message)
-            },
-        }
-    }
-
-    //@ts-ignore
-    response.json = (results ?: Record<string,any>) => {
-
-        if (res.writableEnded) return;
-
-        if(typeof results === 'string') {
-
-            if(!res.headersSent) {
-                res.writeHead(200, HEADER_CONTENT_TYPES['text'])
-            }
-
-            return res.end(results)
-        }
-
-        if(!res.headersSent) {
-            res.writeHead(200, HEADER_CONTENT_TYPES['json'])
-        }
-
-        if(results == null) {
-
-            if(formatResponse != null) {
-                return res.end(JSON.stringify(formatResponse(null, res.statusCode)))
-            }
-
-            return res.end();
-
-        }
-        
-        if(formatResponse != null) {
-            
-            return res.end(JSON.stringify(
-                formatResponse({ 
-                    ...results
-                }, res.statusCode))
-            )
-        }
-
-        return res.end(JSON.stringify(results))
-    }
-
-    response.send = (results : string) => {
-
-        if (res.writableEnded) {
-            return;
-        }
-
-        if(formatResponse != null) {
-            return res.end(formatResponse(results, res.statusCode))
-        }
-
-        return res.end(results);
-    }
-
-    response.html = (results : string) => {
-
-        if (res.writableEnded) return;
-
-        res.writeHead(res.statusCode, HEADER_CONTENT_TYPES['html'])
-
-        return res.end(results)
-    }
-
-    response.error = (err: any) => {
-
-        const statusCandidates = [
-            err?.response?.data?.code,
-            err?.code,
-            err?.status,
-            err?.statusCode,
-            err?.response?.data?.statusCode
-        ]
-
-        let code = statusCandidates
-            .map(v => Number(v))
-            .find(v => Number.isFinite(v) && v >= 400) ?? 500
-
-        const message =
-            err?.response?.data?.errorMessage ??
-            err?.response?.data?.message ??
-            err?.message ??
-            `The request '${req.url}' resulted in a server error.`
-
-        response.status(code as T.StatusCode)
-
-        const payload = { message }
-
-        if (formatResponse) {
-            return res.end(
-                JSON.stringify(formatResponse(payload, code))
-            )
-        }
-
-        return res.end(JSON.stringify(payload))
-    }
-
-    //@ts-ignore
-    response.ok = (results ?: Record<string,any> ) => {
-        return response.status(200).json(results);
-    }
-
-     //@ts-ignore
-    response.created = (results ?: Record<string,any>) => {
-        return response.status(201).json(results);
-    }
-
-    //@ts-ignore
-    response.accepted = (results ?: Record<string,any>) => {
-        return response.status(202).json(results);
-    }
-
-    //@ts-ignore
-    response.noContent = () => {
-        return response.status(204).end();
-    }
-
-    //@ts-ignore
-    response.badRequest = (message ?: string) => {
-
-        message = message ?? `The request '${req.url}' resulted in a bad request. Please review the data and try again.`;
-
-        return response.status(400).json({ message })
-    }
-
-    //@ts-ignore
-    response.unauthorized = (message ?: string) => {
-       
-        message = message ?? `The request '${req.url}' is unauthorized. Please verify.`
-
-        return response.status(401).json({ message })
-    }
-
-    //@ts-ignore
-    response.paymentRequired = (message ?: string) => {
-
-        message = message ?? `The request '${req.url}' requires payment. Please proceed with payment.`
-
-       return response.status(402).json({ message })
-    }
-
-    //@ts-ignore
-    response.forbidden = (message ?: string) => {
-
-        message = message ?? `The request '${req.url}' is forbidden. Please check the permissions or access rights.`
-
-        return response.status(403).json({ message })
-    }
-
-    //@ts-ignore
-    response.notFound = (message ?: string) => {
-
-        message = message ?? `The request '${req.url}' was not found. Please re-check the your url again.`
-
-        return response.status(404).json({ message })
-    }
-
-    //@ts-ignore
-    response.unprocessable = (message ?: string) => {
-
-        message = message ?? `The request to '${req.url}' failed validation.`
-
-        return response.status(422).json({ message })
-    }
-
-    //@ts-ignore
-    response.tooManyRequests = (message ?: string) => {
-
-        message = message ?? `The request '${req.url}' is too many request. Please wait and try agian.`;
-
-        return response.status(429).json({ message });
-    }
-
-    //@ts-ignore
-    response.serverError = (message ?: string) => {
-        
-        message = message ?? `The request '${req.url}' resulted in a server error. Please investigate.`
-
-        return response.status(500).json({ message });
-    }
-
-    response.setCookies = (cookies : Record<string,string | { 
-        value      : string
-        path       ?: string
-        sameSite   ?: 'Strict' | 'Lax' | 'None'
-        domain     ?: string
-        secure     ?: boolean
-        httpOnly   ?: boolean
-        expires    ?: Date
-    }> ) => {
-
-        const cookieLists: string[] = []
-
-        for (const [key, v] of Object.entries(cookies)) {
-            let str = `${key}=${typeof v === 'string' ? v : v.value}`
-
-            if (typeof v !== 'string') {
-                if (v.sameSite) str += `; SameSite=${v.sameSite}`
-                str += `; Path=${v.path ?? '/'}`
-
-                if (v.domain) str += `; Domain=${v.domain}`
-                if (v.httpOnly) str += `; HttpOnly`
-                if (v.secure) str += `; Secure`
-
-                if (v.expires) {
-                    const maxAge = Math.floor((v.expires.getTime() - Date.now()) / 1000)
-                    str += `; Max-Age=${maxAge}`
-                }
-            }
-
-            cookieLists.push(str)
-        }
-
-        if(isUwebSocket) {
-            for(const cookie of cookieLists) {
-                res.setHeader('Set-Cookie', cookie)
-            }
-            return;
-        }
-
-        res.setHeader('Set-Cookie', cookieLists)
-    }
-
-    response.setStatusCode = (code : T.StatusCode) => {
-       
-        if(!response.headersSent) {
-            response.writeHead(code, HEADER_CONTENT_TYPES['json']);
-        }
-        
-        return;
-    }
+    const response = res as unknown as T.Response
+
+    Object.assign(response, {
+
+        _req: req,
+        _formatResponse: formatResponse,
+        _isUws: isUwebSocket,
+
+        status,
+        json,
+        send,
+        html,
+        error,
+        ok,
+        created,
+        accepted,
+        noContent,
+        badRequest,
+        unauthorized,
+        paymentRequired,
+        forbidden,
+        notFound,
+        unprocessable,
+        tooManyRequests,
+        serverError,
+        setCookies,
+        setStatusCode,
+        serveMedia
+    });
 
     return response
 }
