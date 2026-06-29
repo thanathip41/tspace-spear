@@ -18,6 +18,7 @@
 - [Exception](#exception)
 - [Dto](#dto)
 - [Router](#router)
+- [Serve Static Files](#serve-static-files)
 - [Swagger](#swagger)
 - [Web Socket](#web-socket)
 - [Graphql](#graphql)

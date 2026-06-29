@@ -60,8 +60,10 @@ See the [`docs`](https://thanathip41.github.io/tspace-spear) directory for full 
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Service](#service)
+- [Exception](#exception)
 - [Dto](#dto)
 - [Router](#router)
+- [Serve Static Files](#serve-static-files)
 - [Swagger](#swagger)
 - [WebSocket](#websocket)
 - [Graphql](#graphql)
@@ -718,6 +720,44 @@ class UserController {
 }
 ```
 
+### Exception
+Exceptions are used to return HTTP errors from your application.
+```js
+import {
+  BadRequestException,
+  UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
+  MethodNotAllowedException,
+  ConflictException,
+  GoneException,
+  UnsupportedMediaTypeException,
+  UnprocessableEntityException,
+  TooManyRequestsException,
+  InternalServerErrorException,
+  NotImplementedException,
+  BadGatewayException,
+  ServiceUnavailableException,
+  GatewayTimeoutException,
+} from 'tspace-spear/exception';
+
+@Controller('/users')
+class UserController {
+  @Get('/:id')
+  public async show({ params }) {
+
+    if (!params.id) {
+      throw new BadRequestException('User id is required');
+    }
+
+    return {
+      id: params.id,
+    };
+  }
+}
+
+```
+
 ## Dto
 DTO (Data Transfer Object) is used to validate and transform incoming request data before it reaches your controller logic.
 ```js
@@ -908,6 +948,33 @@ app.listen(port , () => console.log(`Server is now listening http://localhost:80
 
 // localhost:8000/my/cats
 // localhost:8000/cats
+
+```
+
+## Serve Static Files
+Serve files directly from a local directory.
+```js
+
+const path = require('path');
+
+new Spear({
+  logger: true
+})
+.get('/file/*', (ctx) => {
+  // Maps:
+  //   /file/example.pdf
+  // -> ./example/example.pdf
+  const filePath = path.join(
+    path.resolve(),
+    'example',
+    String(ctx.params['*'])
+  );
+
+  return ctx.res.serveMedia(filePath);
+})
+.listen(3000 , ({ port }) =>  {
+  console.log(`server listening on : http://localhost:${port}`)
+})
 
 ```
 

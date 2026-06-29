@@ -616,6 +616,7 @@ import { Spear } from "tspace-spear";
   app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
 })()
 ```
+
 ### Exception
 Exceptions are used to return HTTP errors from your application.
 ```js
@@ -843,6 +844,33 @@ app.listen(port , () => console.log(`Server is now listening http://localhost:80
 
 // localhost:8000/my/cats
 // localhost:8000/cats
+
+```
+
+### Serve Static Files
+Serve files directly from a local directory.
+```js
+
+const path = require('path');
+
+new Spear({
+  logger: true
+})
+.get('/file/*', (ctx) => {
+  // Maps:
+  //   /file/example.pdf
+  // -> ./example/example.pdf
+  const filePath = path.join(
+    path.resolve(),
+    'example',
+    String(ctx.params['*'])
+  );
+
+  return ctx.res.serveMedia(filePath);
+})
+.listen(3000 , ({ port }) =>  {
+  console.log(`server listening on : http://localhost:${port}`)
+})
 
 ```
 

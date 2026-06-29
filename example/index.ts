@@ -43,7 +43,7 @@ new Spear({
 .get('/file/*', (ctx) => {
     // serve static files from the 'example' directory
     // example/bbb.pdf will be served at http://localhost:3000/file/bbb.pdf
-    const filePath = path.join(path.resolve(), 'example', ctx.params['*']!);
+    const filePath = path.join(path.resolve(), 'example', String(ctx.params['*']));
     return ctx.res.serveMedia(filePath);
 })
 .post('/', (ctx) => {
