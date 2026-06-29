@@ -1,8 +1,3 @@
-import { 
-  IncomingMessage, 
-  ServerResponse 
-} from "http";
-
 import { Stream }   from "stream";
 import fsSystem     from "fs";
 import pathSystem   from "path";
@@ -41,6 +36,12 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
   };
 
   const res = {
+    uWS: uwsRes,
+    writableEnded: false,
+    aborted: false,
+    writeHeaders: Object.create(null),
+    headersSent: false,
+    statusCode: 200,
     writeHeader: (key: string, value: string) => {
       if (!res.aborted) {
         uwsRes.writeHeader(key, value);
@@ -95,12 +96,6 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         }
       });
     },
-    writableEnded: false,
-    aborted: false,
-    writeHeaders: Object.create(null),
-    headersSent: false,
-    statusCode: 200,
-    uWS: uwsRes,
   };
 
   uwsRes.onAborted(() => {
@@ -109,6 +104,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
 
   return { req, res } as unknown as { req: T.Request; res: T.Response };
 };
+
 export const uWSBody = (req: T.Request, res: T.Response & { uWS: any }) => {
   return new Promise((resolve, reject) => {
     let buffer: Buffer[] = [];
@@ -136,6 +132,7 @@ export const uWSBody = (req: T.Request, res: T.Response & { uWS: any }) => {
     });
   });
 };
+
 export const uWSfiles = async ({
   req,
   res,
@@ -396,12 +393,11 @@ export const uWSPipeStream = async ({
   res,
   filePath
 }: {
-  req: IncomingMessage;
-  res: ServerResponse;
+  req: T.Request;
+  res: T.Response;
   filePath: string;
 }): Promise<Stream> => {
 
-  //@ts-ignore
   const uwsRes = res.uWS;
 
   const stat = fsSystem.statSync(filePath);

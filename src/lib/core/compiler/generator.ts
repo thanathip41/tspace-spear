@@ -235,7 +235,7 @@ const resolveType = (type: Type): string => {
 
   if (
     type.getText().includes("ServerResponse") &&
-    type.getText().includes("THttpResponder")
+    type.getText().includes("TResponse")
   ) {
     
     const filtered = type
@@ -245,7 +245,7 @@ const resolveType = (type: Type): string => {
 
       return (
         !text.includes("ServerResponse") &&
-        !text.includes("THttpResponder")
+        !text.includes("TResponse")
       );
     })
    

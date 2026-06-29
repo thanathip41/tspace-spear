@@ -1,9 +1,14 @@
-import fsSystem from 'fs';
-import pathSystem from 'path';
-import crypto from 'crypto';
-import mime from 'mime-types';
-import { HTTP_STATUS_MESSAGES } from '../../const';
 import { Socket } from 'net';
+import fsSystem   from 'fs';
+import pathSystem from 'path';
+import crypto     from 'crypto';
+import mime       from 'mime-types';
+import type { T } from '../../types';
+
+import { 
+  HTTP_STATUS_MESSAGES 
+} from '../../const';
+
 
 const createResponseObject = (socket: any) => {
   const res = {
@@ -189,7 +194,7 @@ export const netAdaptRequestResponse = (
   socket.on("data", onData);
 };
 
-export const netBody = (req: any): Promise<any> => {
+export const netBody = (req: T.Request, res:T.Response): Promise<any> => {
   return new Promise((resolve, reject) => {
   
     if (req._bodyRead) return reject(new Error("Body already consumed"));
@@ -230,14 +235,22 @@ export const netBody = (req: any): Promise<any> => {
   });
 };
 
-export const netFiles = async (req: any, options: {
+export const netFiles = async ({
+  req,
+  res,
+  options,
+}: {
+  req: T.Request;
+  res: T.Response;
+  options: {
     limit: number;
     tempFileDir: string;
     removeTempFile: {
       remove: boolean;
       ms: number;
     };
-  }) => {
+  };
+}) => {
     
   const { socket } = req;
   const temp = options.tempFileDir;

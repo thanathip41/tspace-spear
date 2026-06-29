@@ -11,6 +11,7 @@ import pathSystem   from "path";
 import mime         from "mime-types";
 import xml2js       from "xml2js";
 import Crypto       from 'crypto';
+import { T } from "../..";
 
 export const normalizeRequestBody = async ({
   contentType,
@@ -67,8 +68,8 @@ export const pipeStream = async ({
   filePath,
   isUwebSocket,
 }: {
-  req: IncomingMessage;
-  res: ServerResponse;
+  req: T.Request;
+  res: T.Response;
   filePath: string;
   isUwebSocket?: boolean;
 }): Promise<Stream> => {
@@ -115,7 +116,7 @@ export const pipeStream = async ({
     }).flat();
 
     if (previews.some((p) => extension?.toLocaleLowerCase().includes(p))) {
-      res.writeHead(code, header);
+      res.writeHead(code as T.StatusCode, header);
       return;
     }
 
@@ -158,7 +159,7 @@ export const pipeStream = async ({
 
     stream.on("error", () => res.end());
 
-    return stream.pipe(res);
+    return stream.pipe(res as unknown as ServerResponse);
   }
 
   const parts = range.replace(/bytes=/, "").split("-");
@@ -180,5 +181,5 @@ export const pipeStream = async ({
 
   stream.on("error", () => res.end());
 
-  return stream.pipe(res);
+  return stream.pipe(res as unknown as ServerResponse);
 };

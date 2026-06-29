@@ -1,6 +1,6 @@
 import http, { 
-    IncomingMessage, 
     Server, 
+    IncomingMessage,
     ServerResponse 
 } from 'http';
 
@@ -76,7 +76,7 @@ class Spear {
 
     private _adapter : T.Adapter = { kind : 'http', server : http };
     private  _cluster ?: number | boolean;
-    private _cors ?: ((req : IncomingMessage , res : ServerResponse) => void);
+    private _cors ?: ((req : T.Request , res : T.Response) => void);
     private _swagger : { use : boolean } & T.Swagger.Doc = {
         use : false,
         path : '/api/docs',
@@ -382,6 +382,7 @@ class Spear {
             const startTime = process.hrtime()
     
             
+            //@ts-ignore
             onFinished(res, (): void => {
                 console.log(
                     [
@@ -1268,7 +1269,7 @@ class Spear {
 
     private _wrapHandlers (...handlers : T.ContextHandler[]) {
 
-        return (req : IncomingMessage, res : ServerResponse , ps : Record<string,string>) => {
+        return (req : T.Request, res : T.Response , ps : Record<string,string>) => {
 
             const dispatch = (index: number = 0): void => {
 
@@ -1577,8 +1578,8 @@ class Spear {
     }
 
     private _createContext({ req, res, ps } : {
-        req: IncomingMessage
-        res: ServerResponse
+        req: T.Request
+        res: T.Response
         ps: Record<string, string>
     }) : any {
 
@@ -1705,7 +1706,7 @@ class Spear {
 
         this._router.get(staticUrl, staticSwaggerHandler)
 
-        this._router.get(path as string , (req: IncomingMessage, res: ServerResponse) => {
+        this._router.get(path as string , (req: T.Request, res: T.Response) => {
 
             res.writeHead(200, HEADER_CONTENT_TYPES['html']);
             

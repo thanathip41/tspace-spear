@@ -35,6 +35,7 @@ export const WriteHeader = (statusCode: number, contentType: OutgoingHttpHeaders
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
+      //@ts-ignore
       ctx.res.writeHead(...[statusCode, contentType]);
       return await originalMethod.call(this, ctx, next);
     };

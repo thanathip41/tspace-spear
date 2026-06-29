@@ -1,5 +1,4 @@
 import { 
-    IncomingMessage, 
     ServerResponse 
 } from "http";
 
@@ -41,7 +40,7 @@ function html(this:any, html: string) {
     return res.end(html);
 }
 
-function status(this:any, code: number) {
+function status(this:any, code: T.StatusCode) {
     return {
         json: (data?: Record<string, any>) => {
             if (!this.headersSent) {
@@ -128,7 +127,7 @@ function serverError(this:any, message?: string) {
 function serveMedia(this:any, filePath: string) {
     return pipeStream({
         req: this._req,
-        res: this as unknown as ServerResponse,
+        res: this,
         filePath,
         isUwebSocket: this._isUwebSocket
     });
@@ -177,7 +176,6 @@ function setCookies(
         cookieLists.push(str);
     }
 
-    //@ts-ignore
     if (this._isUwebSocket) {
         for (const cookie of cookieLists) {
             this.setHeader("Set-Cookie", cookie);
@@ -225,7 +223,7 @@ function error(this:any, err: any) {
     return this.end(JSON.stringify(payload));
 }
 
-export const Response = (req : IncomingMessage, res : ServerResponse , { 
+export const Response = (req : T.Request, res : T.Response , { 
     formatResponse,
     isUwebSocket
 } : { 

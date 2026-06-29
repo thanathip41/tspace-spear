@@ -1,7 +1,9 @@
 import http, { 
-    IncomingHttpHeaders, 
-    IncomingMessage, 
-    ServerResponse 
+    type IncomingMessage, 
+    type ServerResponse, 
+    type IncomingHttpHeaders, 
+    type OutgoingHttpHeader, 
+    type OutgoingHttpHeaders,
 } from "http";
 
 import WebSocket from "ws";
@@ -62,8 +64,9 @@ type TFileUpload<T = Record<string, TFile[] | undefined>> = T
 
 type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T> 
 
-type TRequest = IncomingMessage & {
+type TRequest = {
     uWs     : any; // typeof import('uWebSockets.js').HttpRequest
+    http    : IncomingMessage;
     query   : TQuery;
     files   : TFileUpload;
     body    : TBody;
@@ -71,11 +74,24 @@ type TRequest = IncomingMessage & {
     headers : THeaders;
 } & Partial<any>
 
-type THttpResponder = {
+type TResponse = {
     /**
      * Raw uWS HttpResponse instance.
      */
     uWS: any; // typeof import('uWebSockets.js').HttpResponse
+    http : ServerResponse;
+    
+    writableEnded: boolean;
+    aborted: boolean;
+    writeHeaders: Record<string,any>;
+    headersSent: boolean;
+    statusCode: number;
+
+    writeHead: (statusCode: TStatusCode, headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]) => any
+
+    setHeader: (name: string, value: number | string | readonly string[]) => any
+
+    end<T = any>(chunk?: any, encoding?: BufferEncoding) : T.Response & T
 
     /** 200 OK - Standard successful response */
     ok: <T extends Record<string, any>>(data?: T) => T.Response & T
@@ -230,8 +246,6 @@ type TStatusCode =
 | 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418 | 421 
 | 422 | 423 | 424 | 425 | 426 | 428 | 429 | 431 | 451
 | 500 | 501 | 502 | 503 | 504 | 505
-
-type TResponse = ServerResponse & THttpResponder;
 
 type TRouter = {
     method: TMethod;
@@ -412,7 +426,6 @@ export declare namespace T {
     type Route            = TRoute
     type Method           = TMethod
     type ErrorFunction    = TErrorFunction
-    type HttpResponder    = THttpResponder
     type ContextHandler   = TContextHandler
     type WebSocketHandler = TWSHandler
     type StatusCode       = TStatusCode

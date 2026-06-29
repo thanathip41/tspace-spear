@@ -1,9 +1,8 @@
-import { IncomingMessage, ServerResponse } from "http"
-import { T } from "../.."
+import type { T } from "../.."
 
 type Handler = (
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: T.Request,
+  res: T.Response,
   params: Record<string, string>
 ) => any
 
@@ -197,8 +196,8 @@ export class FastRouter {
    * It supports parameterized routes, static routes, and (optionally)
    * wildcard matching depending on router implementation.
    *
-   * @param {IncomingMessage} req Incoming HTTP request object
-   * @param {ServerResponse} res Server response object used to send output
+   * @param {T.Request} req Incoming HTTP request object
+   * @param {T.Response} res Server response object used to send output
    *
    * @returns void
    *
@@ -209,7 +208,7 @@ export class FastRouter {
    * This is typically called by the HTTP server layer and should not
    * be invoked directly in most application code.
    */
-  public lookup(req: IncomingMessage, res: ServerResponse) {
+  public lookup(req: T.Request, res: T.Response) {
     const method = req.method!;
     
     let node = this.trees[method];
