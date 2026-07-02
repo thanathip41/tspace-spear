@@ -11,7 +11,7 @@ export class ParserFactory {
   private uWS     = false;
   private net     = false;
  
-  public useAdater(adapter: T.Adapter) {
+  public useAdapter(adapter: T.Adapter) {
   
     if(adapter.kind === 'uWS') {
       this.uWS = true;

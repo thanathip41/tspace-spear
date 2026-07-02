@@ -138,7 +138,7 @@ class Spear {
         
         if(logger)  this.useLogger();
         if(cluster) this.useCluster(cluster);
-        if(adapter) this.useAdater(adapter);
+        if(adapter) this.useAdapter(adapter);
         if(globalPrefix) this.useGlobalPrefix(globalPrefix);
 
         // Ensure controllers is NOT an array and has the required shape
@@ -294,13 +294,13 @@ class Spear {
     }
 
     /**
-     * The 'useAdater' method is used to switch between different server implementations,
+     * The 'useAdapter' method is used to switch between different server implementations,
      * such as the native Node.js HTTP server or uWebSockets.js (uWS).
      *
      * @param {T.AdapterServer} adapter - The adapter instance (e.g., HTTP or uWS).
      * @returns {this} Returns the current instance for chaining
      */
-    public useAdater (adapter:  T.AdapterServer): this {
+    public useAdapter (adapter:  T.AdapterServer): this {
 
        if (adapter === http) {
             this._adapter = { kind: 'http', server: adapter };
@@ -315,7 +315,7 @@ class Spear {
             this._adapter = { kind: 'uWS', server: adapter };
         }
 
-        this._parser.useAdater(this._adapter);
+        this._parser.useAdapter(this._adapter);
 
         return this;
     }
