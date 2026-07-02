@@ -105,11 +105,21 @@ class ApiClient<
           TMethod
         >
       >
-    > {
-    
-      let url = this.baseURL + (path as string)
+  > {
 
-   
+      fetchFn = await getFetch();
+
+      if (!fetchFn) {
+        throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
+      }
+    
+      let url = this.baseURL + (path as string);
+
+      let headers :any = {
+        "Content-Type":
+          "application/json",
+      }
+
       if (input?.params) {
         for (const key in input.params) {
           url = url.replace(
@@ -129,41 +139,37 @@ class ApiClient<
         }
       }
 
-    fetchFn = await getFetch();
+      if(input?.headers) {
+        headers = {
+          ...headers,
+          ...input.headers
+        }
+      }
 
-    if (!fetchFn) {
-      throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
-    }
+      let body :any = input?.body
+        ? JSON.stringify(input.body)
+        : undefined
 
-    let body :any = input?.body
-      ? JSON.stringify(input.body)
-      : undefined
-
-    let headers :any = {
-      "Content-Type":
-        "application/json",
-    }
-
-    const isFileUpload = isFormData(input?.body);
+      const isFileUpload = isFormData(input?.body);
    
-    if(isFileUpload) {
-      body = input?.body;
-      headers = undefined;
-    }
+      if(isFileUpload) {
+        body = input?.body;
+        headers = undefined;
+      }
 
-    const res = await fetchFn(url, {
-      method: method as string,
-      headers,
-      body
-    });
+      const res = await fetchFn(url, {
+        method: method as string,
+        headers,
+        body
+      });
 
-    const contentType =
-      res.headers.get("content-type");
+      const contentType =
+        res.headers.get("content-type");
 
-    const isJson =
-      contentType?.includes(
-        "application/json",
-      );
+      const isJson =
+        contentType?.includes(
+          "application/json",
+        );
 
     const data = isJson
       ? await res.json()

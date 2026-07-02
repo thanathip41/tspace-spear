@@ -11,6 +11,7 @@ export type RoutesWithMethod<
       ? K
       : never;
 }[keyof TRoutes];
+
 export type ExtractFrom<
   TRoutes extends AnyRoutes,
   TPath extends keyof TRoutes,
@@ -44,6 +45,17 @@ export type RequestQuery<
   TPath,
   TMethod,
   "query"
+>;
+
+export type RequestHeaders<
+  TRoutes extends AnyRoutes,
+  TPath extends keyof TRoutes,
+  TMethod extends keyof TRoutes[TPath],
+> = ExtractFrom<
+  TRoutes,
+  TPath,
+  TMethod,
+  "headers"
 >;
 
 export type RequestParams<
@@ -95,6 +107,7 @@ export type RequestInput<
   TMethod extends keyof TRoutes[TPath],
 > = Prettify<
   ExactProperty<"params", RequestParams<TRoutes, TPath, TMethod>> &
+  ExactProperty<"headers", RequestHeaders<TRoutes, TPath, TMethod>> &
   ExactProperty<"query", RequestQuery<TRoutes, TPath, TMethod>> &
   ExactProperty<"body", RequestBody<TRoutes, TPath, TMethod>> &
   ExactProperty<"files", RequestFiles<TRoutes, TPath, TMethod>>
