@@ -292,7 +292,7 @@ type TAdapterServer = typeof http | typeof net | UWS
 
 
 type TApplication = {
-    controllers  ?: (new () => any)[] | { folder : string ,  name ?: RegExp; preRouteTypes ?: boolean };
+    controllers  ?: (new (...args:any) => any)[] | { folder : string ,  name ?: RegExp; preRouteTypes ?: boolean };
     middlewares  ?: TContextHandler[] | { folder : string , name ?: RegExp };
     globalPrefix ?: string;
     logger       ?: boolean;
