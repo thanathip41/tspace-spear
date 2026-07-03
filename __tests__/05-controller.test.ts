@@ -29,8 +29,6 @@ class ItemsController {
   create({ body }: T.Context<{ body: { name: string } }>) {
     const newItem = { id: this.items.length + 1, ...body };
     this.items.push(newItem);
-
-    console.log({ newItem , body })
     return { created: newItem };
   }
 
@@ -161,7 +159,6 @@ describe("Controller Unit Tests", () => {
       if (res.ok) {
         const data = res.data;
 
-        console.log(data)
         expect(data).to.have.property("created");
         expect(data.created).to.have.property("name", "new-item");
       }
