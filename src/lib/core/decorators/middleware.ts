@@ -87,7 +87,9 @@ const normalizeMiddlewares = (mid: any): T.ContextHandler[] => {
  * @returns {MiddlewareDecorator}
  */
 export function Middleware(
-  ...middlewares: (T.ContextHandler | T.ContextHandler[])[] | (MiddlewareClass | MiddlewareClass[])[]
+  ...middlewares: 
+    | (T.ContextHandler | T.ContextHandler[])[] 
+    | (MiddlewareClass | MiddlewareClass[])[]
 ) : MiddlewareDecorator {
 
   return ((target: any, propertyKey?: string | symbol, descriptor?: PropertyDescriptor) => {
@@ -101,36 +103,39 @@ export function Middleware(
 
     descriptor.value = function (ctx: T.Context, next: T.NextFunction) {
       try {
-
-        let index = 0;
+        let groupIndex = 0;
 
         const nextMiddleware = (err?: Error): any => {
           if (err) {
             return next(err);
           }
 
-          const middles = normalizeMiddlewares(middlewares.flat()[index++]);
+          const currentMiddlewares = normalizeMiddlewares(
+            middlewares.flat()[groupIndex++]
+          );
 
-          console.log(middles)
-          if (!middles.length) {
-            console.log('call!')
+          if (currentMiddlewares.length === 0) {
             return originalMethod.call(this, ctx, next);
           }
 
-          for(const middleware of middles) {
-            console.log(index,middles.length)
-            if(index ===middles.length) {
+          const last = currentMiddlewares.length - 1;
+
+          for (let i = 0; i <= last; i++) {
+            const middleware = currentMiddlewares[i];
+
+            if (i === last) {
               return middleware(ctx, nextMiddleware);
             }
+
             middleware(ctx, nextMiddleware);
+            continue;
           }
         };
 
         return nextMiddleware();
 
-      } catch (error) {
-
-        return next(error as Error);
+      } catch (err) {
+        return next(err as Error);
       }
     };
   }) as MiddlewareDecorator;
