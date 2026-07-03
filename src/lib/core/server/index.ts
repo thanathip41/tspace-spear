@@ -29,6 +29,7 @@ import { netAdaptRequestResponse } from './net';
 import { httpAdaptRequestResponse } from './http';
 import { 
     CONTROLLER_METADATA, 
+    MIDDLEWARE_METADATA, 
     PARAMTYPES_METADATA, 
     ROUTE_METADATA, 
     SERVICE_METADATA, 
@@ -1015,7 +1016,7 @@ class Spear {
                     continue;
                 }
 
-                const controllerInstance = this._createController(controller)
+                const controllerInstance = this._createController(controller);
     
                 const prefixPath: string = Reflect.getMetadata(CONTROLLER_METADATA, controller) ?? '';
 
@@ -1025,6 +1026,8 @@ class Spear {
                     T.Swagger.Spec & 
                     { handler : string | symbol }
                 )[] = Reflect.getMetadata(SWAGGER_METADATA, controller) ?? [];
+
+                const middlewares = Reflect.getMetadata(MIDDLEWARE_METADATA, controller) ?? [];
 
                 for(const { method, path, handler } of Array.from(routers)) {
 
@@ -1051,6 +1054,7 @@ class Spear {
                             prefixPath,
                             path
                         ), 
+                        ...this._normalizeMiddlewares(middlewares),
                         controllerInstance[String(handler)].bind(controllerInstance)
                     )
                 }
@@ -1071,6 +1075,8 @@ class Spear {
                 T.Swagger.Spec & 
                 { handler : string | symbol }
             )[] = Reflect.getMetadata(SWAGGER_METADATA, controller) ?? [];
+
+            const middlewares = Reflect.getMetadata(MIDDLEWARE_METADATA, controller) ?? [];
 
             for(const { method, path, handler } of Array.from(routers)) {
 
@@ -1097,6 +1103,7 @@ class Spear {
                         prefixPath, 
                         path
                     ), 
+                    ...this._normalizeMiddlewares(middlewares),
                     controllerInstance[String(handler)].bind(controllerInstance)
                 )
             }
@@ -1186,6 +1193,43 @@ class Spear {
             ...injections
         );
     }
+
+    private _normalizeMiddlewares = (mids: any[]): T.ContextHandler[] => {
+        const result: T.ContextHandler[] = [];
+
+        const visit = (item: any): void => {
+            if (Array.isArray(item)) {
+                item.forEach(visit);
+                return;
+            }
+
+            if (!item) return;
+
+            if (typeof item === "function") {
+                const proto = item.prototype;
+
+                if (proto && proto !== Object.prototype) {
+                    const instance = new item();
+
+                    Object.getOwnPropertyNames(proto)
+                        .filter(name => name !== "constructor")
+                        .forEach(name => {
+                            if (typeof instance[name] === "function") {
+                                result.push(instance[name].bind(instance));
+                            }
+                        });
+
+                    return;
+                }
+
+                result.push(item);
+            }
+        };
+
+        mids.forEach(visit);
+
+        return result;
+    };
 
     private async _registerMiddlewares(): Promise<void> {
 
