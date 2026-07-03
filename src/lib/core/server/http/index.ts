@@ -131,7 +131,7 @@ export const httpAdaptRequestResponse = (
 
 };
 
-export const httpBody = (req: T.Request, res: T.Response & { uWS: any }) => {
+export const httpBody = (req: T.Request, res: T.Response) => {
   return new Promise((resolve, reject) => {
     const decoder = new StringDecoder("utf-8");
     let payload = "";
