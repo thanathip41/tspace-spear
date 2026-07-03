@@ -1,90 +1,107 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from 'http';
-import { Spear, Controller, Get, Post, Put, Patch, Delete, type T } from "../src/lib";
+import { Server } from "http";
+import {
+  Spear,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  type T,
+} from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 
-@Controller('/items')
+@Controller("/items")
 class ItemsController {
   private items = [
     { id: 1, name: "item1" },
-    { id: 2, name: "item2" }
+    { id: 2, name: "item2" },
   ];
 
-  @Get('/')
+  @Get("/")
   index() {
     return { items: this.items };
   }
 
-  @Get('/:id')
+  @Get("/:id")
   show({ res, params }: T.Context<{ params: { id: number } }>) {
-    const item = this.items.find(i => i.id === params.id);
+    const item = this.items.find((i) => i.id === params.id);
     if (!item) {
-      throw res.notFound('Item not found');
+      throw res.notFound("Item not found");
     }
     return { item };
   }
 
-  @Post('/')
+  @Post("/")
   create({ body }: T.Context<{ body: { name: string } }>) {
     const newItem = { id: this.items.length + 1, ...body };
     this.items.push(newItem);
     return { created: newItem };
   }
 
-  @Put('/:id')
-  update({ res, params, body }: T.Context<{ params: { id: number }; body: { name: string } }>) {
-    const index = this.items.findIndex(i => i.id === params.id);
+  @Put("/:id")
+  update({
+    res,
+    params,
+    body,
+  }: T.Context<{ params: { id: number }; body: { name: string } }>) {
+    const index = this.items.findIndex((i) => i.id === params.id);
     if (index === -1) {
-      throw res.notFound('Item not found');
+      throw res.notFound("Item not found");
     }
     this.items[index] = { ...this.items[index], ...body };
     return { updated: this.items[index] };
   }
 
-  @Patch('/:id')
-  patch({ res, params, body }: T.Context<{ params: { id: number }; body: { name?: string } }>) {
-    const index = this.items.findIndex(i => i.id === params.id);
+  @Patch("/:id")
+  patch({
+    res,
+    params,
+    body,
+  }: T.Context<{ params: { id: number }; body: { name?: string } }>) {
+    const index = this.items.findIndex((i) => i.id === params.id);
     if (index === -1) {
-      throw res.notFound('Item not found');
+      throw res.notFound("Item not found");
     }
     this.items[index] = { ...this.items[index], ...body };
     return { patched: this.items[index] };
   }
 
-  @Delete('/:id')
+  @Delete("/:id")
   remove({ res, params }: T.Context<{ params: { id: number } }>) {
-    const index = this.items.findIndex(i => i.id === params.id);
+    const index = this.items.findIndex((i) => i.id === params.id);
     if (index === -1) {
-      throw res.notFound('Item not found');
+      throw res.notFound("Item not found");
     }
     this.items.splice(index, 1);
     return { deleted: true };
   }
 }
 
-@Controller('/products')
+@Controller("/products")
 class ProductsController {
   private products = [
     { id: 1, name: "Product A", price: 100 },
-    { id: 2, name: "Product B", price: 200 }
+    { id: 2, name: "Product B", price: 200 },
   ];
 
-  @Get('/')
+  @Get("/")
   list() {
     return { products: this.products };
   }
 
-  @Get('/:id')
+  @Get("/:id")
   getProduct({ res, params }: T.Context<{ params: { id: number } }>) {
-    const product = this.products.find(p => p.id === params.id);
+    const product = this.products.find((p) => p.id === params.id);
     if (!product) {
-      throw res.notFound('Product not found');
+      throw res.notFound("Product not found");
     }
     return { product };
   }
 
-  @Post('/')
+  @Post("/")
   addProduct({ body }: T.Context<{ body: { name: string; price: number } }>) {
     const newProduct = { id: this.products.length + 1, ...body };
     this.products.push(newProduct);
@@ -93,15 +110,14 @@ class ProductsController {
 }
 
 describe("Controller Unit Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
   const app = new Spear({
-    logger: false,
-    controllers: [ItemsController, ProductsController]
+    logger: true,
+    controllers: [ItemsController, ProductsController],
   });
-  
+
   app.useBodyParser();
 
   before((done) => {
@@ -151,7 +167,7 @@ describe("Controller Unit Tests", () => {
   describe("ItemsController - POST /items", () => {
     it("should create a new item", async () => {
       const res = await client.post("/items", {
-        body: { name: "new-item" }
+        body: { name: "new-item" },
       });
 
       expect(res.ok).to.be.equal(true);
@@ -168,7 +184,7 @@ describe("Controller Unit Tests", () => {
   describe("ItemsController - PUT /items/:id", () => {
     it("should update an item by id", async () => {
       const res = await client.put("/items/1", {
-        body: { name: "updated-item" }
+        body: { name: "updated-item" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -181,7 +197,7 @@ describe("Controller Unit Tests", () => {
 
     it("should return 404 when updating non-existent item", async () => {
       const res = await client.put("/items/999", {
-        body: { name: "updated-item" }
+        body: { name: "updated-item" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(404);
@@ -191,7 +207,7 @@ describe("Controller Unit Tests", () => {
   describe("ItemsController - PATCH /items/:id", () => {
     it("should patch an item by id", async () => {
       const res = await client.patch("/items/1", {
-        body: { name: "patched-item" }
+        body: { name: "patched-item" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -204,7 +220,7 @@ describe("Controller Unit Tests", () => {
 
     it("should return 404 when patching non-existent item", async () => {
       const res = await client.patch("/items/999", {
-        body: { name: "patched-item" }
+        body: { name: "patched-item" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(404);
@@ -264,7 +280,7 @@ describe("Controller Unit Tests", () => {
   describe("ProductsController - POST /products", () => {
     it("should create a new product", async () => {
       const res = await client.post("/products", {
-        body: { name: "new-product", price: 300 }
+        body: { name: "new-product", price: 300 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -276,5 +292,4 @@ describe("Controller Unit Tests", () => {
       }
     });
   });
-
 });

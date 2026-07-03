@@ -1,7 +1,14 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from 'http';
-import { Spear, Controller, Post, ValidateDto, Validate, type T } from "../src/lib";
+import { Server } from "http";
+import {
+  Spear,
+  Controller,
+  Post,
+  ValidateDto,
+  Validate,
+  type T,
+} from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { z } from "zod";
 
@@ -18,16 +25,18 @@ const UserSchema = z.object({
 const ProductSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   price: z.number().positive("Price must be positive"),
-  quantity: z.number().int().nonnegative("Quantity must be non-negative").optional(),
+  quantity: z
+    .number()
+    .int()
+    .nonnegative("Quantity must be non-negative")
+    .optional(),
 });
 
-@Controller('/zod-users')
+@Controller("/zod-users")
 class ZodUsersController {
   private users: any[] = [];
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/')
-  // @ts-ignore - decorator type inference issue
+  @Post("/")
   @ValidateDto(UserSchema, { adaptor: "zod" })
   create({ body }: T.Context<{ body: z.infer<typeof UserSchema> }>): any {
     const newUser = { id: this.users.length + 1, ...body };
@@ -35,22 +44,18 @@ class ZodUsersController {
     return { created: newUser };
   }
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/optional')
-  // @ts-ignore - decorator type inference issue
+  @Post("/optional")
   @ValidateDto(UserSchema.omit({ age: true }).partial(), { adaptor: "zod" })
   createOptional({ body }: T.Context<{ body: any }>): any {
     return { created: body };
   }
 }
 
-@Controller('/zod-products')
+@Controller("/zod-products")
 class ZodProductsController {
   private products: any[] = [];
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/')
-  // @ts-ignore - decorator type inference issue
+  @Post("/")
   @ValidateDto(ProductSchema, { adaptor: "zod" })
   create({ body }: T.Context<{ body: z.infer<typeof ProductSchema> }>): any {
     const newProduct = { id: this.products.length + 1, ...body };
@@ -61,55 +66,48 @@ class ZodProductsController {
 
 // ============== Class Validator DTO Tests ==============
 
-import { IsString, IsEmail, IsOptional, IsNumber, MinLength, IsPositive } from "class-validator";
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsNumber,
+  MinLength,
+  IsPositive,
+} from "class-validator";
 
 class CreateUserDto {
-  // @ts-ignore - decorator type inference issue
   @IsString()
-  // @ts-ignore - decorator type inference issue
   @MinLength(1, { message: "Name is required" })
   name!: string;
 
-  // @ts-ignore - decorator type inference issue
   @IsEmail({}, { message: "Invalid email format" })
   email!: string;
 
-  // @ts-ignore - decorator type inference issue
   @IsOptional()
-  // @ts-ignore - decorator type inference issue
   @IsNumber()
-  // @ts-ignore - decorator type inference issue
   @IsPositive()
   age?: number;
 }
 
 class CreateProductDto {
-  // @ts-ignore - decorator type inference issue
   @IsString()
-  // @ts-ignore - decorator type inference issue
   @MinLength(1, { message: "Product name is required" })
   name!: string;
 
-  // @ts-ignore - decorator type inference issue
   @IsNumber()
-  // @ts-ignore - decorator type inference issue
   @IsPositive()
   price!: number;
 
-  // @ts-ignore - decorator type inference issue
   @IsOptional()
-  // @ts-ignore - decorator type inference issue
   @IsNumber()
   quantity?: number;
 }
 
-@Controller('/class-users')
+@Controller("/class-users")
 class ClassUsersController {
   private users: any[] = [];
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/')
-  // @ts-ignore - decorator type inference issue
+  @Post("/")
   @ValidateDto(CreateUserDto)
   create({ body }: T.Context<{ body: CreateUserDto }>): any {
     const newUser = { id: this.users.length + 1, ...body };
@@ -118,13 +116,11 @@ class ClassUsersController {
   }
 }
 
-@Controller('/class-products')
+@Controller("/class-products")
 class ClassProductsController {
   private products: any[] = [];
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/')
-  // @ts-ignore - decorator type inference issue
+  @Post("/")
   @ValidateDto(CreateProductDto)
   create({ body }: T.Context<{ body: CreateProductDto }>): any {
     const newProduct = { id: this.products.length + 1, ...body };
@@ -135,32 +131,26 @@ class ClassProductsController {
 
 // ============== Validate Decorator Tests ==============
 
-@Controller('/validate')
+@Controller("/validate")
 class ValidateController {
-  // @ts-ignore - decorator type inference issue
-  @Post('/required')
-  // @ts-ignore - decorator type inference issue
+  @Post("/required")
   @Validate(["name", "email"], { required: true })
   required({ body }: T.Context): any {
     return { received: body };
   }
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/optional')
-  // @ts-ignore - decorator type inference issue
+  @Post("/optional")
   @Validate(["name"], { target: "query" })
   optionalQuery({ query }: T.Context): any {
     return { received: query };
   }
 
-  // @ts-ignore - decorator type inference issue
-  @Post('/custom-required')
-  // @ts-ignore - decorator type inference issue
-  @Validate(["email", "password"], { 
+  @Post("/custom-required")
+  @Validate(["email", "password"], {
     required: {
       allowNull: false,
-      allowEmptyString: false
-    }
+      allowEmptyString: false,
+    },
   })
   customRequired({ body }: T.Context): any {
     return { received: body };
@@ -168,19 +158,18 @@ class ValidateController {
 }
 
 describe("DTO and Zod Validator Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
   const app = new Spear({
-    logger: false,
+    logger: true,
     controllers: [
       ZodUsersController,
       ZodProductsController,
       ClassUsersController,
       ClassProductsController,
-      ValidateController
-    ]
+      ValidateController,
+    ],
   });
 
   app.useBodyParser();
@@ -201,7 +190,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Zod Validation - /zod-users", () => {
     it("should create user with valid data", async () => {
       const res = await client.post("/zod-users", {
-        body: { name: "John", email: "john@example.com", age: 25 }
+        body: { name: "John", email: "john@example.com", age: 25 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -214,7 +203,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject invalid email format", async () => {
       const res = await client.post("/zod-users", {
-        body: { name: "John", email: "invalid-email", age: 25 }
+        body: { name: "John", email: "invalid-email", age: 25 },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -222,7 +211,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject missing required name", async () => {
       const res = await client.post("/zod-users", {
-        body: { email: "john@example.com", age: 25 }
+        body: { email: "john@example.com", age: 25 },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -230,7 +219,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject empty name", async () => {
       const res = await client.post("/zod-users", {
-        body: { name: "", email: "john@example.com" }
+        body: { name: "", email: "john@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -238,7 +227,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should accept user without optional age", async () => {
       const res = await client.post("/zod-users", {
-        body: { name: "Jane", email: "jane@example.com" }
+        body: { name: "Jane", email: "jane@example.com" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -248,7 +237,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Zod Validation - /zod-products", () => {
     it("should create product with valid data", async () => {
       const res = await client.post("/zod-products", {
-        body: { name: "Widget", price: 9.99, quantity: 100 }
+        body: { name: "Widget", price: 9.99, quantity: 100 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -261,7 +250,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject negative price", async () => {
       const res = await client.post("/zod-products", {
-        body: { name: "Widget", price: -5 }
+        body: { name: "Widget", price: -5 },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -269,7 +258,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject missing required name", async () => {
       const res = await client.post("/zod-products", {
-        body: { price: 9.99 }
+        body: { price: 9.99 },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -280,7 +269,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Class Validator - /class-users", () => {
     it("should create user with valid data", async () => {
       const res = await client.post("/class-users", {
-        body: { name: "Alice", email: "alice@example.com", age: 30 }
+        body: { name: "Alice", email: "alice@example.com", age: 30 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -293,7 +282,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject invalid email format", async () => {
       const res = await client.post("/class-users", {
-        body: { name: "Alice", email: "not-an-email" }
+        body: { name: "Alice", email: "not-an-email" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -301,7 +290,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject missing required name", async () => {
       const res = await client.post("/class-users", {
-        body: { email: "alice@example.com" }
+        body: { email: "alice@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -309,7 +298,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should accept user without optional age", async () => {
       const res = await client.post("/class-users", {
-        body: { name: "Bob", email: "bob@example.com" }
+        body: { name: "Bob", email: "bob@example.com" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -319,7 +308,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Class Validator - /class-products", () => {
     it("should create product with valid data", async () => {
       const res = await client.post("/class-products", {
-        body: { name: "Gadget", price: 19.99, quantity: 50 }
+        body: { name: "Gadget", price: 19.99, quantity: 50 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -332,7 +321,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject non-positive price", async () => {
       const res = await client.post("/class-products", {
-        body: { name: "Gadget", price: 0 }
+        body: { name: "Gadget", price: 0 },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(422);
@@ -343,7 +332,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Validate Decorator - /validate/required", () => {
     it("should accept valid required fields", async () => {
       const res = await client.post("/validate/required", {
-        body: { name: "Test", email: "test@example.com" }
+        body: { name: "Test", email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -355,7 +344,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject missing required field", async () => {
       const res = await client.post("/validate/required", {
-        body: { name: "Test" }
+        body: { name: "Test" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -368,7 +357,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject null value when allowNull is false", async () => {
       const res = await client.post("/validate/required", {
-        body: { name: null, email: "test@example.com" }
+        body: { name: null, email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -376,7 +365,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject empty string when allowEmptyString is false", async () => {
       const res = await client.post("/validate/required", {
-        body: { name: "", email: "test@example.com" }
+        body: { name: "", email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -386,7 +375,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Validate Decorator - /validate/optional (query)", () => {
     it("should accept query with name parameter", async () => {
       const res = await client.post("/validate/optional", {
-        query: { name: "TestQuery" }
+        query: { name: "TestQuery" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -402,7 +391,7 @@ describe("DTO and Zod Validator Tests", () => {
   describe("Validate Decorator - /validate/custom-required", () => {
     it("should accept valid email and password", async () => {
       const res = await client.post("/validate/custom-required", {
-        body: { email: "test@example.com", password: "secret123" }
+        body: { email: "test@example.com", password: "secret123" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -410,7 +399,7 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject null email", async () => {
       const res = await client.post("/validate/custom-required", {
-        body: { email: null, password: "secret123" }
+        body: { email: null, password: "secret123" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -418,11 +407,10 @@ describe("DTO and Zod Validator Tests", () => {
 
     it("should reject empty password", async () => {
       const res = await client.post("/validate/custom-required", {
-        body: { email: "test@example.com", password: "" }
+        body: { email: "test@example.com", password: "" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
     });
   });
-
 });

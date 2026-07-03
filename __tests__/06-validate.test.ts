@@ -1,37 +1,41 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from 'http';
-import { Spear, Controller, Get, Post, Put, Validate, type T } from "../src/lib";
+import { Server } from "http";
+import {
+  Spear,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Validate,
+  type T,
+} from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 
-@Controller('/auth')
+@Controller("/auth")
 class AuthController {
   private users: any[] = [
-    { id: 1, email: "user@example.com", password: "hashed123" }
+    { id: 1, email: "user@example.com", password: "hashed123" },
   ];
 
-  // @ts-ignore - decorator type inference
-  @Post('/login')
-  // @ts-ignore - decorator type inference
+  @Post("/login")
   @Validate(["email", "password"], {
     required: {
       allowNull: false,
-      allowEmptyString: false
-    }
+      allowEmptyString: false,
+    },
   })
   login({ body }: T.Context): any {
-    const user = this.users.find(u => u.email === body.email);
+    const user = this.users.find((u) => u.email === body.email);
     if (!user) {
       return { error: "Invalid credentials" };
     }
     return { token: "fake-token", email: body.email };
   }
 
-  // @ts-ignore - decorator type inference
-  @Post('/register')
-  // @ts-ignore - decorator type inference
+  @Post("/register")
   @Validate(["email", "password", "name"], {
-    required: true
+    required: true,
   })
   register({ body }: T.Context): any {
     const newUser = { id: this.users.length + 1, ...body };
@@ -40,107 +44,91 @@ class AuthController {
   }
 }
 
-@Controller('/users')
+@Controller("/users")
 class UsersController {
-  // @ts-ignore - decorator type inference
-  @Post('/')
-  // @ts-ignore - decorator type inference
+  @Post("/")
   @Validate(["name", "email"], {
     required: {
       allowNull: false,
-      allowEmptyString: false
-    }
+      allowEmptyString: false,
+    },
   })
   create({ body }: T.Context): any {
     return { created: body };
   }
 
-  // @ts-ignore - decorator type inference
-  @Post('/optional')
-  // @ts-ignore - decorator type inference
+  @Post("/optional")
   @Validate(["name"], {
     required: {
       allowNull: true,
-      allowEmptyString: false
-    }
+      allowEmptyString: false,
+    },
   })
   createOptional({ body }: T.Context): any {
     return { created: body };
   }
 
-  // @ts-ignore - decorator type inference
-  @Post('/allow-empty')
-  // @ts-ignore - decorator type inference
+  @Post("/allow-empty")
   @Validate(["name"], {
     required: {
       allowNull: false,
-      allowEmptyString: true
-    }
+      allowEmptyString: true,
+    },
   })
   createAllowEmpty({ body }: T.Context): any {
     return { created: body };
   }
 }
 
-@Controller('/products')
+@Controller("/products")
 class ProductsController {
-  // @ts-ignore - decorator type inference
-  @Post('/')
-  // @ts-ignore - decorator type inference
+  @Post("/")
   @Validate(["name", "price", "category"], {
-    required: true
+    required: true,
   })
   create({ body }: T.Context): any {
     return { created: body };
   }
 
-  // @ts-ignore - decorator type inference
-  @Put('/:id')
-  // @ts-ignore - decorator type inference
+  @Put("/:id")
   @Validate(["name", "price"], {
-    required: false
+    required: false,
   })
   update({ body }: T.Context): any {
     return { updated: body };
   }
 }
 
-@Controller('/query-test')
+@Controller("/query-test")
 class QueryTestController {
-  // @ts-ignore - decorator type inference
-  @Get('/search')
-  // @ts-ignore - decorator type inference
+  @Get("/search")
   @Validate(["q", "page"], {
     target: "query",
-    required: true
+    required: true,
   })
   search({ query }: T.Context): any {
     return { results: `Searching for "${query.q}" on page ${query.page}` };
   }
 
-  // @ts-ignore - decorator type inference
-  @Get('/filter')
-  // @ts-ignore - decorator type inference
+  @Get("/filter")
   @Validate(["category"], {
     target: "query",
     required: {
       allowNull: false,
-      allowEmptyString: false
-    }
+      allowEmptyString: false,
+    },
   })
   filter({ query }: T.Context): any {
     return { category: query.category };
   }
 }
 
-@Controller('/params-test')
+@Controller("/params-test")
 class ParamsTestController {
-  // @ts-ignore - decorator type inference
-  @Get('/:id/:action')
-  // @ts-ignore - decorator type inference
+  @Get("/:id/:action")
   @Validate(["id", "action"], {
     target: "params",
-    required: true
+    required: true,
   })
   getAction({ params }: T.Context): any {
     return { id: params.id, action: params.action };
@@ -148,19 +136,18 @@ class ParamsTestController {
 }
 
 describe("Pure @Validate Decorator Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
   const app = new Spear({
-    logger: false,
+    logger: true,
     controllers: [
       AuthController,
       UsersController,
       ProductsController,
       QueryTestController,
-      ParamsTestController
-    ]
+      ParamsTestController,
+    ],
   });
 
   app.useBodyParser();
@@ -180,7 +167,7 @@ describe("Pure @Validate Decorator Tests", () => {
   describe("Body Validation - required: { allowNull: false, allowEmptyString: false }", () => {
     it("should reject missing required field", async () => {
       const res = await client.post("/auth/login", {
-        body: { email: "user@example.com" }
+        body: { email: "user@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -193,7 +180,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should reject null value when allowNull: false", async () => {
       const res = await client.post("/auth/login", {
-        body: { email: null, password: "test123" }
+        body: { email: null, password: "test123" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -201,7 +188,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should reject empty string when allowEmptyString: false", async () => {
       const res = await client.post("/auth/login", {
-        body: { email: "", password: "test123" }
+        body: { email: "", password: "test123" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -209,7 +196,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should accept valid data", async () => {
       const res = await client.post("/auth/login", {
-        body: { email: "user@example.com", password: "test123" }
+        body: { email: "user@example.com", password: "test123" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -219,7 +206,7 @@ describe("Pure @Validate Decorator Tests", () => {
   describe("Body Validation - required: true (default strict)", () => {
     it("should reject missing field", async () => {
       const res = await client.post("/users", {
-        body: { name: "Test" } as any
+        body: { name: "Test" } as any,
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -227,7 +214,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should reject null value", async () => {
       const res = await client.post("/users", {
-        body: { name: null, email: "test@example.com" }
+        body: { name: null, email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -235,7 +222,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should reject empty string", async () => {
       const res = await client.post("/users", {
-        body: { name: "", email: "test@example.com" }
+        body: { name: "", email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -243,7 +230,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should accept valid data", async () => {
       const res = await client.post("/users", {
-        body: { name: "Test User", email: "test@example.com" }
+        body: { name: "Test User", email: "test@example.com" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -253,7 +240,7 @@ describe("Pure @Validate Decorator Tests", () => {
   describe("Body Validation - required: { allowNull: true }", () => {
     it("should accept null value when allowNull: true", async () => {
       const res = await client.post("/users/optional", {
-        body: { name: null }
+        body: { name: null },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -261,7 +248,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should still reject empty string when allowEmptyString: false", async () => {
       const res = await client.post("/users/optional", {
-        body: { name: "" }
+        body: { name: "" },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -269,7 +256,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should accept valid string", async () => {
       const res = await client.post("/users/optional", {
-        body: { name: "Valid Name" }
+        body: { name: "Valid Name" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -279,7 +266,7 @@ describe("Pure @Validate Decorator Tests", () => {
   describe("Body Validation - required: { allowEmptyString: true }", () => {
     it("should accept empty string when allowEmptyString: true", async () => {
       const res = await client.post("/users/allow-empty", {
-        body: { name: "" }
+        body: { name: "" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -287,7 +274,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should still reject null when allowNull: false", async () => {
       const res = await client.post("/users/allow-empty", {
-        body: { name: null }
+        body: { name: null },
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -297,7 +284,7 @@ describe("Pure @Validate Decorator Tests", () => {
   describe("Multiple Fields Validation", () => {
     it("should reject when any of multiple fields is missing", async () => {
       const res = await client.post("/products", {
-        body: { name: "Product", price: 10 } as any
+        body: { name: "Product", price: 10 } as any,
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -309,20 +296,24 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should report all missing fields", async () => {
       const res = await client.post("/products", {
-        body: {} as any
+        body: {} as any,
       });
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
       if (!res.ok) {
         const data: any = res.data;
         expect(data.issues).to.have.length(3);
-        expect(data.issues.map((i: any) => i.path)).to.include.members(["name", "price", "category"]);
+        expect(data.issues.map((i: any) => i.path)).to.include.members([
+          "name",
+          "price",
+          "category",
+        ]);
       }
     });
 
     it("should accept all required fields", async () => {
       const res = await client.post("/products", {
-        body: { name: "Product", price: 10, category: "Electronics" }
+        body: { name: "Product", price: 10, category: "Electronics" },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -331,11 +322,11 @@ describe("Pure @Validate Decorator Tests", () => {
 
   describe("required: false (no required validation)", () => {
     it("should accept request without required fields when required: false", async () => {
-      const res = await client.put("/products/1",{
+      const res = await client.put("/products/1", {
         body: {
-          "name" : null, 
-          "price" : null
-        }
+          name: null,
+          price: null,
+        },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -343,7 +334,7 @@ describe("Pure @Validate Decorator Tests", () => {
 
     it("should still accept with fields provided", async () => {
       const res = await client.put("/products/1", {
-        body: { name: "Updated", price: 20 }
+        body: { name: "Updated", price: 20 },
       });
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
@@ -397,5 +388,4 @@ describe("Pure @Validate Decorator Tests", () => {
       }
     });
   });
-
 });

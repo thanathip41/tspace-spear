@@ -1,17 +1,16 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from 'http';
+import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 
 describe("Middleware Unit Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
   const executionOrder: string[] = [];
 
-  const app = new Spear({ logger: false })
+  const app = new Spear({ logger: true })
     .use((ctx, next) => {
       executionOrder.push("global-1-start");
       return next();
@@ -25,23 +24,31 @@ describe("Middleware Unit Tests", () => {
       return next();
     })
     .get("/middleware-test", (ctx) => {
-      return { 
+      return {
         customHeader: (ctx.req as any).customHeader,
-        message: "handled" 
+        message: "handled",
       };
     })
-    .get("/middleware-next", (ctx, next) => {
-      executionOrder.push("handler");
-      return next();
-    }, (ctx) => {
-      return { executed: true };
-    })
-    .get("/middleware-status", (ctx, next) => {
-      ctx.res.setStatusCode(201);
-      return next();
-    }, (ctx) => {
-      return { status: "modified" };
-    })
+    .get(
+      "/middleware-next",
+      (ctx, next) => {
+        executionOrder.push("handler");
+        return next();
+      },
+      (ctx) => {
+        return { executed: true };
+      },
+    )
+    .get(
+      "/middleware-status",
+      (ctx, next) => {
+        ctx.res.setStatusCode(201);
+        return next();
+      },
+      (ctx) => {
+        return { status: "modified" };
+      },
+    )
     .useCookiesParser()
     .get("/cookies-parser", (ctx) => {
       return { cookies: ctx.cookies };
@@ -67,10 +74,7 @@ describe("Middleware Unit Tests", () => {
     const res = await client.get("/middleware-test");
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
-    expect(executionOrder).to.deep.equal([
-      "global-1-start",
-      "global-2-start"
-    ]);
+    expect(executionOrder).to.deep.equal(["global-1-start", "global-2-start"]);
   });
 
   it("should inject data from middleware to request", async () => {
@@ -102,17 +106,15 @@ describe("Middleware Unit Tests", () => {
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
   });
-
 });
 
 describe("Global Prefix Middleware Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
-  const app = new Spear({ logger: false })
+  const app = new Spear({ logger: true })
     .useGlobalPrefix("api", {
-      exclude: [{ path: "health" }]
+      exclude: [{ path: "health" }],
     })
     .get("/users", () => ({ prefixed: true }))
     .get("/health", () => ({ health: "ok" }));
@@ -146,15 +148,13 @@ describe("Global Prefix Middleware Tests", () => {
       expect(data.health).to.equal("ok");
     }
   });
-
 });
 
 describe("Error Handler Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
-  const app = new Spear({ logger: false })
+  const app = new Spear({ logger: true })
     .get("/error", () => {
       throw new Error("Test error");
     })
@@ -163,9 +163,9 @@ describe("Error Handler Tests", () => {
       throw new Error("Validation failed");
     })
     .catch((err, ctx) => {
-      return ctx.res.status(err.statusCode || 500).json({ 
-        customError: true, 
-        message: err.message 
+      return ctx.res.status(err.statusCode || 500).json({
+        customError: true,
+        message: err.message,
       });
     });
 
@@ -192,5 +192,4 @@ describe("Error Handler Tests", () => {
     expect(res.ok).to.be.equal(false);
     expect(res.status).to.be.equal(422);
   });
-
 });

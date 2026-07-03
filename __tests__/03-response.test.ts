@@ -1,15 +1,14 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from 'http';
+import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 
 describe("Response Methods Unit Tests", () => {
-  
   let server: Server;
   let client: ApiClient<any>;
 
-  const app = new Spear({ logger: false })
+  const app = new Spear({ logger: true })
     .get("/response/json", (ctx) => {
       ctx.res.json({ name: "test", value: 123 });
       return null;
@@ -55,7 +54,7 @@ describe("Response Methods Unit Tests", () => {
     .get("/response/cookies", (ctx) => {
       ctx.res.setCookies({
         session: "abc123",
-        user: { value: "john", path: "/", httpOnly: true }
+        user: { value: "john", path: "/", httpOnly: true },
       });
       return ctx.res.json({ cookiesSet: true });
     });
@@ -167,5 +166,4 @@ describe("Response Methods Unit Tests", () => {
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
   });
-
 });
