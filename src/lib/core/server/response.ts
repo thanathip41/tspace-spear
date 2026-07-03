@@ -1,17 +1,19 @@
 import { 
-    ServerResponse 
-} from "http";
-
-import { 
     HEADER_CONTENT_TYPES 
 } from "../const";
 
 import type { T }  from "../types";
 import { pipeStream } from "../utils";
 
+type Response = T.Response & {
+    _isUwebSocket : boolean;
+    _formatResponse: Function | null;
+    _req : T.Request;
+}
 
-function json(this:any, results?: Record<string, any>) {
-    const res = this as unknown as ServerResponse;
+
+function json(this: Response, results?: Record<string, any>) {
+    const res = this;
 
     if (res.writableEnded) return;
 
@@ -22,25 +24,28 @@ function json(this:any, results?: Record<string, any>) {
     return res.end(JSON.stringify(results));
 }
 
-function send(this:any, message: string) {
-    const res = this as unknown as ServerResponse;
+function send(this: Response, message: string) {
+    const res = this;
 
     if (res.writableEnded) return;
 
     return res.end(message);
 }
 
-function html(this:any, html: string) {
-    const res = this as unknown as ServerResponse;
+function html(this: Response, html: string) {
+    const res = this;
 
     if (res.writableEnded) return;
 
-    res.writeHead(res.statusCode, HEADER_CONTENT_TYPES.html);
+    res.writeHead(
+        res.statusCode as T.StatusCode, 
+        HEADER_CONTENT_TYPES.html
+    );
 
     return res.end(html);
 }
 
-function status(this:any, code: T.StatusCode) {
+function status(this: Response, code: T.StatusCode) {
     return {
         json: (data?: Record<string, any>) => {
             if (!this.headersSent) {
@@ -68,63 +73,63 @@ function status(this:any, code: T.StatusCode) {
     };
 }
 
-function ok(this:any, results?: Record<string, any>) {
+function ok(this: Response, results?: Record<string, any>) {
     return this.status(200).json(results);
 }
 
-function created(this:any, results?: Record<string, any>) {
+function created(this: Response, results?: Record<string, any>) {
     return this.status(201).json(results);
 }
 
-function accepted(this:any, results?: Record<string, any>) {
+function accepted(this: Response, results?: Record<string, any>) {
     return this.status(202).json(results);
 }
 
-function noContent(this:any) {
+function noContent(this: Response) {
     return this.status(204).end();
 }
 
-function badRequest(this:any, message?: string) {
+function badRequest(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
     return this.status(400).json({ message });
 }
 
-function unauthorized(this:any, message?: string) {
+function unauthorized(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' is unauthorized. Please verify.`;
     return this.status(401).json({ message });
 }
 
-function paymentRequired(this:any, message?: string) {
+function paymentRequired(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' requires payment. Please proceed with payment.`;
     return this.status(402).json({ message });
 }
 
-function forbidden(this:any, message?: string) {
+function forbidden(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
     return this.status(403).json({ message });
 }
 
-function notFound(this:any, message?: string) {
+function notFound(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' was not found. Please re-check your URL again.`;
     return this.status(404).json({ message });
 }
 
-function unprocessable(this:any, message?: string) {
+function unprocessable(this: Response, message?: string) {
     message ??= `The request to '${this._req.url}' failed validation.`;
     return this.status(422).json({ message });
 }
 
-function tooManyRequests(this:any, message?: string) {
+function tooManyRequests(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' is too many requests. Please wait and try again.`;
     return this.status(429).json({ message });
 }
 
-function serverError(this:any, message?: string) {
+function serverError(this: Response, message?: string) {
     message ??= `The request '${this._req.url}' resulted in a server error. Please investigate.`;
     return this.status(500).json({ message });
 }
 
-function serveMedia(this:any, filePath: string) {
+function serveMedia(this: Response, filePath: string) {
     return pipeStream({
         req: this._req,
         res: this,
@@ -133,14 +138,14 @@ function serveMedia(this:any, filePath: string) {
     });
 }
 
-function setStatusCode(this:any, code: T.StatusCode) {
+function setStatusCode(this: Response, code: T.StatusCode) {
     if (!this.headersSent) {
         this.writeHead(code, HEADER_CONTENT_TYPES.json);
     }
 }
 
 function setCookies(
-    this:any,
+    this: Response,
     cookies: Record<
         string,
         string | {
@@ -186,7 +191,7 @@ function setCookies(
     this.setHeader("Set-Cookie", cookieLists);
 }
 
-function error(this:any, err: any) {
+function error(this: Response, err: any) {
     const statusCandidates = [
         err?.response?.data?.code,
         err?.code,
@@ -209,7 +214,7 @@ function error(this:any, err: any) {
     const payload = { message };
 
     if (!this.headersSent) {
-        this.writeHead(code, HEADER_CONTENT_TYPES.json);
+        this.writeHead(code as T.StatusCode, HEADER_CONTENT_TYPES.json);
     }
 
     if (this._formatResponse) {
@@ -238,7 +243,7 @@ export const Response = (req : T.Request, res : T.Response , {
 
         _req: req,
         _formatResponse: formatResponse,
-        _isUws: isUwebSocket,
+        _isUwebSocket: isUwebSocket,
 
         status,
         json,
