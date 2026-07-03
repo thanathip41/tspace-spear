@@ -43,12 +43,12 @@ class PublicController {
   ];
 
   @Get('/')
-  list(): any {
+  list(){
     return { items: this.items };
   }
 
   @Get('/:id')
-  show({ res, params }: T.Context<{ params: { id: number } }>): any {
+  show({ res, params }: T.Context<{ params: { id: number } }>){
     const item = this.items.find(i => i.id === params.id);
     if (!item) {
       throw res.notFound("Item not found");
@@ -67,14 +67,14 @@ class ProtectedController {
 
   @Get('/')
   @Middleware(authMiddleware)
-  public list({ req } : T.Context): any {
+  public list({ req } : T.Context){
     const user = req.user;
     return { items: this.items, user };
   }
 
   @Get('/:id')
   @Middleware(authMiddleware)
-  show({ res, params }: T.Context<{ params: { id: number } }>): any {
+  show({ res, params }: T.Context<{ params: { id: number } }>){
     const item = this.items.find(i => i.id === params.id);
     if (!item) {
       throw res.notFound("Item not found");
@@ -84,7 +84,7 @@ class ProtectedController {
 
   @Post('/')
   @Middleware(authMiddleware)
-  create({ body }: T.Context): any {
+  create({ body }: T.Context){
     const newItem = { id: this.items.length + 1, name: body.name };
     this.items.push(newItem);
     return { created: newItem };
@@ -98,19 +98,19 @@ class AdminController {
 
   @Get('/stats')
   @Middleware(authMiddleware, roleMiddleware)
-  getStats(): any {
+  getStats(){
     return { stats: this.adminStats };
   }
 
   @Get('/logs')
   @Middleware(authMiddleware, roleMiddleware)
-  getLogs(): any {
+  getLogs(){
     return { logs: ["log1", "log2", "log3"] };
   }
 
   @Post('/clear')
   @Middleware(authMiddleware, roleMiddleware)
-  clearStats(): any {
+  clearStats(){
     this.adminStats = { views: 0, clicks: 0 };
     return { message: "Stats cleared" };
   }
@@ -120,20 +120,20 @@ class AdminController {
 @Controller('/api')
 class ApiController {
   @Get('/public')
-  publicEndpoint(): any {
+  publicEndpoint(){
     return { message: "This is public" };
   }
 
   @Get('/protected')
   @Middleware(authMiddleware)
-  protectedEndpoint({ req } : T.Context): any {
+  protectedEndpoint({ req } : T.Context){
     const user = req.user;
     return { message: "This is protected", user };
   }
 
   @Get('/admin')
   @Middleware(authMiddleware, roleMiddleware)
-  adminEndpoint(): any {
+  adminEndpoint(){
     return { message: "This is admin only" };
   }
 }
@@ -173,7 +173,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("items");
         expect(data.items).to.be.an("array").with.length(2);
       }
@@ -184,7 +184,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("item");
         expect(data.item).to.have.property("id", 1);
       }
@@ -219,7 +219,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("items");
         expect(data).to.have.property("user");
         expect(data.user).to.have.property("name", "Test User");
@@ -233,7 +233,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("item");
         expect(data.item).to.have.property("id", 1);
       }
@@ -247,7 +247,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("created");
         expect(data.created).to.have.property("name", "New Item");
       }
@@ -279,7 +279,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("stats");
         expect(data.stats).to.have.property("views");
       }
@@ -295,7 +295,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("logs");
         expect(data.logs).to.be.an("array");
       }
@@ -311,7 +311,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("message", "Stats cleared");
       }
     });
@@ -323,7 +323,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("message", "This is public");
       }
     });
@@ -341,7 +341,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("message", "This is protected");
         expect(data).to.have.property("user");
       }
@@ -371,7 +371,7 @@ describe("Controller + Middleware Tests", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data= res.data;
         expect(data).to.have.property("message", "This is admin only");
       }
     });

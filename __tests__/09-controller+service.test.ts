@@ -8,32 +8,37 @@ import { ApiClient } from "../src/lib/core/client";
 
 @Service()
 class UserService {
+  
   private users: Map<number, { id: number; name: string; email: string }> = new Map([
     [1, { id: 1, name: "Alice", email: "alice@example.com" }],
     [2, { id: 2, name: "Bob", email: "bob@example.com" }],
   ]);
+
   private nextId = 3;
 
-  findAll(): Array<{ id: number; name: string; email: string }> {
+  public findAll() {
     return Array.from(this.users.values());
   }
 
-  findById(id: number): { id: number; name: string; email: string } | undefined {
+  public findById(id: number) {
     return this.users.get(id);
   }
 
-  findByName(name: string): Array<{ id: number; name: string; email: string }> {
+  public findByName(name: string): Array<{ id: number; name: string; email: string }> {
     return Array.from(this.users.values()).filter(u => u.name === name);
   }
 
-  create(name: string, email: string): { id: number; name: string; email: string } {
+  public create(name: string, email: string) {
     const id = this.nextId++;
     const user = { id, name, email };
     this.users.set(id, user);
     return user;
   }
 
-  update(id: number, data: Partial<{ name: string; email: string }>): { id: number; name: string; email: string } | undefined {
+  public update(
+    id: number, 
+    data: Partial<{ name: string; email: string }>
+  ) {
     const user = this.users.get(id);
     if (!user) return undefined;
     const updated = { ...user, ...data };
@@ -41,16 +46,15 @@ class UserService {
     return updated;
   }
 
-  delete(id: number): boolean {
+  public delete(id: number): boolean {
     return this.users.delete(id);
   }
 
-  count(): number {
+  public count(): number {
     return this.users.size;
   }
 }
 
-@Service()
 class ProductService {
   private products: Map<number, { id: number; name: string; price: number }> = new Map([
     [1, { id: 1, name: "Widget", price: 9.99 }],
@@ -78,7 +82,6 @@ class ProductService {
   }
 }
 
-@Service()
 class OrderService {
   private orders: Map<number, { id: number; userId: number; products: number[]; total: number }> = new Map();
   private nextId = 1;
@@ -99,28 +102,21 @@ class OrderService {
   }
 }
 
-// ============== Service Instances (shared) ==============
-
-const userServiceInstance = new UserService();
-const productServiceInstance = new ProductService();
-const orderServiceInstance = new OrderService();
-
 // ============== Controllers ==============
-
 @Controller('/users')
+@Service(UserService)
 class UsersController {
-  // Use shared service instance directly
-  private userService = userServiceInstance;
+  constructor(private userService: UserService){}
 
   // @ts-ignore - decorator type inference
   @Get('/')
-  list(): any {
+  list() {
     return { users: this.userService.findAll() };
   }
 
   // @ts-ignore - decorator type inference
   @Get('/:id')
-  show({ res, params }: T.Context<{ params: { id: number } }>): any {
+  show({ res, params }: T.Context<{ params: { id: number } }>) {
     const user = this.userService.findById(params.id);
     if (!user) {
       throw res.notFound("User not found");
@@ -130,7 +126,7 @@ class UsersController {
 
   // @ts-ignore - decorator type inference
   @Get('/search/:name')
-  searchByName({ res, params }: T.Context<{ params: { name: string } }>): any {
+  searchByName({ res, params }: T.Context<{ params: { name: string } }>) {
     const users = this.userService.findByName(params.name);
     if (users.length === 0) {
       throw res.notFound("No users found with that name");
@@ -140,7 +136,7 @@ class UsersController {
 
   // @ts-ignore - decorator type inference
   @Post('/')
-  create({ body, res }: T.Context): any {
+  create({ body, res }: T.Context) {
     const { name, email } = body as { name: string; email: string };
     
     if (!name || !email) {
@@ -153,7 +149,7 @@ class UsersController {
 
   // @ts-ignore - decorator type inference
   @Put('/:id')
-  update({ res, params, body }: T.Context): any {
+  update({ res, params, body }: T.Context) {
     const user = this.userService.update(params.id as number, body);
     if (!user) {
       throw res.notFound("User not found");
@@ -163,7 +159,7 @@ class UsersController {
 
   // @ts-ignore - decorator type inference
   @Delete('/:id')
-  remove({ res, params }: T.Context): any {
+  remove({ res, params }: T.Context) {
     const deleted = this.userService.delete(params.id as number);
     if (!deleted) {
       throw res.notFound("User not found");
@@ -173,24 +169,26 @@ class UsersController {
 
   // @ts-ignore - decorator type inference
   @Get('/stats/count')
-  count(): any {
+  count() {
     return { count: this.userService.count() };
   }
 }
 
 @Controller('/products')
+@Service(ProductService)
 class ProductsController {
-  private productService = productServiceInstance;
+
+  constructor(private productService: ProductService) {}
 
   // @ts-ignore - decorator type inference
   @Get('/')
-  list(): any {
+  list() {
     return { products: this.productService.findAll() };
   }
 
   // @ts-ignore - decorator type inference
   @Get('/:id')
-  show({ res, params }: T.Context<{ params: { id: number } }>): any {
+  show({ res, params }: T.Context<{ params: { id: number } }>) {
     const product = this.productService.findById(params.id);
     if (!product) {
       throw res.notFound("Product not found");
@@ -200,7 +198,7 @@ class ProductsController {
 
   // @ts-ignore - decorator type inference
   @Post('/')
-  create({ body, res }: T.Context): any {
+  create({ body, res }: T.Context) {
     const { name, price } = body as { name: string; price: number };
     
     if (!name || typeof price !== 'number') {
@@ -213,7 +211,7 @@ class ProductsController {
 
   // @ts-ignore - decorator type inference
   @Delete('/:id')
-  remove({ res, params }: T.Context): any {
+  remove({ res, params }: T.Context) {
     const deleted = this.productService.delete(params.id as number);
     if (!deleted) {
       throw res.notFound("Product not found");
@@ -223,13 +221,17 @@ class ProductsController {
 }
 
 @Controller('/orders')
+@Service(OrderService, UserService)
 class OrdersController {
-  private orderService = orderServiceInstance;
-  private userService = userServiceInstance;
+
+  constructor(
+    private orderService: OrderService,
+    private userService : UserService
+  ){}
 
   // @ts-ignore - decorator type inference
   @Post('/')
-  create({ body, res }: T.Context): any {
+  create({ body, res }: T.Context) {
     const { userId, products, total } = body as { userId: number; products: number[]; total: number };
     
     // Verify user exists
@@ -244,7 +246,7 @@ class OrdersController {
 
   // @ts-ignore - decorator type inference
   @Get('/:id')
-  show({ res, params }: T.Context<{ params: { id: number } }>): any {
+  show({ res, params }: T.Context<{ params: { id: number } }>) {
     const order = this.orderService.findById(params.id);
     if (!order) {
       throw res.notFound("Order not found");
@@ -257,7 +259,7 @@ class OrdersController {
 
   // @ts-ignore - decorator type inference
   @Get('/user/:userId')
-  findByUser({ res, params }: T.Context<{ params: { userId: number } }>): any {
+  findByUser({ res, params }: T.Context<{ params: { userId: number } }>) {
     // Verify user exists
     const user = this.userService.findById(params.userId);
     if (!user) {
@@ -303,7 +305,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.users).to.be.an("array").with.length(2);
       }
     });
@@ -313,7 +315,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.user).to.have.property("name", "Alice");
       }
     });
@@ -329,7 +331,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.users).to.be.an("array").with.length(1);
         expect(data.count).to.equal(1);
       }
@@ -348,7 +350,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.created).to.have.property("name", "Charlie");
         expect(data.total).to.equal(3);
       }
@@ -377,7 +379,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.updated).to.have.property("name", "Alice Updated");
       }
     });
@@ -400,7 +402,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.deleted).to.be.true;
       }
     });
@@ -416,7 +418,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.count).to.be.a("number");
       }
     });
@@ -428,7 +430,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.products).to.be.an("array").with.length(2);
       }
     });
@@ -438,7 +440,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.product).to.have.property("name", "Widget");
       }
     });
@@ -456,7 +458,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.created).to.have.property("name", "New Product");
       }
     });
@@ -482,7 +484,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.deleted).to.be.true;
       }
     });
@@ -496,7 +498,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.created).to.have.property("userId", 1);
       }
     });
@@ -514,7 +516,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.order).to.exist;
         expect(data.user).to.exist;
       }
@@ -531,7 +533,7 @@ describe("Controller + Service Tests (no DTO)", () => {
       expect(res.ok).to.be.equal(true);
       expect(res.status).to.be.equal(200);
       if (res.ok) {
-        const data: any = res.data;
+        const data = res.data;
         expect(data.orders).to.be.an("array");
         expect(data.user).to.exist;
       }
