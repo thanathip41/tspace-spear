@@ -89,7 +89,7 @@ export type ResponseType<
     response: infer R;
   }
     ? Awaited<R>
-    : never;
+    : any;
 
 export type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
@@ -123,7 +123,7 @@ export type ErrorStatus =
   | 500 | 501 | 502 | 503 | 504 | 505 | 506 | 507 | 508 | 510 | 511;
 
 export type ApiResponse<
-  T,
+  T = unknown,
   E = any
 > =
   | {
