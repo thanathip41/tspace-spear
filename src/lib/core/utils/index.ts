@@ -111,7 +111,7 @@ export const pipeStream = async ({
         "mpeg",
       ],
       audio: ["wav", "mp3"],
-      document: ["pdf"],
+      document: ["pdf","html"],
       image: ["png", "jpeg", "jpg", "gif", "webp", "svg", "ico"],
     }).flat();
 
@@ -157,9 +157,9 @@ export const pipeStream = async ({
 
     writeHead(header);
 
-    stream.on("error", () => res.end());
+    stream.on("error", () => res.http.end());
 
-    return stream.pipe(res as unknown as ServerResponse);
+    return stream.pipe(res.http as unknown as ServerResponse);
   }
 
   const parts = range.replace(/bytes=/, "").split("-");
@@ -179,7 +179,7 @@ export const pipeStream = async ({
 
   writeHead(header, 206);
 
-  stream.on("error", () => res.end());
+  stream.on("error", () => res.http.end());
 
-  return stream.pipe(res as unknown as ServerResponse);
+  return stream.pipe(res.http as unknown as ServerResponse);
 };
