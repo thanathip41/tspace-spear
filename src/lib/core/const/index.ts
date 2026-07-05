@@ -65,10 +65,12 @@ export const HTTP_STATUS_MESSAGES = {
 
 
 export const HEADER_CONTENT_TYPES = {
-  text: { 'Content-Type': 'text/plain' },
-  html: { 'Content-Type': 'text/html' },
-  css:  { 'Content-Type': 'text/css' },
-  js:   { 'Content-Type': 'application/javascript' },
+  text:   { 'Content-Type': 'text/plain' },
+  html:   { 'Content-Type': 'text/html' },
+  css:    { 'Content-Type': 'text/css' },
+  js:     { 'Content-Type': 'application/javascript' },
+  jsText: { 'Content-Type': 'application/javascript' },
+  jsX:    { 'Content-Type': 'application/x-javascript' },
 
   json: { 'Content-Type': 'application/json' },
   form: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -106,5 +108,9 @@ export const HEADER_CONTENT_TYPES = {
   otf: { 'Content-Type': 'font/otf' },
 
   // binary
-  octet: { 'Content-Type': 'application/octet-stream' }
+  octet: { 'Content-Type': 'application/octet-stream' },
+
+  // xml
+  xml: { 'Content-Type': 'application/xml' },
+  xmlText: { 'Content-Type': 'text/xml' },
 } as const

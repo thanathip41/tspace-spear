@@ -1,9 +1,8 @@
-import { IncomingMessage, ServerResponse } from "http";
-
 import { HEADER_CONTENT_TYPES } from "../const";
 
 import { uWSPipeStream } from "../server/uWS";
 
+import type { T }   from "../..";
 import querystring  from "querystring";
 import { Stream }   from "stream";
 import fsSystem     from "fs";
@@ -11,7 +10,7 @@ import pathSystem   from "path";
 import mime         from "mime-types";
 import xml2js       from "xml2js";
 import Crypto       from 'crypto';
-import { T } from "../..";
+
 
 export const normalizeRequestBody = async ({
   contentType,
@@ -24,11 +23,11 @@ export const normalizeRequestBody = async ({
     return {};
   }
 
-  if (contentType.includes("x-www-form-urlencoded")) {
+  if (contentType.includes(HEADER_CONTENT_TYPES["form"]["Content-Type"])) {
     return querystring.parse(payload);
   }
 
-  if (contentType.includes("application/json")) {
+  if (contentType.includes(HEADER_CONTENT_TYPES["json"]["Content-Type"])) {
     try {
       return JSON.parse(payload);
     } catch (err) {
@@ -37,8 +36,8 @@ export const normalizeRequestBody = async ({
   }
 
   if (
-    contentType.includes("application/xml") ||
-    contentType.includes("text/xml")
+    contentType.includes(HEADER_CONTENT_TYPES["xml"]["Content-Type"]) ||
+    contentType.includes(HEADER_CONTENT_TYPES["xmlText"]["Content-Type"])
   ) {
     try {
       const result = await xml2js.parseStringPromise(payload, {
@@ -51,10 +50,10 @@ export const normalizeRequestBody = async ({
   }
 
   if (
-    contentType.includes("text/plain") ||
-    contentType.includes("text/javascript") ||
-    contentType.includes("application/javascript") ||
-    contentType.includes("application/x-javascript")
+    contentType.includes(HEADER_CONTENT_TYPES["text"]["Content-Type"]) ||
+    contentType.includes(HEADER_CONTENT_TYPES["js"]["Content-Type"]) ||
+    contentType.includes(HEADER_CONTENT_TYPES["jsText"]["Content-Type"]) ||
+    contentType.includes(HEADER_CONTENT_TYPES["jsX"]["Content-Type"])
   ) {
     return { contentType, text: payload };
   }
@@ -89,7 +88,7 @@ export const pipeStream = async ({
 
   const range = req.headers["range"] ?? null;
 
-  const contentType = mime.lookup(filePath) || "application/octet-stream";
+  const contentType = mime.lookup(filePath) || HEADER_CONTENT_TYPES["octet"]["Content-Type"];
 
   const isVideo = contentType.startsWith("video/");
 
@@ -124,11 +123,15 @@ export const pipeStream = async ({
       "Content-Disposition",
       `attachment; filename=${+new Date()}.${extension}`,
     );
-    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Type", HEADER_CONTENT_TYPES["octet"]["Content-Type"]);
   };
 
   const maxAge = 1000 * 60 * 60 * 24 * 7;
-  const etag = Crypto.createHash("md5").update(`${stat.size}-${stat.mtimeMs}`).digest("hex");
+
+  const etag = Crypto
+  .createHash("md5")
+  .update(`${stat.size}-${stat.mtimeMs}`)
+  .digest("hex");
 
   const baseHeader = {
       "Connection" :"keep-alive",
@@ -159,7 +162,7 @@ export const pipeStream = async ({
 
     stream.on("error", () => res.http.end());
 
-    return stream.pipe(res.http as unknown as ServerResponse);
+    return stream.pipe(res.http);
   }
 
   const parts = range.replace(/bytes=/, "").split("-");
@@ -181,5 +184,5 @@ export const pipeStream = async ({
 
   stream.on("error", () => res.http.end());
 
-  return stream.pipe(res.http as unknown as ServerResponse);
+  return stream.pipe(res.http);
 };
