@@ -15,6 +15,7 @@
 - [Middleware](#middleware)
 - [Controller](#controller)
 - [Service](#service)
+- [Extending Context Type](#extending-context-type)
 - [Exception](#exception)
 - [Dto](#dto)
 - [Router](#router)
