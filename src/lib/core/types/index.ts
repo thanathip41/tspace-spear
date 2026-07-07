@@ -9,7 +9,7 @@ import http, {
 import WebSocket from "ws";
 import net from 'net';
 
-type TContextBase = {
+export interface ContextExtensions  {
   req     : TRequest
   res     : TResponse
   headers : THeaders
@@ -24,9 +24,13 @@ type TContextBase = {
 }
 
 type TContext<
-  Override extends Partial<Pick<TContextBase, "body" | "query" | "files" | "params">> = {}
-> =
-  Omit<TContextBase, keyof Override> & Override
+    Override extends Partial<
+        Pick<
+            ContextExtensions, 
+            "body" | "query" | "files" | "params" | "headers"
+        >
+    > = {}
+> = Omit<ContextExtensions, keyof Override> & Override
 
 type TIp = string | null
 type TIps = string[]
@@ -410,11 +414,10 @@ type TWSHandler = {
     close      : (ws: WebSocket & Partial<any>, code: number, reason: Buffer) => void;
     error      : (ws: WebSocket & Partial<any>, error: Error) => void;
 }
-
 export declare namespace T {
     type Context<
         O extends Partial<Pick<
-            TContextBase, "query" | "params" | "body" | "cookies" | "files">
+            ContextExtensions, "query" | "params" | "body" | "files" | "headers">
         > = {}
     >                     = TContext<O>
     type Adapter          = TAdapter
