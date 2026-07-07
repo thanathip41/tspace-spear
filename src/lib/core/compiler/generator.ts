@@ -25,7 +25,6 @@ type Route = {
   query: string;
   files: string;
   headers: string;
-  cookies: string;
   response: string;
 }
 
@@ -549,7 +548,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
           let query = "never"
           let files = "never"
           let headers = "never"
-          let cookies = "nerver"
           
           const firstParam = method.getParameters()[0]
 
@@ -561,7 +559,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
             body    = extractPropertyType(type, "body", firstParam)
             files   = extractPropertyType(type, "files", firstParam)
             headers = extractPropertyType(type, "headers", firstParam)
-            cookies = extractPropertyType(type, "cookies", firstParam)
 
             if(body === 'Record<string, any>') body = "never";
           }
@@ -574,8 +571,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
             params,
             query,
             files,
-            headers,
-            cookies
+            headers
           })
         }
       }
@@ -591,8 +587,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       params: r.params,
       query: r.query,
       files: r.files,
-      headers: r.headers,
-      cookies : r.cookies
+      headers: r.headers
     };
 
     return acc;
@@ -609,7 +604,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       body: ${c.body}
       files: ${c.files}
       headers: ${c.headers}
-      cookies : ${c.cookies}
       response: ${c.response}
     }`).join("\n")
 
@@ -631,7 +625,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       body: parseType(route.body),
       files: parseType(route.files),
       headers: parseType(route.headers),
-      cookies: parseType(route.cookies),
       response: parseType(route.response),
     };
 
