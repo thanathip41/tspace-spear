@@ -617,6 +617,65 @@ import { Spear } from "tspace-spear";
 })()
 ```
 
+### Extending Context Type
+`tspace-spear` supports TypeScript module augmentation, allowing you to extend the default `Context` type with your own application-specific properties.
+
+This is useful for adding custom data such as `user`, `session`, `permissions`, or authentication information.
+```js
+// Create `types.d.ts` in your project src:
+import { ContextExtensions } from 'tspace-spear';
+
+type User = {
+  id    : number;
+  name  : string;
+  email : string;
+}
+
+declare module "tspace-spear" {
+  interface ContextExtensions {
+    user ?: User;
+  }
+}
+
+// Make sure types.d.ts is included in your tsconfig.json:
+
+// {
+//   "include": [
+//     "src",
+//     "src/types.d.ts"
+//   ]
+// }
+
+// index.ts
+import { Spear, type T } from "tspace-spear";
+
+const app = new Spear();
+
+app.use((ctx: T.Context, next: T.NextFunction) => {
+  // fake auth
+  ctx.user = {
+    id: 1,
+    name: "John Doe",
+    email: "john_doe@gmail.com"
+  };
+  return next();
+});
+
+app.get("/", (ctx: T.Context) => {
+
+  if (!ctx.user) {
+    return ctx.res.unauthorized();
+  }
+
+  return ctx.user!;
+});
+
+app.listen(8000, () => {
+  console.log("Server is running at http://localhost:8000");
+});
+
+```
+
 ### Exception
 Exceptions are used to return HTTP errors from your application.
 ```js

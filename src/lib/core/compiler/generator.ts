@@ -24,6 +24,7 @@ type Route = {
   params: string;
   query: string;
   files: string;
+  headers: string;
   response: string;
 }
 
@@ -148,8 +149,9 @@ const parseType = (type: string): any => {
       .filter(Boolean);
 
     for (const field of fields) {
-      const match =
-        field.match(/^(\w+)(\??):\s*(.+)$/);
+      const match = field
+      .replace(/"([^"]+)"(?=\s*:)/g, '$1')
+      .match(/^([\w-]+)(\??):\s*(.+)$/);
 
       if (!match) continue;
 
@@ -225,7 +227,9 @@ const resolveType = (type: Type): string => {
     type.isStringLiteral()  || 
     type.isBooleanLiteral() ||
     type.isNumberLiteral()
-  ) return type.getText();
+  ) {
+    return type.getText();
+  }
   
   if (type.getText() === 'Date' && 
       type.getSymbol()?.getName() === 'Date'
@@ -233,6 +237,7 @@ const resolveType = (type: Type): string => {
     return "Date";
   }
 
+ 
   if (
     type.getText().includes("ServerResponse") &&
     type.getText().includes("TResponse")
@@ -320,6 +325,13 @@ const resolveType = (type: Type): string => {
         value = value.replace(" | undefined", "")
         colon = "?:"
       }
+
+      if(key.includes('-')) {
+        obj.push(
+          `"${key}"${colon} ${value}`
+        );
+        continue;
+      }
      
       obj.push(
         `${key}${colon} ${value}`
@@ -350,6 +362,139 @@ const extractPropertyType = (
 
   return resolveType(t) ?? "never";
 }
+
+const formatExampleValue = (v: any): string => {
+
+  if (v === null) {
+    return "null";
+  }
+
+  if(v === undefined) {
+    return "undefined"
+  }
+
+  if (typeof v === "string") {
+    const t = normalizeType(v.trim());
+
+    if (maybeObject(t)) {
+      const inner = t.trim().slice(1, -1);
+      
+      const result = Object.fromEntries(
+        splitTopLevel(inner)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(pair => {
+            const idx = pair.indexOf(":");
+            const key = pair.slice(0, idx).trim();
+            const type = pair.slice(idx + 1).trim();
+            return [key.replace(/\?/g, ''), type];
+          })
+      );
+      return formatExampleValue(result);
+    } 
+
+    if(maybeArrayObject(t)) {
+
+      const s = v.trim();
+
+      const output = s.replace(
+        /(\w+):\s*(\{[^}]+\})\[\]/,
+        '$1: [$2]'
+      ).match(/\{(.*)\}/)?.[1]
+      
+      if(!output) return `[]`;
+      
+      const result = Object.fromEntries(
+        splitTopLevel(output)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(pair => {
+            const idx = pair.indexOf(":");
+            const key = pair.slice(0, idx).trim();
+            const type = pair.slice(idx + 1).trim();
+            return [key, type];
+          })
+      );
+
+      return formatExampleValue(result)
+    }
+  
+    switch (t) {
+      case "string":
+        return `"example"`;
+
+      case "string[]":
+        return `["example1", "example2", "example3"]`;
+
+      case "number":
+        return "123";
+      
+      case "number[]":
+        return "[1 ,2, 3]"
+
+      case "boolean":
+        return "true";
+
+      case "boolean[]":
+        return "[true, false, true]";
+
+      case "null":
+        return "null";
+
+      case "null[]":
+        return "[null, null, null]";
+
+      case "undefined":
+        return "undefined";
+
+      case "undefined[]":
+        return "[undefined, undefined, undefined]";
+
+      case "date":
+      case "Date":
+        return `"2000-01-01T00:00:00.000Z"`;
+
+      case "date[]":
+      case "Date[]":
+        return `["2000-01-01T00:00:00.000Z","2000-01-02T00:00:00.000Z","2000-01-03T00:00:00.000Z"]`;
+
+      default:
+        return `"${t.replace(/"/g, "")}"`;
+    }
+  }
+
+  if (Array.isArray(v)) {
+    if (!v.length) {
+      return "[]";
+    }
+
+    return `[
+      ${formatExampleValue(v[0])},
+      ${formatExampleValue(v[0])},
+      ${formatExampleValue(v[0])}
+    ]`;
+  }
+
+  if (typeof v === "object") {
+    const entries = Object.entries(v).map(
+      ([key, value]) => {
+
+        if (key.includes("uuid")) {
+          return `"${key}": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`;
+        }
+  
+        if (key === "id" || key.endsWith("id")) {
+          return `"${key}": 123`;
+        }
+
+        return `"${key}": ${formatExampleValue(value)}`;
+      }
+    );
+    return `{ ${entries.map(v => `${v}`).join(", ")} }`;
+  }
+
+  return JSON.stringify(v);
+};
 
 export const generateRoutes = async (globalPrefix: string, options: Options) => {
   const project = new Project({
@@ -402,6 +547,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
           let params = "never"
           let query = "never"
           let files = "never"
+          let headers = "never"
           
           const firstParam = method.getParameters()[0]
 
@@ -412,6 +558,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
             query   = extractPropertyType(type, "query", firstParam)
             body    = extractPropertyType(type, "body", firstParam)
             files   = extractPropertyType(type, "files", firstParam)
+            headers = extractPropertyType(type, "headers", firstParam)
 
             if(body === 'Record<string, any>') body = "never";
           }
@@ -423,7 +570,8 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
             body,
             params,
             query,
-            files
+            files,
+            headers
           })
         }
       }
@@ -439,6 +587,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       params: r.params,
       query: r.query,
       files: r.files,
+      headers: r.headers
     };
 
     return acc;
@@ -454,6 +603,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       query: ${c.query}
       body: ${c.body}
       files: ${c.files}
+      headers: ${c.headers}
       response: ${c.response}
     }`).join("\n")
 
@@ -463,140 +613,6 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
   }`
   })
   .join("\n");
-
-  const formatExampleValue = (v: any): string => {
-
-    if (v === null) {
-      return "null";
-    }
-
-    if(v === undefined) {
-      return "undefined"
-    }
-
-    if (typeof v === "string") {
-      const t = normalizeType(v.trim());
-
-      if (maybeObject(t)) {
-        const inner = t.trim().slice(1, -1);
-        
-        const result = Object.fromEntries(
-          splitTopLevel(inner)
-            .map(s => s.trim())
-            .filter(Boolean)
-            .map(pair => {
-              const idx = pair.indexOf(":");
-              const key = pair.slice(0, idx).trim();
-              const type = pair.slice(idx + 1).trim();
-              return [key.replace(/\?/g, ''), type];
-            })
-        );
-
-        return formatExampleValue(result);
-      } 
-
-      if(maybeArrayObject(t)) {
-
-        const s = v.trim();
-
-        const output = s.replace(
-          /(\w+):\s*(\{[^}]+\})\[\]/,
-          '$1: [$2]'
-        ).match(/\{(.*)\}/)?.[1]
-       
-        if(!output) return `[]`;
-        
-        const result = Object.fromEntries(
-          splitTopLevel(output)
-            .map(s => s.trim())
-            .filter(Boolean)
-            .map(pair => {
-              const idx = pair.indexOf(":");
-              const key = pair.slice(0, idx).trim();
-              const type = pair.slice(idx + 1).trim();
-              return [key, type];
-            })
-        );
-
-        return formatExampleValue(result)
-      }
-   
-      switch (t) {
-        case "string":
-          return `"example"`;
-
-        case "string[]":
-          return `["example1", "example2", "example3"]`;
-
-        case "number":
-          return "123";
-        
-        case "number[]":
-          return "[1 ,2, 3]"
-
-        case "boolean":
-          return "true";
-
-        case "boolean[]":
-          return "[true, false, true]";
-
-        case "null":
-          return "null";
-
-        case "null[]":
-          return "[null, null, null]";
-
-        case "undefined":
-          return "undefined";
-
-        case "undefined[]":
-          return "[undefined, undefined, undefined]";
-
-        case "date":
-        case "Date":
-          return `"2000-01-01T00:00:00.000Z"`;
-
-        case "date[]":
-        case "Date[]":
-          return `["2000-01-01T00:00:00.000Z","2000-01-02T00:00:00.000Z","2000-01-03T00:00:00.000Z"]`;
-
-        default:
-          return `"${t.replace(/"/g, "")}"`;
-      }
-    }
-
-    if (Array.isArray(v)) {
-      if (!v.length) {
-        return "[]";
-      }
-
-      return `[
-        ${formatExampleValue(v[0])},
-        ${formatExampleValue(v[0])},
-        ${formatExampleValue(v[0])}
-      ]`;
-    }
-
-    if (typeof v === "object") {
-      const entries = Object.entries(v).map(
-        ([key, value]) => {
-
-          if (key.includes("uuid")) {
-            return `${key}: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`;
-          }
-   
-          if (key === "id" || key.endsWith("id")) {
-            return `${key}: 123`;
-          }
-
-          return `${key}: ${formatExampleValue(value)}`;
-        }
-      );
-      return `{ ${entries.map(v => `${v}`).join(", ")} }`;
-    }
-
-    return JSON.stringify(v);
-  };
 
   const groupedValues = routes.reduce((acc, route) => {
     if (!acc[route.path]) {
@@ -608,6 +624,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       query: parseType(route.query),
       body: parseType(route.body),
       files: parseType(route.files),
+      headers: parseType(route.headers),
       response: parseType(route.response),
     };
 
@@ -616,6 +633,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
 
   const routerMapValues= Object.entries(groupedValues)
   .map(([path, methods]) => {
+   
     const methodBlock = Object.entries(methods)
       .map(([method, c]: any) => `
     ${method}: {
@@ -623,9 +641,10 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       query: ${formatExampleValue(c.query)},
       body: ${formatExampleValue(c.body)},
       files: ${formatExampleValue(c.files)},
+      headers: ${formatExampleValue(c.headers)},
       response: ${formatExampleValue(c.response)}
     }`).join(",\n");
-
+    
     return `
   "${path}": {
   ${methodBlock}
@@ -642,16 +661,16 @@ ${globalPrefix ?
 `// **The App is using the configuration:
 // globalPrefix: '${globalPrefix}'` : ''
 }
-
-export const appRoutes = {
-${routerMapValues}
-};
-
 export interface AppRoutes {
 ${routeMapTypes}
 };
 
 export type AppRoute = keyof AppRoutes;
+
+export const appRoutes = {
+${routerMapValues}
+};
+
 `
 
   const outPath = options.output

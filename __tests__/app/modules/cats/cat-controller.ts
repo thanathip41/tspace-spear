@@ -27,13 +27,18 @@ class CatController {
   @Get('/')
   public async index({
     query,
-  }: T.Context<{ query: { id?: string ; name?: string } }>) {
+    headers
+  }: T.Context<{ 
+    query: { id?: string ; name?: string } 
+    headers: { 'x-token' : string }
+  }>) {
 
     const cats = this.catService.index();
 
     return {
       message: "ok",
       query,
+      headers,
       cats,
     };
   }

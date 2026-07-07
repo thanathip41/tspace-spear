@@ -36,7 +36,9 @@ describe("TSpear E2E Test", () => {
   });
 
   it("should return all cats", async () => {
-    const res = await client.get("/cats");
+    // const res = await client.get("/cats", {headers : { 'x-token-x' : "token" }}); // error by types;
+    
+    const res = await client.get("/cats", {headers : { 'x-token' : "token" }});
 
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
