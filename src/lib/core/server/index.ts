@@ -19,7 +19,7 @@ import net , { Socket }    from 'net';
 import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
-import type { T }          from '../types';
+import type { T, TPrettify, TRegisterRoute }          from '../types';
 import { Response }        from './response';
 import { Compiler }        from '../compiler';
 import { AppRoutes }       from '../compiler/pre-routes';
@@ -54,7 +54,7 @@ const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
  *  .listen(3000 , () => console.log('server listening on port : 3000'))
  *   
  */
-class Spear {
+class Spear<TRoutes = {}> {
 
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp, preRouteTypes ?: boolean};
     private readonly _middlewares ?: T.ContextHandler[] | { folder : string , name ?: RegExp};
@@ -183,8 +183,28 @@ class Spear {
         return this._router;
     }
 
-    get contract () : AppRoutes {
-        return {} as AppRoutes
+    /**
+     * The get 'contract' method is used to get the complete API contract inferred from all registered routes.
+     *
+     * Includes:
+     * - Route paths
+     * - HTTP methods
+     * - Params
+     * - Query
+     * - Body
+     * - Files
+     * - Response
+     *
+     * @example
+     * ```ts
+     * type API = typeof app.contract;
+     *
+     * API["/users/:id"].GET.params
+     * API["/users/:id"].GET.response
+     * ```
+     */
+    get contract () : TPrettify<TRoutes> & TPrettify<AppRoutes> {
+        return {} as TPrettify<TRoutes> & TPrettify<AppRoutes>
     }
 
     /**
@@ -749,7 +769,13 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public get (path : string , ...handlers : T.ContextHandler[]): this {
+    public get<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>> { 
 
         this._onListeners.push(() => {
             return this._router.get(
@@ -758,7 +784,7 @@ class Spear {
             );
         })
 
-        return this
+        return this as any
     }
 
     /**
@@ -770,14 +796,21 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public post (path : string , ...handlers : T.ContextHandler[]): this {
+    public post<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>> {
         this._onListeners.push(() => {
             return this._router.post(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'post' }), path),  
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+
+        return this as any
     }
 
     /**
@@ -789,14 +822,20 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public put (path : string , ...handlers : T.ContextHandler[]): this {
+    public put<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>> {
         this._onListeners.push(() => {
             return this._router.put(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'put' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     /**
@@ -808,14 +847,20 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public patch (path : string , ...handlers : T.ContextHandler[]): this {
+    public patch<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>> {
         this._onListeners.push(() => {
             return this._router.patch(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'patch' }), path),  
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     /**
@@ -827,14 +872,20 @@ class Spear {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public delete (path : string , ...handlers : T.ContextHandler[]): this {
+    public delete<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>> {
         this._onListeners.push(() => {
             return this._router.delete(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'delete' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     /**
@@ -846,18 +897,24 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public head (path : string , ...handlers : T.ContextHandler[]): this {
+    public head<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>> {
         this._onListeners.push(() => {
             return this._router.head(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'head' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     /**
-     * The 'head' method is used to add the request handler to the router for 'HEAD' methods.
+     * The 'options' method is used to add the request handler to the router for 'OPTIONS' methods.
      * 
      * @param {string} path
      * @callback {...Function[]} handlers of the middlewares
@@ -865,14 +922,20 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public options (path : string , ...handlers : T.ContextHandler[]): this {
+    public options <
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>> {
         this._onListeners.push(() => {
             return this._router.options(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'options' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     /**
@@ -884,14 +947,20 @@ class Spear {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public all (path : string , ...handlers : T.ContextHandler[]): this {
+    public all<
+        const Path extends string,
+        const Handlers extends ((ctx: any, next: any) => any)[]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>> {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'all' }), path), 
                 this._wrapHandlers(...this._globalMiddlewares,...handlers)
             );
         })
-        return this
+        return this as any
     }
 
     private async _import(

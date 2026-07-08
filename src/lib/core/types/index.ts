@@ -414,6 +414,73 @@ type TWSHandler = {
     close      : (ws: WebSocket & Partial<any>, code: number, reason: Buffer) => void;
     error      : (ws: WebSocket & Partial<any>, error: Error) => void;
 }
+
+type Route<
+  Params = never,
+  Query = never,
+  Body = never,
+  Files = never,
+  Response = unknown
+> = {
+  params: Params;
+  query: Query;
+  body: Body;
+  files: Files;
+  response: Response;
+};
+
+type Last<T extends any[]> = T extends [...any[], infer L] ? L : never;
+
+type _ParseParams<Path extends string> =
+  Path extends `${infer _Before}:${infer Param}/${infer After}`
+    ? { [K in Param]: string } & _ParseParams<After>
+    : Path extends `${infer _Before}:${infer Param}`
+    ? { [K in Param]: string }
+    : unknown;
+
+type ParseParams<Path extends string> = 
+  unknown extends _ParseParams<Path> 
+    ? never 
+    : TPrettify<_ParseParams<Path>>;
+
+type ExtractRoute<H, Path extends string> = H extends (ctx: infer C, ...args: any[]) => infer R
+  ? Route<
+      C extends { params: infer P }
+        ? [P] extends [never]
+          ? ParseParams<Path>
+          : ParseParams<Path> extends never
+            ? P 
+            : TPrettify<Omit<ParseParams<Path>, keyof P> & P>
+        : ParseParams<Path>,
+      C extends { query: infer Q } ? Q : never,
+      C extends { body: infer B } ? B : never,
+      C extends { files: infer F } ? F : never,
+      Awaited<R>
+    >
+  : Route<never, never, never, never, unknown>;
+
+type AddRoute<
+  Routes,
+  Path extends string,
+  Method extends string,
+  Info
+> = Omit<Routes, Path> & {
+  [P in Path]: (P extends keyof Routes ? Routes[P] : {}) & {
+    [M in Method]: Info;
+  };
+};
+
+export type TPrettify<T> = {
+  [K in keyof T]: T[K] extends object ? TPrettify<T[K]> : T[K];
+} & {};
+
+export type TRegisterRoute<
+  Routes,
+  Path extends string,
+  Method extends string,
+  Handlers extends any[]
+> = AddRoute<Routes, Path, Method, ExtractRoute<Last<Handlers>, Path>>;
+
 export declare namespace T {
     type Context<
         O extends Partial<Pick<
