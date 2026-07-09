@@ -2,10 +2,11 @@ import {
   ParameterDeclaration, 
   Project, 
   Type 
-} from "ts-morph"
-import ts from "typescript"
-import fs from "fs"
-import path from "path"
+} from "ts-morph";
+
+import ts   from "typescript";
+import fs   from "fs";
+import path from "path";
 
 const HTTP_METHODS = {
   Get: "GET",
@@ -237,9 +238,8 @@ const resolveType = (type: Type): string => {
     return "Date";
   }
 
- 
   if (
-    type.getText().includes("ServerResponse") &&
+    type.getText().includes("Response") &&
     type.getText().includes("TResponse")
   ) {
     
@@ -249,7 +249,7 @@ const resolveType = (type: Type): string => {
       const text = t.getText();
 
       return (
-        !text.includes("ServerResponse") &&
+        !text.includes("Response") &&
         !text.includes("TResponse")
       );
     })

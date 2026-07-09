@@ -771,7 +771,7 @@ class Spear<TRoutes = {}> {
      */
     public get<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -798,7 +798,7 @@ class Spear<TRoutes = {}> {
      */
     public post<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -824,7 +824,7 @@ class Spear<TRoutes = {}> {
      */
     public put<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -849,7 +849,7 @@ class Spear<TRoutes = {}> {
      */
     public patch<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -874,7 +874,7 @@ class Spear<TRoutes = {}> {
      */
     public delete<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -899,7 +899,7 @@ class Spear<TRoutes = {}> {
      */
     public head<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -924,7 +924,7 @@ class Spear<TRoutes = {}> {
      */
     public options <
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -949,7 +949,7 @@ class Spear<TRoutes = {}> {
      */
     public all<
         const Path extends string,
-        const Handlers extends ((ctx: any, next: any) => any)[]
+        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -1699,7 +1699,7 @@ class Spear<TRoutes = {}> {
 
         const request = req as T.Request;
 
-        const response = Response(req, res, {
+        const response = new Response(req, res, {
             formatResponse : this._formatResponse,
             isUwebSocket :  this._adapter.kind === 'uWS'
         }) as T.Response

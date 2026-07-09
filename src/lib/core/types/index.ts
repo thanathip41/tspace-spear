@@ -8,6 +8,7 @@ import http, {
 
 import WebSocket from "ws";
 import net from 'net';
+import { Response } from '../server/response'
 
 export interface ContextExtensions  {
   req     : TRequest
@@ -110,37 +111,37 @@ type TResponse = {
     noContent: <T extends string> (message?: T) => T.Response & T
 
     /** 400 Bad Request - Invalid request from client */
-    badRequest: <T extends string> (message?: T) => T.Response & T
+    badRequest: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 400 }
 
     /** 401 Unauthorized - Authentication required or failed */
-    unauthorized: <T extends string> (message?: T) => T.Response & T
+    unauthorized: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 401 }
 
     /** 402 Payment Required - Reserved for future/payment flow */
-    paymentRequired: <T extends string> (message?: T) => T.Response & T
+    paymentRequired: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 402 }
 
     /** 403 Forbidden - Client does not have access rights */
-    forbidden: <T extends string> (message?: T) => T.Response & T
+    forbidden: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 403 }
 
     /** 404 Not Found - Resource does not exist */
-    notFound: <T extends string> (message?: T) => T.Response & T
+    notFound: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 404 }
 
     /** 422 Unprocessable Entity - Valid request but semantic errors */
-    unprocessable: <T extends string> (message?: T) => T.Response & T
+    unprocessable: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 422 }
 
     /** 429 Too Many Requests - Rate limit exceeded */
-    tooManyRequests: <T extends string> (message?: T) => T.Response & T
+    tooManyRequests: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 429 }
 
     /** 500 Internal Server Error - Generic server failure */
-    serverError: <T extends string> (message?: T) => T.Response & T
+    serverError: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 500 }
 
     /** 502 Bad Gateway - Invalid response from upstream server */
-    badGateway: <T extends string> (message?: T) => T.Response & T
+    badGateway: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 502 }
 
     /** 503 Service Unavailable - Server temporarily unavailable */
-    unavailable: <T extends string> (message?: T) => T.Response & T
+    unavailable: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 503 }
 
     /** 504 Gateway Timeout - Upstream server timeout */
-    gatewayTimeout: <T extends string> (message?: T) => T.Response & T
+    gatewayTimeout: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 504 }
 
     /**
      * Serve a media file (video, image, PDF, etc.) from file system.
@@ -443,6 +444,11 @@ type ParseParams<Path extends string> =
     ? never 
     : TPrettify<_ParseParams<Path>>;
 
+    type ExtractResponse<T> =
+    Awaited<T> extends T.Response & infer U
+        ? U
+        : Awaited<T>;
+
 type ExtractRoute<H, Path extends string> = H extends (ctx: infer C, ...args: any[]) => infer R
   ? Route<
       C extends { params: infer P }
@@ -455,7 +461,7 @@ type ExtractRoute<H, Path extends string> = H extends (ctx: infer C, ...args: an
       C extends { query: infer Q } ? Q : never,
       C extends { body: infer B } ? B : never,
       C extends { files: infer F } ? F : never,
-      Awaited<R>
+    ExtractResponse<R>
     >
   : Route<never, never, never, never, unknown>;
 

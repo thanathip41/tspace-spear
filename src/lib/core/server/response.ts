@@ -5,14 +5,14 @@ import {
 import type { T }  from "../types";
 import { pipeStream } from "../utils";
 
-type Response = T.Response & {
+type TResponse = T.Response & {
     _isUwebSocket : boolean;
     _formatResponse: Function | null;
     _req : T.Request;
 }
 
 
-function json(this: Response, results?: Record<string, any>) {
+function json(this: TResponse, results?: Record<string, any>) {
     const res = this;
 
     if (res.writableEnded) return;
@@ -24,7 +24,7 @@ function json(this: Response, results?: Record<string, any>) {
     return res.end(JSON.stringify(results));
 }
 
-function send(this: Response, message: string) {
+function send(this: TResponse, message: string) {
     const res = this;
 
     if (res.writableEnded) return;
@@ -32,7 +32,7 @@ function send(this: Response, message: string) {
     return res.end(message);
 }
 
-function html(this: Response, html: string) {
+function html(this: TResponse, html: string) {
     const res = this;
 
     if (res.writableEnded) return;
@@ -45,7 +45,7 @@ function html(this: Response, html: string) {
     return res.end(html);
 }
 
-function status(this: Response, code: T.StatusCode) {
+function status(this: TResponse, code: T.StatusCode) {
     return {
         json: (data?: Record<string, any>) => {
             if (!this.headersSent) {
@@ -73,63 +73,63 @@ function status(this: Response, code: T.StatusCode) {
     };
 }
 
-function ok(this: Response, results?: Record<string, any>) {
+function ok(this: TResponse, results?: Record<string, any>) {
     return this.status(200).json(results);
 }
 
-function created(this: Response, results?: Record<string, any>) {
+function created(this: TResponse, results?: Record<string, any>) {
     return this.status(201).json(results);
 }
 
-function accepted(this: Response, results?: Record<string, any>) {
+function accepted(this: TResponse, results?: Record<string, any>) {
     return this.status(202).json(results);
 }
 
-function noContent(this: Response) {
+function noContent(this: TResponse) {
     return this.status(204).end();
 }
 
-function badRequest(this: Response, message?: string) {
+function badRequest(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
     return this.status(400).json({ message });
 }
 
-function unauthorized(this: Response, message?: string) {
+function unauthorized(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' is unauthorized. Please verify.`;
     return this.status(401).json({ message });
 }
 
-function paymentRequired(this: Response, message?: string) {
+function paymentRequired(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' requires payment. Please proceed with payment.`;
     return this.status(402).json({ message });
 }
 
-function forbidden(this: Response, message?: string) {
+function forbidden(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
     return this.status(403).json({ message });
 }
 
-function notFound(this: Response, message?: string) {
+function notFound(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' was not found. Please re-check your URL again.`;
     return this.status(404).json({ message });
 }
 
-function unprocessable(this: Response, message?: string) {
+function unprocessable(this: TResponse, message?: string) {
     message ??= `The request to '${this._req.url}' failed validation.`;
     return this.status(422).json({ message });
 }
 
-function tooManyRequests(this: Response, message?: string) {
+function tooManyRequests(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' is too many requests. Please wait and try again.`;
     return this.status(429).json({ message });
 }
 
-function serverError(this: Response, message?: string) {
+function serverError(this: TResponse, message?: string) {
     message ??= `The request '${this._req.url}' resulted in a server error. Please investigate.`;
     return this.status(500).json({ message });
 }
 
-function serveMedia(this: Response, filePath: string) {
+function serveMedia(this: TResponse, filePath: string) {
     return pipeStream({
         req: this._req,
         res: this,
@@ -138,14 +138,14 @@ function serveMedia(this: Response, filePath: string) {
     });
 }
 
-function setStatusCode(this: Response, code: T.StatusCode) {
+function setStatusCode(this: TResponse, code: T.StatusCode) {
     if (!this.headersSent) {
         this.writeHead(code, HEADER_CONTENT_TYPES.json);
     }
 }
 
 function setCookies(
-    this: Response,
+    this: TResponse,
     cookies: Record<
         string,
         string | {
@@ -191,7 +191,7 @@ function setCookies(
     this.setHeader("Set-Cookie", cookieLists);
 }
 
-function error(this: Response, err: any) {
+function error(this: TResponse, err: any) {
     const statusCandidates = [
         err?.response?.data?.code,
         err?.code,
@@ -228,44 +228,40 @@ function error(this: Response, err: any) {
     return this.end(JSON.stringify(payload));
 }
 
-export const Response = (req : T.Request, res : T.Response , { 
-    formatResponse,
-    isUwebSocket
-} : { 
-    formatResponse ?: Function | null
-    isUwebSocket ?: boolean
-}
-): T.Response => {
+export class Response {
+    constructor(
+        req: T.Request,
+        res: T.Response,
+        options: {
+            formatResponse?: Function | null;
+            isUwebSocket?: boolean;
+        }
+    ) {
+        Object.assign(this, res, {
+            _req: req,
+            _formatResponse: options.formatResponse,
+            _isUwebSocket: options.isUwebSocket,
 
-    const response = res as unknown as T.Response
-
-    Object.assign(response, {
-
-        _req: req,
-        _formatResponse: formatResponse,
-        _isUwebSocket: isUwebSocket,
-
-        status,
-        json,
-        send,
-        html,
-        error,
-        ok,
-        created,
-        accepted,
-        noContent,
-        badRequest,
-        unauthorized,
-        paymentRequired,
-        forbidden,
-        notFound,
-        unprocessable,
-        tooManyRequests,
-        serverError,
-        setCookies,
-        setStatusCode,
-        serveMedia
-    });
-
-    return response
+            status,
+            json,
+            send,
+            html,
+            error,
+            ok,
+            created,
+            accepted,
+            noContent,
+            badRequest,
+            unauthorized,
+            paymentRequired,
+            forbidden,
+            notFound,
+            unprocessable,
+            tooManyRequests,
+            serverError,
+            setCookies,
+            setStatusCode,
+            serveMedia
+        });
+    }
 }
