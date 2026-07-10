@@ -19,7 +19,6 @@ import net , { Socket }    from 'net';
 import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
-import type { T, TPrettify, TRegisterRoute }          from '../types';
 import { Response }        from './response';
 import { Compiler }        from '../compiler';
 import { AppRoutes }       from '../compiler/pre-routes';
@@ -27,6 +26,14 @@ import { AppRoutes }       from '../compiler/pre-routes';
 import { uWSAdaptRequestResponse } from './uWS';
 import { netAdaptRequestResponse } from './net';
 import { httpAdaptRequestResponse } from './http';
+
+import type { 
+    T, 
+    TExtractParams, 
+    TPrettify, 
+    TRegisterRoute 
+}  from '../types';
+
 import { 
     CONTROLLER_METADATA, 
     MIDDLEWARE_METADATA, 
@@ -38,6 +45,7 @@ import {
 
 const EMPTY = Object.freeze(Object.create(null));
 const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
+
 /**
  * 
  * The 'Spear' class is used to create a server and handle HTTP requests.
@@ -771,7 +779,12 @@ class Spear<TRoutes = {}> {
      */
     public get<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -780,11 +793,14 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.get(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'get' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
 
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>>;
     }
 
     /**
@@ -798,7 +814,12 @@ class Spear<TRoutes = {}> {
      */
     public post<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -806,11 +827,14 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.post(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'post' }), path),  
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
 
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>>;
     }
 
     /**
@@ -824,7 +848,12 @@ class Spear<TRoutes = {}> {
      */
     public put<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -832,10 +861,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.put(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'put' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                 this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>>;
     }
 
     /**
@@ -849,7 +881,12 @@ class Spear<TRoutes = {}> {
      */
     public patch<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -857,10 +894,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.patch(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'patch' }), path),  
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>>;
     }
 
     /**
@@ -874,7 +914,12 @@ class Spear<TRoutes = {}> {
      */
     public delete<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -882,10 +927,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.delete(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'delete' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>>
     }
 
     /**
@@ -899,7 +947,12 @@ class Spear<TRoutes = {}> {
      */
     public head<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -907,10 +960,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.head(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'head' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>>
     }
 
     /**
@@ -924,7 +980,12 @@ class Spear<TRoutes = {}> {
      */
     public options <
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -932,10 +993,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.options(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'options' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>>
     }
 
     /**
@@ -949,7 +1013,12 @@ class Spear<TRoutes = {}> {
      */
     public all<
         const Path extends string,
-        const Handlers extends ((ctx: T.Context, next: T.NextFunction) => any)[]
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
     >(
         path: Path, 
         ...handlers: Handlers
@@ -957,10 +1026,13 @@ class Spear<TRoutes = {}> {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'all' }), path), 
-                this._wrapHandlers(...this._globalMiddlewares,...handlers)
+                 this._wrapHandlers(
+                    ...this._globalMiddlewares,
+                    ...handlers as unknown as T.ContextHandler[]
+                )
             );
         })
-        return this as any
+        return this as Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>>
     }
 
     private async _import(

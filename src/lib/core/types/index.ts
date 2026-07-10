@@ -8,7 +8,6 @@ import http, {
 
 import WebSocket from "ws";
 import net from 'net';
-import { Response } from '../server/response'
 
 export interface ContextExtensions  {
   req     : TRequest
@@ -444,7 +443,7 @@ type ParseParams<Path extends string> =
     ? never 
     : TPrettify<_ParseParams<Path>>;
 
-    type ExtractResponse<T> =
+type ExtractResponse<T> =
     Awaited<T> extends T.Response & infer U
         ? U
         : Awaited<T>;
@@ -475,6 +474,13 @@ type AddRoute<
     [M in Method]: Info;
   };
 };
+
+export type TExtractParams<Path extends string> = 
+    Path extends `${string}:${infer Param}/${infer Rest}`
+        ? { [K in Param]: string | number } & TExtractParams<`/${Rest}`>
+        : Path extends `${string}:${infer Param}`
+        ? { [K in Param]: string | number }
+        : {};
 
 export type TPrettify<T> = {
   [K in keyof T]: T[K] extends object ? TPrettify<T[K]> : T[K];
