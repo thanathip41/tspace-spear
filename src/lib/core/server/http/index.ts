@@ -59,37 +59,22 @@ export const httpAdaptRequestResponse = (
 
       response.statusCode = status;
 
-
-
       if (!response.headersSent) {
-
         res.writeHead(status, context);
-
         response.headersSent = true;
-
       }
 
-
-
       return response;
-
     },
     writeStatus(status: number) {
 
       response.statusCode = status;
 
-
-
       if (!response.headersSent) {
-
         res.statusCode = status;
-
       }
 
-
-
       return response;
-
     },
     end(chunk?: unknown) {
       

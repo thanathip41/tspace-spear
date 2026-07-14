@@ -55,6 +55,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       return res;
     },
     writeHead(status: number, context: Record<string, string>) {
+
       res.writeHeaders = {
         ...res.writeHeaders,
         [status]: context,

@@ -13,42 +13,45 @@ type TResponse = T.Response & {
 
 
 function json(this: TResponse, results?: Record<string, any>) {
-    const res = this;
+    if (this.writableEnded) return;
 
-    if (res.writableEnded) return;
-
-    if (!res.headersSent) {
-        res.writeHead(200, HEADER_CONTENT_TYPES.json);
+    if (!this.headersSent) {
+        this.headersSent = true;
+        this.writeHead(
+            200, 
+            HEADER_CONTENT_TYPES.json
+        );   
     }
 
-    return res.end(JSON.stringify(results));
+    return this.end(JSON.stringify(results));
 }
 
 function send(this: TResponse, message: string) {
-    const res = this;
+    if (this.writableEnded) return;
 
-    if (res.writableEnded) return;
-
-    return res.end(message);
+    return this.end(message);
 }
 
 function html(this: TResponse, html: string) {
-    const res = this;
+    if (this.writableEnded) return;
 
-    if (res.writableEnded) return;
-
-    res.writeHead(
-        res.statusCode as T.StatusCode, 
-        HEADER_CONTENT_TYPES.html
-    );
-
-    return res.end(html);
+    if (!this.headersSent) {
+        this.headersSent = true;
+        this.writeHead(
+            200, 
+            HEADER_CONTENT_TYPES.html
+        );
+    }
+    
+    return this.end(html);
 }
 
 function status(this: TResponse, code: T.StatusCode) {
     return {
         json: (data?: Record<string, any>) => {
+
             if (!this.headersSent) {
+                this.headersSent = true;
                 this.writeHead(code, HEADER_CONTENT_TYPES.json);
             }
 
@@ -56,7 +59,9 @@ function status(this: TResponse, code: T.StatusCode) {
         },
 
         send: (message: string) => {
+
             if (!this.headersSent) {
+                this.headersSent = true;
                 this.writeHead(code, HEADER_CONTENT_TYPES.text);
             }
 
@@ -64,7 +69,9 @@ function status(this: TResponse, code: T.StatusCode) {
         },
 
         end: (message?: string) => {
+            
             if (!this.headersSent) {
+                this.headersSent = true;
                 this.writeHead(code, HEADER_CONTENT_TYPES.text);
             }
 
@@ -140,6 +147,7 @@ function serveMedia(this: TResponse, filePath: string) {
 
 function setStatusCode(this: TResponse, code: T.StatusCode) {
     if (!this.headersSent) {
+        this.headersSent = true;
         this.writeHead(code, HEADER_CONTENT_TYPES.json);
     }
 }
