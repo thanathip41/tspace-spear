@@ -144,7 +144,12 @@ class Spear<
         logger,
         cluster,
         adapter
-    } : T.Application & TOptions & Record<Exclude<keyof TOptions, keyof T.Application>, never>) {
+    } : 
+        & T.Application 
+        & TOptions 
+        & Record<Exclude<keyof TOptions, keyof T.Application>, never> 
+        = {} as any
+    ) {
         this._controllers   = controllers;
         this._middlewares   = middlewares;
         
