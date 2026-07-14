@@ -14,10 +14,6 @@ const {
 
 const runApps = async () => {
   const apps = [
-    // base on uWS
-    { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
-    { name: 'uWS', app: ServerUWS },
-
     // // base on http
     { name: 'tspace-spear(net)', app: ServerSpearNet },
     { name: 'tspace-spear', app: ServerSpear },
