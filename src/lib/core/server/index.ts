@@ -62,7 +62,10 @@ const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
  *  .listen(3000 , () => console.log('server listening on port : 3000'))
  *   
  */
-class Spear<TRoutes = {}> {
+class Spear<
+    const TRoutes = {}, 
+    const TOptions extends T.Application = {}
+> {
 
     private readonly _controllers ?: (new () => any)[] | { folder : string ,  name ?: RegExp, preRouteTypes ?: boolean};
     private readonly _middlewares ?: T.ContextHandler[] | { folder : string , name ?: RegExp};
@@ -141,7 +144,7 @@ class Spear<TRoutes = {}> {
         logger,
         cluster,
         adapter
-    } : T.Application = {}) {
+    } : TOptions) {
         this._controllers   = controllers;
         this._middlewares   = middlewares;
         
@@ -211,8 +214,12 @@ class Spear<TRoutes = {}> {
      * API["/users/:id"].GET.response
      * ```
      */
-    get contract () : TPrettify<TRoutes> & TPrettify<AppRoutes> {
-        return {} as TPrettify<TRoutes> & TPrettify<AppRoutes>
+    get contract() {
+        return {} as TPrettify<
+            TOptions["controllers"] extends { preRouteTypes?: true }
+                ? TRoutes & AppRoutes
+                : TRoutes
+        > 
     }
 
     /**
@@ -563,16 +570,24 @@ class Spear<TRoutes = {}> {
      * @property  {Function} router - get() , post() , put() , patch() , delete() 
      * @returns {this}
      */
-    public useRouter (router : Router): this {
+    public useRouter<Routes>(
+        router: Router<Routes>
+    ): Spear<typeof this.contract & Routes> {
 
-        const routes = router.routes
+        const routes = router.routes;
 
-        for(const { path , method , handlers } of routes) {
-            this[method](this._normalizePath(this._resolveGlobalPrefix({ path , method }) , path) , ...handlers)
+        for (const { path, method, handlers } of routes) {
+            this[method](
+                this._normalizePath(
+                    this._resolveGlobalPrefix({ path, method }),
+                    path
+                ),
+                ...handlers
+            );
         }
 
-        return this
-    } 
+        return this as Spear<typeof this.contract & Routes>
+    }
 
     /**
      * The 'useSwagger' method is a middleware used to create swagger api.

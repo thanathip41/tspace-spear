@@ -1,5 +1,11 @@
-import type { T } from "../types"
-class Router {
+import type { 
+    T, 
+    TExtractParams, 
+    TPrettify, 
+    TRegisterRoute 
+} from "../types"
+
+class Router<TRoutes = {}> {
 
     private _routes : {
         path : string;
@@ -11,6 +17,10 @@ class Router {
         return this._routes
     }
 
+    get contract () : TPrettify<TRoutes> {
+        return {} as TPrettify<TRoutes>
+    }
+
     /**
      * The 'groups' method is used to add the request handler to the router for 'GET' 'POST' 'PUT' 'PATCH' 'DELETE' methods.
      * 
@@ -18,15 +28,26 @@ class Router {
      * @param {Router} router
      * @returns {this}
      */
-    public groups (prefix : `/${string}`, router : (router : Router) => Router): this {
-        const routes =  router(new Router());
+    public groups<
+        const Prefix extends `/${string}`,
+        R extends Router<any>
+    >(
+        prefix: Prefix,
+        router: (router: Router) => R
+    ): Router<
+        TRoutes & {
+            [K in keyof R["contract"] as `${Prefix}${K & string}`]:
+                R["contract"][K]
+        }
+    > {
+        const routes = router(new Router());
 
-        for(const route of routes._routes) {
-            route.path = `${prefix}${route.path}`.replace(/^\/+/, '/')
-            this._routes.push(route)
+        for (const route of routes.routes) {
+            route.path = `${prefix}${route.path}`.replace(/^\/+/, "/");
+            this._routes.push(route);
         }
 
-        return this;
+        return this as any;
     }
 
     /**
@@ -38,14 +59,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public get(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public get<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "GET", Handlers>> { 
+        
         this._routes.push({
             path,
             method : 'get',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         })
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "GET", Handlers>>;
     }
 
     /**
@@ -57,14 +90,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public post(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public post<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "POST", Handlers>> { 
+
         this._routes.push({
             path,
             method : 'post',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         })
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "POST", Handlers>>;
     }
 
     /**
@@ -76,15 +121,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public put(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public put<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "PUT", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'put',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "PUT", Handlers>>;
     }
 
     /**
@@ -96,15 +152,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public patch(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public patch<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'patch',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>>;
     }
 
      /**
@@ -116,15 +183,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public delete(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public delete<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'delete',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>>;
     }
 
     /**
@@ -136,15 +214,26 @@ class Router {
      * @property  {function} next  - go to next function
      * @returns {this}
      */
-    public all(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public all<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'all',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>>;
     }
 
     /**
@@ -156,15 +245,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public head(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public head<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'head',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>>;
     }
 
     /**
@@ -176,15 +276,26 @@ class Router {
      * @property  {Function} next  - go to next function
      * @returns {this}
      */
-    public options(path : `/${string}` , ...handlers : ((ctx : T.Context , next : T.NextFunction) => any)[]): this {
+    public options<
+        const Path extends string,
+        const Handlers extends { 
+            cb(
+                ctx: T.Context<{ params: TExtractParams<Path>}>, 
+                next: T.NextFunction
+            ): any 
+        }["cb"][]
+    >(
+        path: Path, 
+        ...handlers: Handlers
+    ): Router<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>> { 
 
         this._routes.push({
             path,
             method : 'options',
-            handlers
+            handlers : handlers as unknown as T.ContextHandler[]
         });
 
-        return this;
+        return this as Router<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>>;
     }
 }
 
