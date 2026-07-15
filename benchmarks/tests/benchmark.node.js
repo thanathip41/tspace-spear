@@ -4,6 +4,7 @@ const { ServerUWS } = require('../servers/uWS')
 const { ServerExpress } = require('../servers/express')
 const { ServerFastify } = require('../servers/fastify')
 const { ServerHttp } = require('../servers/http')
+const { Server0Http } = require('../servers/0http')
 const { ServerElysiaNode } = require('../servers/elysia')
 const { ServerHonoNode } = require('../servers/hono')
 const { 
@@ -19,6 +20,7 @@ const runApps = async () => {
     { name: 'tspace-spear', app: ServerSpear },
     { name: 'express', app: ServerExpress },
     { name: 'http', app: ServerHttp },
+    { name: '0http', app: Server0Http },
     { name: 'fastify', app: ServerFastify },
    
     // // base on bun

@@ -1,9 +1,7 @@
 const http = require('http')
 
 const ServerHttp = ({ name, port, message }) => {
-  const server = http.createServer({
-    noDelay: true
-  },(req, res) => {
+  const server = http.createServer((req, res) => {
     if (req.url === '/' && req.method === 'GET') {
       return res.end(message)
     }

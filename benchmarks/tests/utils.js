@@ -36,44 +36,52 @@ const runBenchmark = async (apps) => {
   const results = []
   const randomized = shuffle(apps)
 
+  // Force garbage collection between tests to reduce memory pressure
+  if (global.gc) {
+    global.gc()
+  }
+
   for (const { name, port } of randomized) {
     const url = getFullURL(port)
 
-    // warm-up run
-    await new Promise((resolve, reject) => {
-      autocannon(
-        {
-          url,
-          connections: 2,
-          duration: 2,
-          pipelining: 1,
-        },
-        (err) => {
-          if (err) return reject(err)
-          resolve(true)
-        }
-      )
-    }).catch(() => null)
+    console.log(`\n>>> Starting benchmark for: ${name} at ${url}`)
 
-    // main benchmark
-    const result = await new Promise((resolve, reject) => {
-      autocannon(
-        {
-          url,
-          connections,
-          duration,
-          pipelining,
-        },
-        (err, result) => {
-          if (err) return reject(err)
-          resolve(result)
-        }
-      )
-    }).catch(() => null)
+    // warm-up run - stabilize the server before actual benchmark
+    console.log(`    Warming up...`)
+    await autocannon({
+      url,
+      path: '/',
+      connections: 10,
+      duration: 3,
+      pipelining: 1,
+      title: `warmup-${name}`,
+    })
 
-    if (!result) continue
+    // cool-down between warmup and real benchmark
+    await sleep(1000)
+
+    // main benchmark run
+    console.log(`    Running main benchmark...`)
+    const result = await autocannon({
+      url,
+      path: '/',
+      connections,
+      duration,
+      pipelining,
+      title: name,
+      verifyBody: false,
+      // reduce memory footprint
+      excludeErrorStats: false,
+    })
+
+    if (!result) {
+      console.log(`    ! Failed to get results for ${name}`)
+      continue
+    }
 
     const latency = result.latency
+    const errorCount = typeof result.errors === 'number' ? result.errors : (result.errors?.total || 0)
+    const timeoutCount = typeof result.timeouts === 'number' ? result.timeouts : (result.timeouts?.total || 0)
 
     const ctx = {
       name,
@@ -92,12 +100,22 @@ const runBenchmark = async (apps) => {
       // Stability
       stddev: Number(latency.stddev.toFixed(2)),
 
-      errors: result.errors,
-      timeouts: result.timeouts,
+      errors: errorCount,
+      timeouts: timeoutCount,
       'throughput(kB/s)': Number((result.throughput.average / 1024).toFixed(2)),
     }
 
     results.push(ctx)
+    console.log(`    Completed: ${name} - ${ctx['req/sec']} req/sec`)
+
+    // cool-down between servers to reduce CPU/memory pressure
+    console.log(`    Cooling down...`)
+    await sleep(2000)
+
+    // Force garbage collection after each server benchmark
+    if (global.gc) {
+      global.gc()
+    }
   }
 
   results.forEach((r) => {
@@ -106,6 +124,7 @@ const runBenchmark = async (apps) => {
 
   results.sort((a, b) => b.score - a.score)
 
+  console.log('\n=== Benchmark Results (sorted by score) ===\n')
   console.table(results)
 }
 
