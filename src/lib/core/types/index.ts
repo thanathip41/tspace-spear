@@ -84,6 +84,7 @@ type TResponse = {
      */
     uWS: any; // typeof import('uWebSockets.js').HttpResponse
     http : ServerResponse;
+    net : any;
     
     writableEnded: boolean;
     aborted: boolean;

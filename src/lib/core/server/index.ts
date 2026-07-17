@@ -402,7 +402,10 @@ class Spear<
             }
           
             const statusCode = (res: T.Response) => {
-                const statusCode = res.statusCode == null ? 500 : Number(res.statusCode);
+             
+                const httpStatusCode = res.http?.statusCode | res.uWS?.statusCode | res.net?.statusCode 
+
+                const statusCode = httpStatusCode == null ? 500 : httpStatusCode;
                 return statusCode < 400
                     ? `\x1b[32m${statusCode}\x1b[0m`
                     : `\x1b[31m${statusCode}\x1b[0m`

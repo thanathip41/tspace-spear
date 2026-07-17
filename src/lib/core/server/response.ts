@@ -23,6 +23,14 @@ function json(this: TResponse, results?: Record<string, any>) {
         );   
     }
 
+    if (this._formatResponse) {
+        return this.end(
+            JSON.stringify(
+                this._formatResponse(results,this.statusCode)
+            )
+        );
+    }
+
     return this.end(JSON.stringify(results));
 }
 
@@ -246,6 +254,7 @@ export class Response {
         }
     ) {
         Object.assign(this, res, {
+            _res: res,
             _req: req,
             _formatResponse: options.formatResponse,
             _isUwebSocket: options.isUwebSocket,

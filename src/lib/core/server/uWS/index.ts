@@ -63,6 +63,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
 
       res.headersSent = true;
 
+      res.uWS.statusCode = status;
       res.statusCode = status;
 
       return res;

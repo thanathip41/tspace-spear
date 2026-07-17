@@ -58,7 +58,8 @@ export const httpAdaptRequestResponse = (
     writeHead(status: number, context: Record<string, string>) {
 
       response.statusCode = status;
-
+      response.http.statusCode = status;
+     
       if (!response.headersSent) {
         res.writeHead(status, context);
         response.headersSent = true;

@@ -12,6 +12,7 @@ import {
 
 const createResponseObject = (socket: any) => {
   const res = {
+    net: socket,
     socket,
     statusCode: 200,
     headersSent: false,
@@ -23,42 +24,33 @@ const createResponseObject = (socket: any) => {
     } as Record<string, string | number>,
 
     writeHead(status: number, context?: Record<string, string | number>) {
-      this.statusCode = status;
+      res.statusCode = status;
+      res.net.statusCode = status;
       if (context) {
-        for (const key in context) this.setHeader(key, context[key]);
+        for (const key in context) res.setHeader(key, context[key]);
       }
-      return this;
-    },
-
-    status(code: number) {
-      this.statusCode = code;
-      return this;
+      return res;
     },
 
     setHeader(key: string, value: string | number) {
-      this.writeHeaders[key.toLowerCase()] = value;
-      return this;
-    },
-
-    json(data: any) {
-      this.setHeader('content-type', 'application/json');
-      return this.send(JSON.stringify(data));
+      res.writeHeaders[key.toLowerCase()] = value;
+      return res;
     },
 
     end(body: any = '') {
-      if (this.writableEnded) return this;
+      if (res.writableEnded) return;
       socket.cork();
       const content = Buffer.isBuffer(body) ? body : Buffer.from(String(body || ''));
 
-      if (!this.headersSent) {
-        this.setHeader('content-length', content.length);
+      if (!res.headersSent) {
+        res.setHeader('content-length', content.length);
       }
 
       //@ts-ignore
-      const statusMsg = HTTP_STATUS_MESSAGES[this.statusCode] || 'Unknown';
+      const statusMsg = HTTP_STATUS_MESSAGES[res.statusCode] || 'Unknown';
 
-      let head = `HTTP/1.1 ${this.statusCode} ${statusMsg}\r\n`;
-      for (const [key, value] of Object.entries(this.writeHeaders)) {
+      let head = `HTTP/1.1 ${res.statusCode} ${statusMsg}\r\n`;
+      for (const [key, value] of Object.entries(res.writeHeaders)) {
         head += `${key}: ${value}\r\n`;
       }
       head += '\r\n';
@@ -69,15 +61,15 @@ const createResponseObject = (socket: any) => {
         socket.write(fullResponse);
       }
 
-      this.headersSent = true;
-      this.writableEnded = true;
+      res.headersSent = true;
+      res.writableEnded = true;
 
       socket.uncork();
       return;
     },
 
     send(body?: any) {
-      return this.end(body);
+      return res.end(body);
     }
   };
 
