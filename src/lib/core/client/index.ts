@@ -171,9 +171,6 @@ class ApiClient<
       body
     })
 
-    const contentType = res.headers.get("content-type");
-    const isJson = contentType?.includes("application/json");
-
     const hasBody =
       res.body !== null &&
       res.status !== 204 &&
@@ -183,12 +180,9 @@ class ApiClient<
     let data = undefined;
 
     try {
-      data = !hasBody
-        ? null
-        : isJson
-          ? await res.json()
-          : await res.text();
-    } catch (err) {}
+      data = hasBody ? await res.text() : undefined;
+      if (data) data = JSON.parse(data);
+    } catch {}
    
     return {
       ok      : res.ok,
