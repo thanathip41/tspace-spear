@@ -579,7 +579,8 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
   }
 
   const groupedTypes = routes.reduce((acc, r) => {
-    acc[r.path] ??= {};
+    
+    acc[r.path] = acc[r.path] ?? {};
 
     acc[r.path][r.method] = {
       response: r.response,

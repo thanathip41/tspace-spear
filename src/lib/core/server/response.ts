@@ -105,42 +105,42 @@ function noContent(this: TResponse) {
 }
 
 function badRequest(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
+    message = message ?? `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
     return this.status(400).json({ message });
 }
 
 function unauthorized(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' is unauthorized. Please verify.`;
+    message = message ?? `The request '${this._req.url}' is unauthorized. Please verify.`;
     return this.status(401).json({ message });
 }
 
 function paymentRequired(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' requires payment. Please proceed with payment.`;
+    message = message ?? `The request '${this._req.url}' requires payment. Please proceed with payment.`;
     return this.status(402).json({ message });
 }
 
 function forbidden(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
+    message = message ?? `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
     return this.status(403).json({ message });
 }
 
 function notFound(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' was not found. Please re-check your URL again.`;
+    message = message ?? `The request '${this._req.url}' was not found. Please re-check your URL again.`;
     return this.status(404).json({ message });
 }
 
 function unprocessable(this: TResponse, message?: string) {
-    message ??= `The request to '${this._req.url}' failed validation.`;
+    message = message ?? `The request to '${this._req.url}' failed validation.`;
     return this.status(422).json({ message });
 }
 
 function tooManyRequests(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' is too many requests. Please wait and try again.`;
+    message = message ?? `The request '${this._req.url}' is too many requests. Please wait and try again.`;
     return this.status(429).json({ message });
 }
 
 function serverError(this: TResponse, message?: string) {
-    message ??= `The request '${this._req.url}' resulted in a server error. Please investigate.`;
+    message = message ?? `The request '${this._req.url}' resulted in a server error. Please investigate.`;
     return this.status(500).json({ message });
 }
 
