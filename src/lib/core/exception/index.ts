@@ -6,6 +6,7 @@ export const HttpStatus = {
   METHOD_NOT_ALLOWED: 405,
   CONFLICT: 409,
   GONE: 410,
+  PAYLOAD_TOO_LARGE: 413,
   UNSUPPORTED_MEDIA_TYPE: 415,
   UNPROCESSABLE_ENTITY: 422,
   TOO_MANY_REQUESTS: 429,
@@ -72,12 +73,16 @@ export class GoneException extends HttpException {
   }
 }
 
+export class PayloadTooLargeException extends HttpException {
+  constructor(message = 'Payload Too Large') {
+    super(HttpStatus.PAYLOAD_TOO_LARGE, message);
+  }
+}
 export class UnsupportedMediaTypeException extends HttpException {
   constructor(message = 'Unsupported Media Type') {
     super(HttpStatus.UNSUPPORTED_MEDIA_TYPE, message);
   }
 }
-
 export class UnprocessableEntityException extends HttpException {
   constructor(message = 'Unprocessable Entity') {
     super(HttpStatus.UNPROCESSABLE_ENTITY, message);
