@@ -163,81 +163,88 @@ export const httpfiles = async ({
     };
   };
 }) => {
-  
   const temp = options.tempFileDir;
-  
+
   if (!fsSystem.existsSync(temp)) {
     try {
       fsSystem.mkdirSync(temp, { recursive: true });
-    } catch (err) {}
+    } catch {}
   }
-  
+
   return new Promise<{ body: T.Body; files: T.FileUpload }>(
     (resolve, reject) => {
       const body: Record<string, any> = {};
       const files: Record<string, any> = {};
 
-      const fileWritePromises: any[] = [];
+      const fileWritePromises: Promise<any>[] = [];
 
-      const bb = busboy({ headers: req.headers, defParamCharset: "utf8" });
+      let uploadError: Error | null = null;
+
+      const bb = busboy({
+        headers: req.headers,
+        defParamCharset: "utf8",
+        limits: {
+          fileSize: options.limit,
+        },
+      });
 
       const removeTemp = (fileTemp: string, ms: number) => {
-        const remove = () => {
+        setTimeout(() => {
           try {
             fsSystem.unlinkSync(fileTemp);
-          } catch (err) {}
-        };
-        setTimeout(remove, ms);
+          } catch {}
+        }, ms);
       };
 
-      bb.on(
-        "file",
-        (fieldName: string, fileData: Readable, info: FileInfo) => {
-          const { filename, mimeType } = info;
+      bb.on("file", (fieldName, fileData, info) => {
+        const { filename, mimeType } = info;
 
-          const extension =
-            mime.extension(mimeType) ||
-            pathSystem.extname(filename).replace(".", "") ||
-            "bin";
+        const extension =
+          mime.extension(mimeType) ||
+          pathSystem.extname(filename).replace(".", "") ||
+          "bin";
 
-          const tempFilename = crypto.randomBytes(16).toString("hex");
+        const tempFilename = crypto.randomBytes(16).toString("hex");
 
-          const filePath = pathSystem.join(
-            pathSystem.resolve(),
-            `${temp}/${tempFilename}`,
+        const filePath = pathSystem.join(
+          pathSystem.resolve(),
+          `${temp}/${tempFilename}`,
+        );
+
+        const writeStream = fsSystem.createWriteStream(filePath);
+
+        let fileSize = 0;
+        let exceeded = false;
+
+        fileData.on("data", (chunk: Buffer) => {
+          fileSize += chunk.length;
+        });
+
+        fileData.on("limit", () => {
+          exceeded = true;
+
+          uploadError = new PayloadTooLargeException(
+            `The file '${fieldName}' is too large. Limit: ${options.limit} bytes.`
           );
 
-          const writeStream = fsSystem.createWriteStream(filePath);
+          fileData.unpipe(writeStream);
 
-          let fileSize = 0;
+          writeStream.end();
 
-          fileData.on("data", (data: string) => {
-            fileSize += data.length;
+          fileData.resume();
+        });
 
-            if (fileSize > options.limit) {
-              fileData.unpipe(writeStream);
+        const promise = new Promise<void>((resolveFile, rejectFile) => {
+          fileData.pipe(writeStream);
 
-       
-              writeStream.destroy();
-
-              const errorMessage = `The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`;
-            
-              return reject(
-                new PayloadTooLargeException(errorMessage)
-              );
-            }
-          });
-
-          const fileWritePromise = new Promise((resolve, reject) => {
-            fileData.pipe(writeStream);
-
-            writeStream.on("finish", () => {
+          writeStream.on("finish", () => {
+            if (!exceeded) {
               const file = {
                 name: filename,
                 tempFilePath: filePath,
                 tempFileName: tempFilename,
                 mimetype: mimeType,
-                extension: extension,
+                extension,
                 size: fileSize,
                 sizes: {
                   bytes: fileSize,
@@ -245,30 +252,24 @@ export const httpfiles = async ({
                   mb: fileSize / 1024 / 1024,
                   gb: fileSize / 1024 / 1024 / 1024,
                 },
-                write: (to: string) => {
-                  return new Promise((resolve, reject) => {
+                write: (to: string) =>
+                  new Promise((resolve, reject) => {
                     fsSystem
                       .createReadStream(filePath)
                       .pipe(fsSystem.createWriteStream(to))
-                      .on("finish", () => {
-                        return resolve(null);
-                      })
-                      .on("error", (err) => {
-                        return reject(err);
-                      });
-                  });
-                },
-                remove: () => {
-                  return new Promise((resolve) =>
-                    setTimeout(() => {
+                      .on("finish", resolve)
+                      .on("error", reject);
+                  }),
+                remove: () =>
+                  new Promise((resolve) => {
+                    try {
                       fsSystem.unlinkSync(filePath);
-                      return resolve(null);
-                    }, 100),
-                  );
-                },
+                    } catch {}
+                    resolve(null);
+                  }),
               };
 
-              if (files[fieldName] == null) {
+              if (!files[fieldName]) {
                 files[fieldName] = [];
               }
 
@@ -277,39 +278,47 @@ export const httpfiles = async ({
               if (options.removeTempFile.remove) {
                 removeTemp(filePath, options.removeTempFile.ms);
               }
+            } else {
+              try {
+                fsSystem.unlinkSync(filePath);
+              } catch {}
+            }
 
-              return resolve(null);
-            });
-
-            writeStream.on("error", reject);
+            resolveFile();
           });
 
-          fileWritePromises.push(fileWritePromise);
-        },
-      );
+          writeStream.on("error", rejectFile);
+        });
 
-      bb.on("field", (name: string, value: string) => {
+        fileWritePromises.push(promise);
+      });
+
+      bb.on("field", (name, value) => {
         body[name] = value;
       });
 
-      bb.on("finish", () => {
-        Promise.all(fileWritePromises)
-          .then(() => {
-            return resolve({
-              files,
-              body,
-            });
-          })
-          .catch((err) => {
-            return reject(err);
+      bb.on("finish", async () => {
+        try {
+          await Promise.all(fileWritePromises);
+
+          if (uploadError) {
+            return reject(uploadError);
+          }
+
+          return resolve({
+            body,
+            files,
           });
+        } catch (err) {
+          return reject(err);
+        }
       });
 
-      bb.on("error", (err: any) => {
+      bb.on("error", (err) => {
         return reject(err);
       });
 
       req.pipe(bb);
-    },
+    }
   );
 };
