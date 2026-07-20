@@ -16,6 +16,7 @@ import busboy, {
 
 import type { T }               from "../../types";
 import { normalizeRequestBody } from "../../utils";
+import { PayloadTooLargeException } from "../../exception";
 
 export const httpAdaptRequestResponse = (
   req: IncomingMessage,
@@ -216,12 +217,13 @@ export const httpfiles = async ({
             if (fileSize > options.limit) {
               fileData.unpipe(writeStream);
 
+       
               writeStream.destroy();
 
+              const errorMessage = `The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`;
+            
               return reject(
-                new Error(
-                  `The file '${fieldName}' is too large to be uploaded. The limit is '${options.limit}' bytes.`,
-                ),
+                new PayloadTooLargeException(errorMessage)
               );
             }
           });
