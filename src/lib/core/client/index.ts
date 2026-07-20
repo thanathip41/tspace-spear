@@ -107,74 +107,89 @@ class ApiClient<
       >
   > {
 
-      fetchFn = await getFetch();
+    fetchFn = await getFetch();
 
-      if (!fetchFn) {
-        throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
+    if (!fetchFn) {
+      throw new Error("Fetch is not available. Use Node 18+ or polyfill.");
+    }
+  
+    let url = this.baseURL + (path as string);
+
+    let headers :any = {
+      "Content-Type":
+        "application/json",
+    }
+
+    if (input?.params) {
+      for (const key in input.params) {
+        url = url.replace(
+          `:${key}`,
+          encodeURIComponent((input.params as any)[key])
+        )
       }
-    
-      let url = this.baseURL + (path as string);
+    }
 
-      let headers :any = {
-        "Content-Type":
-          "application/json",
+    if (input?.query) {
+      const queryString = new URLSearchParams(
+        input.query as any
+      ).toString()
+
+      if (queryString) {
+        url += `?${queryString}`
       }
+    }
 
-      if (input?.params) {
-        for (const key in input.params) {
-          url = url.replace(
-            `:${key}`,
-            encodeURIComponent((input.params as any)[key])
-          )
-        }
+    if(input?.headers) {
+      headers = {
+        ...headers,
+        ...input.headers
       }
+    }
 
-      if (input?.query) {
-        const queryString = new URLSearchParams(
-          input.query as any
-        ).toString()
+    let body :any = input?.body
+      ? JSON.stringify(input.body)
+      : undefined
 
-        if (queryString) {
-          url += `?${queryString}`
-        }
-      }
-
-      if(input?.headers) {
-        headers = {
-          ...headers,
-          ...input.headers
-        }
-      }
-
-      let body :any = input?.body
-        ? JSON.stringify(input.body)
+    const isFileUpload = isFormData(input?.body);
+  
+    if(isFileUpload) {
+      body = input?.body;
+      headers = typeof body?.getHeaders === "function"
+        ? body?.getHeaders() 
         : undefined
 
-      const isFileUpload = isFormData(input?.body);
-   
-      if(isFileUpload) {
-        body = input?.body;
-        headers = undefined;
+      // Legacy Node fallback
+      if (body?._streams?.length === 0) {
+        body = undefined;
+        headers = undefined
       }
+    }
 
-      const res = await fetchFn(url, {
-        method: method as string,
-        headers,
-        body
-      });
+    const res = await fetchFn(url, {
+      method: method as string,
+      headers,
+      body
+    })
 
-      const contentType =
-        res.headers.get("content-type");
+    const contentType = res.headers.get("content-type");
+    const isJson = contentType?.includes("application/json");
 
-      const isJson =
-        contentType?.includes(
-          "application/json",
-        );
+    const hasBody =
+      res.body !== null &&
+      res.status !== 204 &&
+      res.status !== 205 &&
+      res.status !== 304;
 
-    const data = isJson
-      ? await res.json()
-      : await res.text();
+    let data = undefined;
 
+    try {
+      data = !hasBody
+        ? null
+        : isJson
+          ? await res.json()
+          : await res.text();
+    } catch (err) {}
+   
     return {
       ok      : res.ok,
       headers : res.headers,
@@ -279,7 +294,7 @@ class ApiClient<
     path: TPath,
     options: {
       method?: TMethod;
-      formdata: FormData;
+      formdata: FormData
     }
   ) {
     const { method = "POST" as TMethod, formdata } = options;
@@ -291,6 +306,41 @@ class ApiClient<
       {
         body : formdata
       },
+    );
+  }
+
+  public async options<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "GET"
+    >,
+  >(
+    path: TPath,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "OPTIONS">>
+  ) {
+    const input = args[0];
+    return this.request(
+      "OPTIONS",
+      path,
+      input,
+    );
+  }
+
+  public async head<
+    TPath extends RoutesWithMethod<
+      TRoutes,
+      "HEAD"
+    >,
+  >(
+    path: TPath,
+    ...args: OptionalIfEmpty<RequestInput<TRoutes, TPath, "HEAD">>
+  ) {
+    const input = args[0];
+    
+    return this.request(
+      "HEAD",
+      path,
+      input,
     );
   }
 
