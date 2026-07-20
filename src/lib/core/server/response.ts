@@ -153,11 +153,22 @@ function serveMedia(this: TResponse, filePath: string) {
     });
 }
 
-function setStatusCode(this: TResponse, code: T.StatusCode) {
-    if (!this.headersSent) {
-        this.headersSent = true;
+function setStatusCode(this: TResponse, code: T.StatusCode, contentType ?: 'TEXT' | 'JSON') {
+    if(this.headersSent) return;
+
+    this.statusCode = code;
+
+    if(contentType === 'TEXT') {
+        this.writeHead(code,HEADER_CONTENT_TYPES.text);
+    }
+
+    else if (contentType === 'JSON') {
         this.writeHead(code, HEADER_CONTENT_TYPES.json);
     }
+
+    else this.writeHead(code);
+
+    return;
 }
 
 function setCookies(

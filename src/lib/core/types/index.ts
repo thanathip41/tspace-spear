@@ -240,8 +240,9 @@ type TResponse = {
     /**
      * Set HTTP status code.
      * @param code http status code
+     * @param contentType context-type 'TEXT' | 'JSON'
      */
-    setStatusCode : (code : TStatusCode) => void
+    setStatusCode : (code : TStatusCode, contentType ?: 'TEXT' | 'JSON') => void
 };
 
 type TStatusCode = 
