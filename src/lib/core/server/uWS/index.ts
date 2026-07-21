@@ -24,6 +24,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
   };
 
   const _writeHead = (status: number, context: Record<string, any>) => {
+    
     const statusMessage =
       HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ||
       HTTP_STATUS_MESSAGES[500];
@@ -92,7 +93,13 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
           _writableEnded = true;
 
           for (const h in response.writeHeaders()) {
-            _writeHead(+h, _writeHeaders[h]);
+
+            const contentType = response.writeHeaders()[h];
+            const statusCode = +h;
+
+            if(contentType == null) continue;
+
+            _writeHead(statusCode,contentType);
           }
 
           if (
