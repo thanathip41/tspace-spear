@@ -3,13 +3,15 @@ const { runBenchmark, sleep } = require('./utils')
 const { ServerUWS } = require('../servers/uWS')
 const { ServerHyperExpress } = require('../servers/hyper-express')
 const { ServerSpearUWS } = require('../servers/spear')
+const { ServerMesh } = require('../servers/mesh')
 
 
 const runApps = async () => {
   const apps = [
-    { name: 'uWS', app: ServerUWS },
+    // { name: 'uWS', app: ServerUWS },
     { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
-    { name: 'hyper-express', app: ServerHyperExpress },
+    // { name: 'hyper-express', app: ServerHyperExpress },
+    { name: 'mesh' , app : ServerMesh }
   ]
     .sort(() => Math.random() - 0.5)
     .map((s, i) => {

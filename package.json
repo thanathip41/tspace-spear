@@ -101,6 +101,7 @@
   "devDependencies": {
     "@elysiajs/node": "1.4.5",
     "@hono/node-server": "1.19.11",
+    "@ionited/mesh": "^0.8.0",
     "@types/autocannon": "7.12.5",
     "@types/busboy": "1.5.4",
     "@types/chai": "4.3.11",
