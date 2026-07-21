@@ -13,10 +13,10 @@ type TResponse = T.Response & {
 
 
 function json(this: TResponse, results?: Record<string, any>) {
-    if (this.writableEnded) return;
+   
+    if (this.writableEnded()) return;
 
-    if (!this.headersSent) {
-        this.headersSent = true;
+    if (!this.headersSent()) {
         this.writeHead(
             200, 
             HEADER_CONTENT_TYPES.json
@@ -26,7 +26,7 @@ function json(this: TResponse, results?: Record<string, any>) {
     if (this._formatResponse) {
         return this.end(
             JSON.stringify(
-                this._formatResponse(results,this.statusCode)
+                this._formatResponse(results,this.statusCode())
             )
         );
     }
@@ -35,16 +35,15 @@ function json(this: TResponse, results?: Record<string, any>) {
 }
 
 function send(this: TResponse, message: string) {
-    if (this.writableEnded) return;
+    if (this.writableEnded()) return;
 
     return this.end(message);
 }
 
 function html(this: TResponse, html: string) {
-    if (this.writableEnded) return;
+    if (this.writableEnded()) return;
 
-    if (!this.headersSent) {
-        this.headersSent = true;
+    if (!this.headersSent()) {
         this.writeHead(
             200, 
             HEADER_CONTENT_TYPES.html
@@ -58,8 +57,8 @@ function status(this: TResponse, code: T.StatusCode) {
     return {
         json: (data?: Record<string, any>) => {
 
-            if (!this.headersSent) {
-                this.headersSent = true;
+            if (!this.headersSent()) {
+    
                 this.writeHead(code, HEADER_CONTENT_TYPES.json);
             }
 
@@ -68,8 +67,8 @@ function status(this: TResponse, code: T.StatusCode) {
 
         send: (message: string) => {
 
-            if (!this.headersSent) {
-                this.headersSent = true;
+            if (!this.headersSent()) {
+    
                 this.writeHead(code, HEADER_CONTENT_TYPES.text);
             }
 
@@ -78,8 +77,8 @@ function status(this: TResponse, code: T.StatusCode) {
 
         end: (message?: string) => {
             
-            if (!this.headersSent) {
-                this.headersSent = true;
+            if (!this.headersSent()) {
+    
                 this.writeHead(code, HEADER_CONTENT_TYPES.text);
             }
 
@@ -154,9 +153,7 @@ function serveMedia(this: TResponse, filePath: string) {
 }
 
 function setStatusCode(this: TResponse, code: T.StatusCode, contentType ?: 'TEXT' | 'JSON') {
-    if(this.headersSent) return;
-
-    this.statusCode = code;
+    if(this.headersSent()) return;
 
     if(contentType === 'TEXT') {
         this.writeHead(code,HEADER_CONTENT_TYPES.text);
@@ -240,7 +237,7 @@ function error(this: TResponse, err: any) {
 
     const payload = { message };
 
-    if (!this.headersSent) {
+    if (!this.headersSent()) {
         this.writeHead(code as T.StatusCode, HEADER_CONTENT_TYPES.json);
     }
 
@@ -269,7 +266,8 @@ export class Response {
             _req: req,
             _formatResponse: options.formatResponse,
             _isUwebSocket: options.isUwebSocket,
-
+          
+            
             status,
             json,
             send,

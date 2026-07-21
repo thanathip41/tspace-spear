@@ -16,7 +16,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     headers[key.toLowerCase()] = value;
   });
 
-  const req: Record<string, any> = {
+  const request: Record<string, any> = {
     uWS: uwsReq,
     method: String(uwsReq.getMethod()).toUpperCase(),
     url: uwsReq.getUrl() + (uwsReq.getQuery() ? `?${uwsReq.getQuery()}` : ""),
@@ -28,54 +28,57 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ||
       HTTP_STATUS_MESSAGES[500];
 
-    res.uWS.writeStatus(`${status} ${statusMessage}`);
+    response.uWS.writeStatus(`${status} ${statusMessage}`);
 
-    res.uWS.writeHeader(Object.keys(context)[0], Object.values(context)[0]);
+    response.uWS.writeHeader(Object.keys(context)[0], Object.values(context)[0]);
 
-    return res;
+    return response;
   };
 
-  const res = {
+  let _writableEnded = false;
+  let _aborted =  false;
+  let _writeHeaders = Object.create(null);
+  let _headersSent = false;
+  let _statusCode = 200;
+
+  const response = {
     uWS: uwsRes,
-    writableEnded: false,
-    aborted: false,
-    writeHeaders: Object.create(null),
-    headersSent: false,
-    statusCode: 200,
+    
+    writableEnded: () => _writableEnded,
+    aborted: () => _aborted,
+    writeHeaders: () => _writeHeaders,
+    headersSent: () => _headersSent,
+    statusCode: () => _statusCode,
+
     writeHeader: (key: string, value: string) => {
-      if (!res.aborted) {
+      if (!response.aborted()) {
         uwsRes.writeHeader(key, value);
       }
-      return res;
+      return response;
     },
     setHeader: (key: string, value: string) => {
-      if (!res.aborted) {
+      if (!response.aborted()) {
         uwsRes.writeHeader(key, value);
       }
-      return res;
+      return response;
     },
     writeHead(status: number, context: Record<string, string>) {
 
-      res.writeHeaders = {
-        ...res.writeHeaders,
+      _writeHeaders = {
+        ...response.writeHeaders(),
         [status]: context,
       };
 
-      res.headersSent = true;
+      _headersSent = true;
 
-      res.uWS.statusCode = status;
-      res.statusCode = status;
+      response.uWS.statusCode = status;
+      
+      _statusCode = status;
 
-      return res;
-    },
-    writeStatus: (status: string) => {
-      if (!res.aborted) {
-        res.uWS.writeStatus(status as any);
-      }
-      return res;
+      return response;
     },
     end: (chunk ?: unknown) => {
-      if (res.aborted) {
+      if (response.aborted()) {
         return;
       }
 
@@ -84,12 +87,12 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       }
 
       uwsRes.cork(() => {
-        if (!res.aborted) {
-          res.aborted = true;
-          res.writableEnded = true;
+        if (!response.aborted()) {
+          _aborted = true;
+          _writableEnded = true;
 
-          for (const h in res.writeHeaders) {
-            _writeHead(+h, res.writeHeaders[h]);
+          for (const h in response.writeHeaders()) {
+            _writeHead(+h, _writeHeaders[h]);
           }
 
           if (
@@ -110,10 +113,13 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
   };
 
   uwsRes.onAborted(() => {
-    res.aborted = true;
+    _aborted = true;
   });
 
-  return { req, res } as unknown as { req: T.Request; res: T.Response };
+  return { 
+    req : request, 
+    res: response 
+  } as unknown as { req: T.Request; res: T.Response };
 };
 
 export const uWSBody = (req: T.Request, res: T.Response & { uWS: any }) => {
@@ -421,8 +427,7 @@ export const uWSPipeStream = async ({
 
   const isVideo = contentType.startsWith("video/");
 
-  //@ts-ignore
-  let aborted = res.aborted || false;
+  let aborted = res.aborted() || false;
   let stream: fsSystem.ReadStream;
   let start = 0;
   let end = fileSize - 1;

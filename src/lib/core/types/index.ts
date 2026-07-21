@@ -86,11 +86,14 @@ type TResponse = {
     http : ServerResponse;
     net : any;
     
-    writableEnded: boolean;
-    aborted: boolean;
-    writeHeaders: Record<string,any>;
-    headersSent: boolean;
-    statusCode: number;
+    writableEnded: () => boolean;
+    aborted: () => boolean;
+    writeHeaders: () => Record<string,any>;
+    headersSent: () => boolean;
+    statusCode: () => number;
+
+    
+    setStatusCode : (code : TStatusCode, contentType ?: 'TEXT' | 'JSON') => void
 
     writeHead: (statusCode: TStatusCode, headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]) => any
 
@@ -236,13 +239,6 @@ type TResponse = {
               }
         >
     ) => any;
-
-    /**
-     * Set HTTP status code.
-     * @param code http status code
-     * @param contentType context-type 'TEXT' | 'JSON'
-     */
-    setStatusCode : (code : TStatusCode, contentType ?: 'TEXT' | 'JSON') => void
 };
 
 type TStatusCode = 

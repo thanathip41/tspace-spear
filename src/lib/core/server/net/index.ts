@@ -10,47 +10,54 @@ import {
 } from '../../const';
 
 
-const createResponseObject = (socket: any) => {
+const createResponseObject = (socket: Socket) => {
+
+  let _writableEnded = false;
+  let _aborted =  false;
+  let _writeHeaders = Object.create(null);
+  let _headersSent = false;
+  let _statusCode = 200;
+
   const res = {
     net: socket,
-    socket,
-    statusCode: 200,
-    headersSent: false,
-    writableEnded: false,
-    aborted: false,
-    writeHeaders: {
-      'content-type': 'text/plain',
-      'connection': 'keep-alive'
-    } as Record<string, string | number>,
+    writableEnded: () => _writableEnded,
+    aborted: () => _aborted,
+    writeHeaders: () => _writeHeaders,
+    headersSent: () => _headersSent,
+    statusCode: () => _statusCode,
 
     writeHead(status: number, context?: Record<string, string | number>) {
-      res.statusCode = status;
-      res.net.statusCode = status;
+      _statusCode = status;
+      
       if (context) {
-        for (const key in context) res.setHeader(key, context[key]);
+        for (const key in context) {
+          res.setHeader(key, context[key]);
+        }
       }
       return res;
     },
 
     setHeader(key: string, value: string | number) {
-      res.writeHeaders[key.toLowerCase()] = value;
+      _writeHeaders[key.toLowerCase()] = value;
       return res;
     },
 
-    end(body: any = '') {
-      if (res.writableEnded) return;
-      socket.cork();
-      const content = Buffer.isBuffer(body) ? body : Buffer.from(String(body || ''));
+    end(chunk?: unknown) {
 
-      if (!res.headersSent) {
+      if (res.writableEnded()) return;
+
+      socket.cork();
+
+      const content = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk || ''));
+
+      if (!res.headersSent()) {
         res.setHeader('content-length', content.length);
       }
 
-      //@ts-ignore
-      const statusMsg = HTTP_STATUS_MESSAGES[res.statusCode] || 'Unknown';
+      const statusMsg = HTTP_STATUS_MESSAGES[res.statusCode() as T.StatusCode] || 'Unknown';
 
-      let head = `HTTP/1.1 ${res.statusCode} ${statusMsg}\r\n`;
-      for (const [key, value] of Object.entries(res.writeHeaders)) {
+      let head = `HTTP/1.1 ${res.statusCode()} ${statusMsg}\r\n`;
+      for (const [key, value] of Object.entries(res.writeHeaders())) {
         head += `${key}: ${value}\r\n`;
       }
       head += '\r\n';
@@ -61,16 +68,13 @@ const createResponseObject = (socket: any) => {
         socket.write(fullResponse);
       }
 
-      res.headersSent = true;
-      res.writableEnded = true;
+      _headersSent = true;
+      _writableEnded = true;
 
       socket.uncork();
+
       return;
     },
-
-    send(body?: any) {
-      return res.end(body);
-    }
   };
 
   return res;
@@ -79,10 +83,9 @@ const createResponseObject = (socket: any) => {
 const CRLF = '\r\n';
 const HEADER_END = '\r\n\r\n';
 
-
 export const netAdaptRequestResponse = (
   socket: Socket,
-  callback: (req: any, res: any) => void
+  callback: (req: T.Request, res: T.Response) => void
 ) => {
   socket.setNoDelay(true);
   socket.setTimeout(60000);
@@ -108,7 +111,6 @@ export const netAdaptRequestResponse = (
     if (err.code === "ECONNRESET" || err.code === "ECONNABORTED") {
       return;
     }
-    console.error("socket error:", err);
     socket.destroy();
   });
 
@@ -163,9 +165,9 @@ export const netAdaptRequestResponse = (
         headers,
         _body: body,
         _bodyRead: false,
-      };
+      } as unknown as T.Request
 
-      const res = createResponseObject(socket);
+      const res = createResponseObject(socket) as unknown as T.Response
 
       callback(req, res);
 

@@ -403,7 +403,7 @@ class Spear<
           
             const statusCode = (res: T.Response) => {
              
-                const httpStatusCode = res.http?.statusCode | res.uWS?.statusCode | res.net?.statusCode 
+                const httpStatusCode = res.statusCode();
 
                 const statusCode = httpStatusCode == null ? 500 : httpStatusCode;
                 return statusCode < 400
@@ -1514,7 +1514,7 @@ class Spear<
             Promise.resolve(handler(ctx, next))
             .then(result => {
                
-                if (ctx.res.writableEnded) {
+                if (ctx.res.writableEnded()) {
                     return;
                 }
 
@@ -1550,7 +1550,7 @@ class Spear<
         const NEXT_MESSAGE = "The 'next' function does not have any subsequent function."
         
         return (err ?: any) => {
-            if(ctx.res.writableEnded) return;
+            if(ctx.res.writableEnded()) return;
         
             let statusCode = 
             typeof err?.statusCode === 'number' && 
@@ -1564,10 +1564,10 @@ class Spear<
                 return this._errorHandler(err, ctx);
             }
 
-            if(!ctx.res.headersSent) {
+            if(!ctx.res.headersSent()) {
                 ctx.res.writeHead(statusCode, HEADER_CONTENT_TYPES['json']);
             } else {
-                statusCode = ctx.res.statusCode
+                statusCode = ctx.res.statusCode()
             }
 
             if(this._formatResponse != null) {

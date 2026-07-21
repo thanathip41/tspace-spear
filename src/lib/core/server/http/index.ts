@@ -38,59 +38,55 @@ export const httpAdaptRequestResponse = (
     }
   };
 
+  let _writableEnded = false;
+  let _aborted =  false;
+  let _writeHeaders = Object.create(null);
+  let _headersSent = false;
+  let _statusCode = 200;
+
   const response = {
     http: res,
-    writableEnded: false,
-    aborted: false,
-    writeHeaders: Object.create(null),
-    headersSent: false,
-    statusCode: 200,
+    writableEnded: () => _writableEnded,
+    aborted: () => _aborted,
+    writeHeaders: () => _writeHeaders,
+    headersSent: () => _headersSent,
+    statusCode: () => _statusCode,
+
     setHeader(key: string, value: string) {
-      if (!response.headersSent && !response.writableEnded) {
-        res.setHeader(key, value);
+      if (!response.headersSent() && !response.writableEnded()) {
+        response.http.setHeader(key, value);
       }
       return response;
     },
     writeHeader(key: string, value: string) {
-
       return response.setHeader(key, value);
-
     },
     writeHead(status: number, context: Record<string, string>) {
 
-      response.statusCode = status;
-      response.http.statusCode = status;
-     
-      if (!response.headersSent) {
-        res.writeHead(status, context);
-        response.headersSent = true;
-      }
+      _statusCode = +status;
 
-      return response;
-    },
-    writeStatus(status: number) {
-
-      response.statusCode = status;
-
-      if (!response.headersSent) {
-        res.statusCode = status;
+      response.http.statusCode = +status;
+      
+      if (!response.headersSent()) {
+        res.writeHead(+status, context);
+        _headersSent = true;
       }
 
       return response;
     },
     end(chunk?: unknown) {
       
-      if (response.writableEnded) return;
+      if (response.writableEnded()) return;
 
       if (chunk == null) {
         res.end();
         return;
       }
 
-      response.writableEnded = true;
+      _writableEnded = true;
 
-      if (!response.headersSent) {
-        res.statusCode = response.statusCode;
+      if (!response.headersSent()) {
+        res.statusCode = response.statusCode();
       }
 
       if (
@@ -103,10 +99,8 @@ export const httpAdaptRequestResponse = (
       }
 
       res.end(JSON.stringify(chunk));
-
       return;
-
-    },
+    }
   };
   return {
     req: request,
