@@ -8,9 +8,9 @@ const { ServerMesh } = require('../servers/mesh')
 
 const runApps = async () => {
   const apps = [
-    // { name: 'uWS', app: ServerUWS },
+    { name: 'uWS', app: ServerUWS },
     { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
-    // { name: 'hyper-express', app: ServerHyperExpress },
+    { name: 'hyper-express', app: ServerHyperExpress },
     { name: 'mesh' , app : ServerMesh }
   ]
     .sort(() => Math.random() - 0.5)
