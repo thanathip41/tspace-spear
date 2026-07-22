@@ -61,7 +61,7 @@ describe("Edge Cases and Additional Coverage Tests", () => {
       throw new Error("Test error");
     })
     .get("/error-with-status", (ctx) => {
-      ctx.res.setStatusCode(422);
+      ctx.res.set(422);
       throw new Error("Validation failed");
     })
     .post("/echo", (ctx) => ({ body: ctx.body }))

@@ -18,7 +18,7 @@ const createResponseObject = (socket: Socket) => {
   let _headersSent = false;
   let _statusCode = 200;
 
-  const res = {
+  const response = {
     net: socket,
     writableEnded: () => _writableEnded,
     aborted: () => _aborted,
@@ -26,58 +26,63 @@ const createResponseObject = (socket: Socket) => {
     headersSent: () => _headersSent,
     statusCode: () => _statusCode,
 
+    setStatusCode (status : number) {
+      _statusCode = status;
+      return response;
+    },
+
+    setHeader(key: string, value: string | number) {
+      _writeHeaders[key.toLowerCase()] = value;
+      return response;
+    },
+
     writeHead(status: number, context?: Record<string, string | number>) {
       _statusCode = status;
       
       if (context) {
         for (const key in context) {
-          res.setHeader(key, context[key]);
+          response.setHeader(key, context[key]);
         }
       }
-      return res;
-    },
-
-    setHeader(key: string, value: string | number) {
-      _writeHeaders[key.toLowerCase()] = value;
-      return res;
+      return response;
     },
 
     end(chunk?: unknown) {
 
-      if (res.writableEnded()) return;
+      if (response.writableEnded()) return;
 
-      socket.cork();
+      response.net.cork();
 
       const content = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk || ''));
 
-      if (!res.headersSent()) {
-        res.setHeader('content-length', content.length);
+      if (!response.headersSent()) {
+        response.setHeader('content-length', content.length);
       }
 
-      const statusMsg = HTTP_STATUS_MESSAGES[res.statusCode() as T.StatusCode] || 'Unknown';
+      const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
 
-      let head = `HTTP/1.1 ${res.statusCode()} ${statusMsg}\r\n`;
-      for (const [key, value] of Object.entries(res.writeHeaders())) {
+      let head = `HTTP/1.1 ${response.statusCode()} ${statusMsg}\r\n`;
+      for (const [key, value] of Object.entries(response.writeHeaders())) {
         head += `${key}: ${value}\r\n`;
       }
       head += '\r\n';
 
       const fullResponse = Buffer.concat([Buffer.from(head), content]);
 
-      if (socket.writable && !socket.destroyed) {
-        socket.write(fullResponse);
+      if (response.net.writable && !response.net.destroyed) {
+        response.net.write(fullResponse);
       }
 
       _headersSent = true;
       _writableEnded = true;
 
-      socket.uncork();
+      response.net.uncork();
 
       return;
     },
   };
 
-  return res;
+  return response;
 };
 
 const CRLF = '\r\n';

@@ -42,7 +42,7 @@ describe("Middleware Unit Tests", () => {
     .get(
       "/middleware-status",
       (ctx, next) => {
-        ctx.res.setStatusCode(201);
+        ctx.res.set(201);
         return next();
       },
       (ctx) => {
@@ -159,7 +159,7 @@ describe("Error Handler Tests", () => {
       throw new Error("Test error");
     })
     .get("/error-with-status", (ctx) => {
-      ctx.res.setStatusCode(422);
+      ctx.res.set(422);
       throw new Error("Validation failed");
     })
     .catch((err, ctx) => {

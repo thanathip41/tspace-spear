@@ -23,19 +23,6 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     headers: headers,
   };
 
-  const _writeHead = (status: number, context: Record<string, any>) => {
-    
-    const statusMessage =
-      HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ||
-      HTTP_STATUS_MESSAGES[500];
-
-    response.uWS.writeStatus(`${status} ${statusMessage}`);
-
-    response.uWS.writeHeader(Object.keys(context)[0], Object.values(context)[0]);
-
-    return response;
-  };
-
   let _writableEnded = false;
   let _aborted =  false;
   let _writeHeaders = Object.create(null);
@@ -51,15 +38,25 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     headersSent: () => _headersSent,
     statusCode: () => _statusCode,
 
-    writeHeader: (key: string, value: string) => {
-      if (!response.aborted()) {
-        uwsRes.writeHeader(key, value);
-      }
+    setStatusCode (status : number) {
+      _statusCode = status;
+      
+      response.uWS.statusCode = status; 
+
+       _writeHeaders = {
+        ...response.writeHeaders(),
+        [status]: null,
+      };
+
       return response;
     },
+
     setHeader: (key: string, value: string) => {
       if (!response.aborted()) {
-        uwsRes.writeHeader(key, value);
+         _writeHeaders = {
+          ...response.writeHeaders(),
+          [key]: value,
+        };
       }
       return response;
     },
@@ -87,19 +84,29 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         return;
       }
 
-      uwsRes.cork(() => {
+      response.uWS.cork(() => {
         if (!response.aborted()) {
           _aborted = true;
           _writableEnded = true;
 
-          for (const h in response.writeHeaders()) {
+          const headers = response.writeHeaders();
 
-            const contentType = response.writeHeaders()[h];
-            const statusCode = +h;
+          for (const key in headers) {
+            const value = headers[key];
 
-            if(contentType == null) continue;
+            if (!Number.isNaN(Number(key)) && value == null) {
+              const status = Number(key);
 
-            _writeHead(statusCode,contentType);
+              const statusMessage =
+                HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
+                HTTP_STATUS_MESSAGES[500];
+
+              response.uWS.writeStatus(`${status} ${statusMessage}`);
+
+              continue;
+            }
+
+            response.uWS.writeHeader(key, value);
           }
 
           if (
@@ -107,11 +114,11 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
             Buffer.isBuffer(chunk) ||
             chunk instanceof Uint8Array
           ) {
-            uwsRes.end(chunk);
+            response.uWS.end(chunk);
             return;
           }
 
-          uwsRes.end(JSON.stringify(chunk));
+          response.uWS.end(JSON.stringify(chunk));
           
           return;
         }
@@ -119,7 +126,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     },
   };
 
-  uwsRes.onAborted(() => {
+  response.uWS.onAborted(() => {
     _aborted = true;
   });
 

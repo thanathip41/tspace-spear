@@ -1556,18 +1556,17 @@ class Spear<
             typeof err?.statusCode === 'number' && 
             Number.isFinite(err.statusCode)
                 ? err.statusCode
-                : 500;
-
+                : ctx.res.statusCode();
+            
             const errorMessage = err?.message || NEXT_MESSAGE
             
             if(this._errorHandler != null) {
+                err.statusCode = statusCode < 400 ? 500 : statusCode;
                 return this._errorHandler(err, ctx);
             }
 
             if(!ctx.res.headersSent()) {
                 ctx.res.writeHead(statusCode, HEADER_CONTENT_TYPES['json']);
-            } else {
-                statusCode = ctx.res.statusCode()
             }
 
             if(this._formatResponse != null) {

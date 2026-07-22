@@ -1,3 +1,4 @@
+import { OutgoingHttpHeader, OutgoingHttpHeaders } from "http";
 import { 
     HEADER_CONTENT_TYPES 
 } from "../const";
@@ -18,7 +19,7 @@ function json(this: TResponse, results?: Record<string, any>) {
 
     if (!this.headersSent()) {
         this.writeHead(
-            200, 
+            this.statusCode() as T.StatusCode, 
             HEADER_CONTENT_TYPES.json
         );   
     }
@@ -45,7 +46,7 @@ function html(this: TResponse, html: string) {
 
     if (!this.headersSent()) {
         this.writeHead(
-            200, 
+            this.statusCode() as T.StatusCode, 
             HEADER_CONTENT_TYPES.html
         );
     }
@@ -152,22 +153,6 @@ function serveMedia(this: TResponse, filePath: string) {
     });
 }
 
-function setStatusCode(this: TResponse, code: T.StatusCode, contentType ?: 'TEXT' | 'JSON') {
-    if(this.headersSent()) return;
-
-    if(contentType === 'TEXT') {
-        this.writeHead(code,HEADER_CONTENT_TYPES.text);
-    }
-
-    else if (contentType === 'JSON') {
-        this.writeHead(code, HEADER_CONTENT_TYPES.json);
-    }
-
-    else this.writeHead(code);
-
-    return;
-}
-
 function setCookies(
     this: TResponse,
     cookies: Record<
@@ -252,6 +237,47 @@ function error(this: TResponse, err: any) {
     return this.end(JSON.stringify(payload));
 }
 
+function set(
+  this: TResponse,
+  arg1: string | T.StatusCode,
+  arg2?:
+    | number
+    | string
+    | readonly string[]
+    | "TEXT"
+    | "JSON"
+    | OutgoingHttpHeaders
+    | OutgoingHttpHeader[]
+): any {
+
+  if (typeof arg1 === "string") {
+    this.setHeader(arg1, arg2 as number | string | readonly string[]);
+    return;
+  }
+
+  if (this.headersSent()) return;
+
+  if (arg2 === "TEXT") {
+    this.writeHead(arg1, HEADER_CONTENT_TYPES.text);
+    return;
+  }
+
+  if (arg2 === "JSON") {
+    this.writeHead(arg1, HEADER_CONTENT_TYPES.json);
+    return;
+  }
+
+  if (arg2 && typeof arg2 === "object") {
+    this.writeHead(
+      arg1,
+      arg2 as OutgoingHttpHeaders | OutgoingHttpHeader[]
+    );
+    return;
+  }
+
+  this.setStatusCode(arg1);
+}
+
 export class Response {
     constructor(
         req: T.Request,
@@ -286,7 +312,7 @@ export class Response {
             tooManyRequests,
             serverError,
             setCookies,
-            setStatusCode,
+            set,
             serveMedia
         });
     }

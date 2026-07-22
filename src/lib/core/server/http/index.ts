@@ -52,25 +52,26 @@ export const httpAdaptRequestResponse = (
     headersSent: () => _headersSent,
     statusCode: () => _statusCode,
 
+    setStatusCode (status : number) {
+      _statusCode = status;
+      response.http.statusCode = status;
+      return response;
+    },
+
     setHeader(key: string, value: string) {
-      if (!response.headersSent() && !response.writableEnded()) {
+      if (!response.writableEnded()) {
         response.http.setHeader(key, value);
       }
       return response;
     },
-    writeHeader(key: string, value: string) {
-      return response.setHeader(key, value);
-    },
+
     writeHead(status: number, context: Record<string, string>) {
+      if(response.headersSent()) return response;
 
       _statusCode = +status;
-
+      _headersSent = true;
       response.http.statusCode = +status;
-      
-      if (!response.headersSent()) {
-        res.writeHead(+status, context);
-        _headersSent = true;
-      }
+      response.http.writeHead(+status, context);
 
       return response;
     },
@@ -79,14 +80,14 @@ export const httpAdaptRequestResponse = (
       if (response.writableEnded()) return;
 
       if (chunk == null) {
-        res.end();
+        response.http.end();
         return;
       }
 
       _writableEnded = true;
 
       if (!response.headersSent()) {
-        res.statusCode = response.statusCode();
+        response.http.statusCode = response.statusCode();
       }
 
       if (
@@ -94,11 +95,11 @@ export const httpAdaptRequestResponse = (
         Buffer.isBuffer(chunk) ||
         chunk instanceof Uint8Array
       ) {
-        res.end(chunk);
+        response.http.end(chunk);
         return;
       }
 
-      res.end(JSON.stringify(chunk));
+      response.http.end(JSON.stringify(chunk));
       return;
     }
   };
