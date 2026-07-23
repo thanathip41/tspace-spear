@@ -108,72 +108,72 @@ describe("File Upload Edge Cases Tests", () => {
   });
 
   describe("Single File Upload", () => {
-    // it("should upload a single image file", async () => {
-    //   const buffer = await fs.promises.readFile(testImagePath);
+    it("should upload a single image file", async () => {
+      const buffer = await fs.promises.readFile(testImagePath);
 
-    //   let formData: any;
-    //   const useNative =
-    //     typeof globalThis.Blob !== "undefined" &&
-    //     typeof globalThis.FormData !== "undefined";
+      let formData: any;
+      const useNative =
+        typeof globalThis.Blob !== "undefined" &&
+        typeof globalThis.FormData !== "undefined";
 
-    //   if (useNative) {
-    //     formData = new FormData();
-    //     const blob = new Blob([buffer], { type: "image/png" });
-    //     formData.append("file", blob, "test.png");
-    //   } else {
-    //     const FormDataPkg = (await import("form-data")).default;
-    //     formData = new FormDataPkg();
-    //     formData.append("file", buffer, {
-    //       filename: "test.png",
-    //       contentType: "image/png",
-    //     });
-    //   }
+      if (useNative) {
+        formData = new FormData();
+        const blob = new Blob([buffer], { type: "image/png" });
+        formData.append("file", blob, "test.png");
+      } else {
+        const FormDataPkg = (await import("form-data")).default;
+        formData = new FormDataPkg();
+        formData.append("file", buffer, {
+          filename: "test.png",
+          contentType: "image/png",
+        });
+      }
 
-    //   const res = await client.upload("/upload/single", {
-    //     formdata: formData,
-    //   });
+      const res = await client.upload("/upload/single", {
+        formdata: formData,
+      });
 
-    //   expect(res.ok).to.be.equal(true);
-    //   expect(res.status).to.be.equal(200);
-    //   if (res.ok) {
-    //     expect(res.data.file).to.have.property("name", "test.png");
-    //     expect(res.data.file).to.have.property("mimetype", "image/png");
-    //     expect(res.data.file).to.have.property("size").that.is.greaterThan(0);
-    //     expect(res.data.file).to.have.property("extension", "png");
-    //   }
-    // });
+      expect(res.ok).to.be.equal(true);
+      expect(res.status).to.be.equal(200);
+      if (res.ok) {
+        expect(res.data.file).to.have.property("name", "test.png");
+        expect(res.data.file).to.have.property("mimetype", "image/png");
+        expect(res.data.file).to.have.property("size").that.is.greaterThan(0);
+        expect(res.data.file).to.have.property("extension", "png");
+      }
+    });
 
-    // it("should upload a text file", async () => {
-    //   const buffer = await fs.promises.readFile(testTextPath);
+    it("should upload a text file", async () => {
+      const buffer = await fs.promises.readFile(testTextPath);
 
-    //   let formData: any;
-    //   const useNative =
-    //     typeof globalThis.Blob !== "undefined" &&
-    //     typeof globalThis.FormData !== "undefined";
+      let formData: any;
+      const useNative =
+        typeof globalThis.Blob !== "undefined" &&
+        typeof globalThis.FormData !== "undefined";
 
-    //   if (useNative) {
-    //     formData = new FormData();
-    //     const blob = new Blob([buffer], { type: "text/plain" });
-    //     formData.append("file", blob, "test.txt");
-    //   } else {
-    //     const FormDataPkg = (await import("form-data")).default;
-    //     formData = new FormDataPkg();
-    //     formData.append("file", buffer, {
-    //       filename: "test.txt",
-    //       contentType: "text/plain",
-    //     });
-    //   }
+      if (useNative) {
+        formData = new FormData();
+        const blob = new Blob([buffer], { type: "text/plain" });
+        formData.append("file", blob, "test.txt");
+      } else {
+        const FormDataPkg = (await import("form-data")).default;
+        formData = new FormDataPkg();
+        formData.append("file", buffer, {
+          filename: "test.txt",
+          contentType: "text/plain",
+        });
+      }
 
-    //   const res = await client.upload("/upload/single", {
-    //     formdata: formData,
-    //   });
+      const res = await client.upload("/upload/single", {
+        formdata: formData,
+      });
 
-    //   expect(res.ok).to.be.equal(true);
-    //   if (res.ok) {
-    //     expect(res.data.file).to.have.property("name", "test.txt");
-    //     expect(res.data.file).to.have.property("extension", "txt");
-    //   }
-    // });
+      expect(res.ok).to.be.equal(true);
+      if (res.ok) {
+        expect(res.data.file).to.have.property("name", "test.txt");
+        expect(res.data.file).to.have.property("extension", "txt");
+      }
+    });
 
     it("should return error when no file is uploaded", async () => {
       let formData: any;
@@ -434,36 +434,36 @@ describe("File Upload Edge Cases Tests", () => {
       }
     });
 
-    // it("should handle large file within limit", async () => {
-    //   // Create a 1MB buffer (within 5MB limit)
-    //   const largeBuffer = Buffer.alloc(1024 * 1024, "x");
+    it("should handle large file within limit", async () => {
+      // Create a 1MB buffer (within 5MB limit)
+      const largeBuffer = Buffer.alloc(1024 * 1024, "x");
 
-    //   let formData: any;
-    //   const useNative =
-    //     typeof globalThis.Blob !== "undefined" &&
-    //     typeof globalThis.FormData !== "undefined";
+      let formData: any;
+      const useNative =
+        typeof globalThis.Blob !== "undefined" &&
+        typeof globalThis.FormData !== "undefined";
 
-    //   if (useNative) {
-    //     formData = new FormData();
-    //     formData.append("file", new Blob([largeBuffer], { type: "application/octet-stream" }), "large.bin");
-    //   } else {
-    //     const FormDataPkg = (await import("form-data")).default;
-    //     formData = new FormDataPkg();
-    //     formData.append("file", largeBuffer, {
-    //       filename: "large.bin",
-    //       contentType: "application/octet-stream",
-    //     });
-    //   }
+      if (useNative) {
+        formData = new FormData();
+        formData.append("file", new Blob([largeBuffer], { type: "application/octet-stream" }), "large.bin");
+      } else {
+        const FormDataPkg = (await import("form-data")).default;
+        formData = new FormDataPkg();
+        formData.append("file", largeBuffer, {
+          filename: "large.bin",
+          contentType: "application/octet-stream",
+        });
+      }
 
-    //   const res = await client.upload("/upload/single", {
-    //     formdata: formData,
-    //   });
+      const res = await client.upload("/upload/single", {
+        formdata: formData,
+      });
 
-    //   expect(res.ok).to.be.equal(true);
-    //   if (res.ok) {
-    //     expect(res.data.file).to.have.property("size", 1024 * 1024);
-    //   }
-    // });
+      expect(res.ok).to.be.equal(true);
+      if (res.ok) {
+        expect(res.data.file).to.have.property("size", 1024 * 1024);
+      }
+    });
   });
 
   describe("Concurrent File Uploads", () => {
