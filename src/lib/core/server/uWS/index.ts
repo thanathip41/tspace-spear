@@ -52,6 +52,7 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     },
 
     setHeader: (key: string, value: string) => {
+    
       if (!response.aborted()) {
          _writeHeaders = {
           ...response.writeHeaders(),
@@ -62,9 +63,11 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     },
     writeHead(status: number, context: Record<string, string>) {
 
+      if(response.writableEnded()) return response;
+
       _writeHeaders = {
-        ...response.writeHeaders(),
-        [status]: context,
+        ...context,
+        ...response.writeHeaders() 
       };
 
       _headersSent = true;
@@ -84,28 +87,28 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         return;
       }
 
+      response.setHeader('connection','keep-alive');
+      response.setHeader('keep-alive','timeout=5');
+
       response.uWS.cork(() => {
         if (!response.aborted()) {
           _aborted = true;
           _writableEnded = true;
 
+         
+
           const headers = response.writeHeaders();
+
+          const status = response.statusCode();
+
+          const statusMessage =
+            HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
+            HTTP_STATUS_MESSAGES[500];
+
+          response.uWS.writeStatus(`${status} ${statusMessage}`);
 
           for (const key in headers) {
             const value = headers[key];
-
-            if (!Number.isNaN(Number(key)) && value == null) {
-              const status = Number(key);
-
-              const statusMessage =
-                HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
-                HTTP_STATUS_MESSAGES[500];
-
-              response.uWS.writeStatus(`${status} ${statusMessage}`);
-
-              continue;
-            }
-
             response.uWS.writeHeader(key, value);
           }
 
