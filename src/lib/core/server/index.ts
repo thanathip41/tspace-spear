@@ -1557,11 +1557,13 @@ class Spear<
             Number.isFinite(err.statusCode)
                 ? err.statusCode
                 : ctx.res.statusCode();
+
+            statusCode = statusCode < 400 ? 500 : statusCode;
             
             const errorMessage = err?.message || NEXT_MESSAGE
             
             if(this._errorHandler != null) {
-                err.statusCode = statusCode < 400 ? 500 : statusCode;
+                err.statusCode = statusCode;
                 return this._errorHandler(err, ctx);
             }
 
