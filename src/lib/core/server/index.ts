@@ -1707,42 +1707,60 @@ class Spear<
         } 
 
         if(adapter.kind === 'net') {
-            const server = net.createServer((socket: Socket) => {
-
-                netAdaptRequestResponse(socket, (req, res) => {
-                    if (cors) cors(req, res);
-                   return lookup(req, res);
-                })
-
-            }) as unknown as Server;
-
+            
             if (this._ws?.handler) {
 
-                this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
+                const wss = new WebSocket.Server({
+                    noServer: true,
+                    ...this._ws.options,
+                });
 
-                this._ws.server.on('connection', (ws) => {
+                this._ws.server = wss;
 
-                    if (this._ws.handler?.connection) {
-                        this._ws.handler.connection(ws);
-                    }
+                wss.on('connection', (ws) => {
+
+                    this._ws?.handler?.connection?.(ws);
 
                     ws.on('message', (data) => {
-                        this._ws.handler?.message?.(ws, data);
+                        this._ws?.handler?.message?.(ws, data);
                     });
 
                     ws.on('close', (code, reason) => {
-                        if (this._ws.handler?.close) {
-                            this._ws.handler?.close(ws, code, reason);
-                        }
+                        this._ws?.handler?.close?.(ws, code, reason);
                     });
 
                     ws.on('error', (err) => {
-                        if (this._ws.handler?.error) {
-                            this._ws.handler!.error(ws, err);
-                        }
+                        this._ws?.handler?.error?.(ws, err);
                     });
                 });
             }
+
+            const server = net.createServer((socket) => {
+
+                netAdaptRequestResponse(socket, (req, res) => {
+
+                    const wsServer = this._ws?.server;
+                    if (
+                        wsServer &&
+                        this._ws.handler &&
+                        req.headers?.upgrade?.toLowerCase() === 'websocket'
+                    ) {
+                        wsServer.handleUpgrade(
+                            req as any,
+                            socket,
+                            Buffer.alloc(0),
+                            (ws) => wsServer.emit('connection', ws, req)
+                        );
+                        return;
+                    }
+
+
+                    if (cors) cors(req, res);
+
+                    return lookup(req, res);
+                });
+
+            }) as unknown as Server;
 
             return server;
         }
