@@ -31,7 +31,7 @@ export const StatusCode = (statusCode: T.StatusCode): MethodDecorator => {
         const code = statusCode < 100 ? 100 : statusCode > 599 ? 599 : statusCode;
 
         descriptor.value = async function (ctx: T.Context, next: T.NextFunction) {
-            if(!ctx.res.headersSent) {
+            if(!ctx.res.headersSent()) {
                 ctx.res.writeHead(code as T.StatusCode, { 'Content-Type': 'application/json' });
             }
             return await originalMethod.call(this, ctx, next);
