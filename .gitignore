@@ -10,3 +10,5 @@ test.sh
 uploads
 __tests-report__
 **/pre-routes.*
+__tests__/test-image.png
+__tests__/test-file.txt
