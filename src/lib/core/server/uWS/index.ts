@@ -7,6 +7,7 @@ import type { T }   from "../../types";
 
 import { HTTP_STATUS_MESSAGES } from "../../const";
 import { normalizeRequestBody } from "../../utils";
+import { PayloadTooLargeException } from "../../exception";
 
 
 export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
@@ -39,14 +40,8 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
     statusCode: () => _statusCode,
 
     setStatusCode (status : number) {
-      _statusCode = status;
-      
+      _statusCode = status;      
       response.uWS.statusCode = status; 
-
-       _writeHeaders = {
-        ...response.writeHeaders(),
-        [status]: null,
-      };
 
       return response;
     },
@@ -83,10 +78,6 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         return;
       }
 
-      if (chunk === undefined) {
-        return;
-      }
-
       response.setHeader('connection','keep-alive');
       response.setHeader('keep-alive','timeout=5');
 
@@ -94,8 +85,6 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         if (!response.aborted()) {
           _aborted = true;
           _writableEnded = true;
-
-         
 
           const headers = response.writeHeaders();
 
@@ -110,6 +99,11 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
           for (const key in headers) {
             const value = headers[key];
             response.uWS.writeHeader(key, value);
+          }
+
+          if (chunk === undefined) {
+            response.uWS.end();
+            return;
           }
 
           if (
@@ -226,18 +220,18 @@ export const uWSfiles = async ({
       const fail = (err: Error) => {
         if (aborted) return;
 
-        aborted = true;
+        // aborted = true;
 
-        try {
-          currentFileStream?.destroy();
-        } catch {}
-        try {
-          file?.tempFilePath && fsSystem.unlinkSync(file.tempFilePath);
-        } catch {}
+        // try {
+        //   currentFileStream?.destroy();
+        // } catch {}
+        // try {
+        //   file?.tempFilePath && fsSystem.unlinkSync(file.tempFilePath);
+        // } catch {}
 
-        try {
-          res.uWS.close();
-        } catch {}
+        // try {
+        //   res.uWS.close();
+        // } catch {}
 
         return reject(err);
       };
@@ -368,9 +362,13 @@ export const uWSfiles = async ({
                 };
 
                 if (file.size > options.limit) {
-                  return fail(
-                    new Error(`File too large (limit ${options.limit} bytes)`),
+                  const uploadError = new PayloadTooLargeException(
+                    `The file '${file.name}' is too large. Limit: ${options.limit} bytes.`
                   );
+
+                  fsSystem.promises.unlink(file.tempFilePath).catch(() => null);
+                  
+                  return fail(uploadError);
                 }
 
                 buffer = buffer.slice(safeLength);
@@ -391,12 +389,6 @@ export const uWSfiles = async ({
               mb: file.size / 1024 / 1024,
               gb: file.size / 1024 / 1024 / 1024,
             };
-
-            if (file.size > options.limit) {
-              return fail(
-                new Error(`File too large (limit ${options.limit} bytes)`),
-              );
-            }
 
             currentFileStream!.end();
 
