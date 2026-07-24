@@ -12,6 +12,7 @@ import {
   type T,
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 @Controller("/items")
 class ItemsController {
@@ -112,16 +113,20 @@ class ProductsController {
 describe("Controller Unit Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [ItemsController, ProductsController],
   });
 
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5007, ({ port, server: sCallback }) => {
+    app.listen(5007 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -129,7 +134,7 @@ describe("Controller Unit Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("ItemsController - GET /items", () => {

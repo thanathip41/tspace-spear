@@ -3,8 +3,11 @@ import { expect } from "chai";
 import { Server } from "http";
 import { Spear, Router } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 describe("Router Unit Tests", () => {
+  const { portOffset } = getAdapter();
+  
   let server: Server;
   let client: ApiClient<any>;
 
@@ -27,8 +30,9 @@ describe("Router Unit Tests", () => {
     .get("/cats/:id", (ctx) => ({ catId: ctx.params.id }))
     .post("/cats", (ctx) => ({ created: ctx.body }));
 
-  // Create main app and use routers
-  const app = new Spear({ logger: true })
+  // Create main app and use routers with dynamic adapter
+  const { adapter } = getAdapter();
+  const app = new Spear({ logger: true, adapter })
     .useBodyParser()
     .useRouter(userRouter)
     .useRouter(catRouter)
@@ -36,7 +40,7 @@ describe("Router Unit Tests", () => {
     .get("/query-test", (ctx) => ({ query: ctx.query }));
 
   before((done) => {
-    app.listen(5003, ({ port, server: sCallback }) => {
+    app.listen(5002 + portOffset, ({ port, server: sCallback }) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -44,7 +48,7 @@ describe("Router Unit Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   // Tests for /hello route (direct app route)

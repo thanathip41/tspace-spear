@@ -3,59 +3,62 @@ import { expect } from "chai";
 import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 describe("Middleware Unit Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
   const executionOrder: string[] = [];
-
-  const app = new Spear({ logger: true })
-    .use((ctx, next) => {
-      executionOrder.push("global-1-start");
-      return next();
-    })
-    .use((ctx, next) => {
-      executionOrder.push("global-2-start");
-      return next();
-    })
-    .use((ctx, next) => {
-      (ctx.req as any).customHeader = "injected-by-middleware";
-      return next();
-    })
-    .get("/middleware-test", (ctx) => {
-      return {
-        customHeader: (ctx.req as any).customHeader,
-        message: "handled",
-      };
-    })
-    .get(
-      "/middleware-next",
-      (ctx, next) => {
-        executionOrder.push("handler");
-        return next();
-      },
-      (ctx) => {
-        return { executed: true };
-      },
-    )
-    .get(
-      "/middleware-status",
-      (ctx, next) => {
-        ctx.res.set(201);
-        return next();
-      },
-      (ctx) => {
-        return { status: "modified" };
-      },
-    )
-    .useCookiesParser()
-    .get("/cookies-parser", (ctx) => {
-      return { cookies: ctx.cookies };
-    });
+  const { portOffset, adapter } = getAdapter();
 
   before((done) => {
-    app.listen(5004, ({ port, server: sCallback }) => {
+    app = new Spear({ logger: true, adapter })
+      .use((ctx: any, next: any) => {
+        executionOrder.push("global-1-start");
+        return next();
+      })
+      .use((ctx: any, next: any) => {
+        executionOrder.push("global-2-start");
+        return next();
+      })
+      .use((ctx: any, next: any) => {
+        (ctx.req as any).customHeader = "injected-by-middleware";
+        return next();
+      })
+      .get("/middleware-test", (ctx: any) => {
+        return {
+          customHeader: (ctx.req as any).customHeader,
+          message: "handled",
+        };
+      })
+      .get(
+        "/middleware-next",
+        (ctx: any, next: any) => {
+          executionOrder.push("handler");
+          return next();
+        },
+        (ctx: any) => {
+          return { executed: true };
+        },
+      )
+      .get(
+        "/middleware-status",
+        (ctx: any, next: any) => {
+          ctx.res.set(201);
+          return next();
+        },
+        (ctx: any) => {
+          return { status: "modified" };
+        },
+      )
+      .useCookiesParser()
+      .get("/cookies-parser", (ctx: any) => {
+        return { cookies: ctx.cookies };
+      });
+
+    app.listen(5004 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -63,7 +66,8 @@ describe("Middleware Unit Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    console.log('done!!')
+    done()
   });
 
   beforeEach(() => {
@@ -101,7 +105,6 @@ describe("Middleware Unit Tests", () => {
   });
 
   it("should parse cookies with useCookiesParser middleware", async () => {
-    // Note: ApiClient may not send cookies directly, testing the endpoint exists
     const res = await client.get("/cookies-parser");
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
@@ -111,8 +114,11 @@ describe("Middleware Unit Tests", () => {
 describe("Global Prefix Middleware Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({ logger: true })
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({ logger: true, adapter })
     .useGlobalPrefix("api", {
       exclude: [{ path: "health" }],
     })
@@ -120,7 +126,7 @@ describe("Global Prefix Middleware Tests", () => {
     .get("/health", () => ({ health: "ok" }));
 
   before((done) => {
-    app.listen(5005, ({ port, server: sCallback }) => {
+    app.listen(5005 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -128,7 +134,7 @@ describe("Global Prefix Middleware Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   it("should apply global prefix to routes", async () => {
@@ -153,16 +159,19 @@ describe("Global Prefix Middleware Tests", () => {
 describe("Error Handler Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({ logger: true })
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({ logger: true, adapter })
     .get("/error", () => {
       throw new Error("Test error");
     })
-    .get("/error-with-status", (ctx) => {
+    .get("/error-with-status", (ctx: any) => {
       ctx.res.set(422);
       throw new Error("Validation failed");
     })
-    .catch((err, ctx) => {
+    .catch((err: any, ctx: any) => {
       return ctx.res.status(err.statusCode || 500).json({
         customError: true,
         message: err.message,
@@ -170,7 +179,7 @@ describe("Error Handler Tests", () => {
     });
 
   before((done) => {
-    app.listen(5006, ({ port, server: sCallback }) => {
+    app.listen(5006 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -178,7 +187,7 @@ describe("Error Handler Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   it("should handle thrown errors with custom error handler", async () => {

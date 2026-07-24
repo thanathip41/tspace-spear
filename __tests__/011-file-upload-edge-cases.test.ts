@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 describe("File Upload Edge Cases Tests", () => {
   let server: Server;
@@ -12,7 +13,9 @@ describe("File Upload Edge Cases Tests", () => {
   let testImagePath: string;
   let testTextPath: string;
 
-  const app = new Spear({ logger: true })
+  const { portOffset, adapter } = getAdapter();
+
+  const app = new Spear({ logger: true, adapter })
     .useBodyParser()
     .useFileUpload({
       limit: 5 * 1024 * 1024, // 5MB limit
@@ -22,7 +25,7 @@ describe("File Upload Edge Cases Tests", () => {
         ms: 1000,
       },
     })
-    .post("/upload/single", (ctx) => {
+    .post("/upload/single", (ctx: any) => {
       const file = ctx.files?.file?.[0];
       if (!file) {
         return ctx.res.status(400).json({ error: "No file uploaded" });
@@ -40,14 +43,14 @@ describe("File Upload Edge Cases Tests", () => {
       const files = ctx.files?.files ?? [];
       return {
         count: files.length,
-        files: files.map((f: any) => ({
+        files: files.map((f) => ({
           name: f.name,
           mimetype: f.mimetype,
           size: f.size,
         })),
       };
     })
-    .post("/upload/with-body", (ctx) => {
+    .post("/upload/with-body", (ctx: any) => {
       const file = ctx.files?.file?.[0];
       const body = ctx.body;
       return {
@@ -60,7 +63,7 @@ describe("File Upload Edge Cases Tests", () => {
         body,
       };
     })
-    .post("/upload/empty", (ctx) => {
+    .post("/upload/empty", (ctx: any) => {
       const files = ctx.files;
       return {
         hasFiles: !!files && Object.keys(files).length > 0,
@@ -84,7 +87,7 @@ describe("File Upload Edge Cases Tests", () => {
     await fs.promises.writeFile(testTextPath, "Hello, World!");
 
     await new Promise<void>((resolve) => {
-      app.listen(5021, ({ port, server: sCallback }) => {
+      app.listen(5021 + portOffset, ({ port, server: sCallback }: any) => {
         server = sCallback;
         client = new ApiClient(`http://localhost:${port}`);
         resolve();
@@ -92,19 +95,10 @@ describe("File Upload Edge Cases Tests", () => {
     });
   });
 
-  after(async () => {
-    // Cleanup test files
-    try {
-      await fs.promises.unlink(testImagePath);
-      await fs.promises.unlink(testTextPath);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-    if (server) {
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve());
-      });
-    }
+  after((done) => {
+    fs.promises.unlink(testImagePath).catch(_ => null);
+    fs.promises.unlink(testTextPath).catch(_ => null);
+    done();
   });
 
   describe("Single File Upload", () => {
@@ -458,7 +452,7 @@ describe("File Upload Edge Cases Tests", () => {
       const res = await client.upload("/upload/single", {
         formdata: formData,
       });
-
+    
       expect(res.ok).to.be.equal(true);
       if (res.ok) {
         expect(res.data.file).to.have.property("size", 1024 * 1024);

@@ -11,6 +11,7 @@ import {
   type T,
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 @Controller("/auth")
 class AuthController {
@@ -138,9 +139,13 @@ class ParamsTestController {
 describe("Pure @Validate Decorator Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [
       AuthController,
       UsersController,
@@ -153,7 +158,7 @@ describe("Pure @Validate Decorator Tests", () => {
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5012, ({ port, server: sCallback }) => {
+    app.listen(5012 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -161,7 +166,7 @@ describe("Pure @Validate Decorator Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("Body Validation - required: { allowNull: false, allowEmptyString: false }", () => {

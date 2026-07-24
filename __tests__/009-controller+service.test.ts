@@ -12,6 +12,7 @@ import {
   type T,
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 // ============== Services ==============
 
@@ -289,16 +290,20 @@ class OrdersController {
 describe("Controller + Service Tests (no DTO)", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [UsersController, ProductsController, OrdersController],
   });
 
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5014, ({ port, server: sCallback }) => {
+    app.listen(5014 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -306,7 +311,7 @@ describe("Controller + Service Tests (no DTO)", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("UsersController - /users", () => {

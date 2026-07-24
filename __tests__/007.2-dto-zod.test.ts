@@ -11,6 +11,7 @@ import {
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { z } from "zod";
+import { getAdapter } from "./app/adapter";
 
 // ============== Zod Schema Tests ==============
 
@@ -160,9 +161,13 @@ class ValidateController {
 describe("DTO and Zod Validator Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [
       ZodUsersController,
       ZodProductsController,
@@ -175,7 +180,7 @@ describe("DTO and Zod Validator Tests", () => {
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5008, ({ port, server: sCallback }) => {
+    app.listen(5008 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -183,7 +188,7 @@ describe("DTO and Zod Validator Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   // ============== Zod Validation Tests ==============

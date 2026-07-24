@@ -1,4 +1,5 @@
 import { Server }     from 'http';
+import { getAdapter } from './app/adapter';
 import fs             from "fs";
 import path           from 'path';
 import chai           from "chai";
@@ -20,8 +21,10 @@ let client: ApiClient<typeof app.contract>;
 
 describe("TSpear E2E Test", () => {
   
+  const { portOffset } = getAdapter();
+  
   before((done) => {
-    app.listen(5001, ({ port , server : sCallback }) => {
+    app.listen(5001 + portOffset, ({ port , server : sCallback }) => {
       console.log(`server listening on http://localhost:${port}`);
       server = sCallback
       client = new ApiClient(
@@ -32,7 +35,7 @@ describe("TSpear E2E Test", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   it("should return all cats", async () => {

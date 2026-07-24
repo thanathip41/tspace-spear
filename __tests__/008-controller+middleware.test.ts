@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { Server } from "http";
 import { Spear, Controller, Get, Post, Middleware, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 // Auth middleware function (checks for API key header)
 const authMiddleware: T.ContextHandler = (ctx: any, next) => {
@@ -143,9 +144,13 @@ class ApiController {
 describe("Controller + Middleware Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [
       PublicController,
       ProtectedController,
@@ -157,7 +162,7 @@ describe("Controller + Middleware Tests", () => {
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5010, ({ port, server: sCallback }) => {
+    app.listen(5010 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -165,7 +170,7 @@ describe("Controller + Middleware Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("PublicController - /public (no middleware)", () => {

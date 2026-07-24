@@ -3,64 +3,68 @@ import { expect } from "chai";
 import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 describe("Response Methods Unit Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({ logger: true })
-    .get("/response/json", (ctx) => {
-      ctx.res.json({ name: "test", value: 123 });
-      return null;
-    })
-    .get("/response/send", (ctx) => {
-      ctx.res.send("Hello World");
-      return null;
-    })
-    .get("/response/html", (ctx) => {
-      ctx.res.html("<h1>Hello</h1>");
-      return null;
-    })
-    .get("/response/status-201", (ctx) => {
-      return ctx.res.status(201).json({ created: true });
-    })
-    .get("/response/status-400", (ctx) => {
-      return ctx.res.status(400).json({ error: "Bad Request" });
-    })
-    .get("/response/ok", (ctx) => {
-      return ctx.res.ok({ success: true });
-    })
-    .get("/response/created", (ctx) => {
-      return ctx.res.created({ id: 1, name: "created" });
-    })
-    .get("/response/no-content", (ctx) => {
-      return ctx.res.noContent();
-    })
-    .get("/response/bad-request", (ctx) => {
-      return ctx.res.badRequest("Custom bad request");
-    })
-    .get("/response/unauthorized", (ctx) => {
-      return ctx.res.unauthorized("Custom unauthorized");
-    })
-    .get("/response/forbidden", (ctx) => {
-      return ctx.res.forbidden("Custom forbidden");
-    })
-    .get("/response/not-found", (ctx) => {
-      return ctx.res.notFound("Custom not found");
-    })
-    .get("/response/server-error", (ctx) => {
-      return ctx.res.serverError("Custom server error");
-    })
-    .get("/response/cookies", (ctx) => {
-      ctx.res.setCookies({
-        session: "abc123",
-        user: { value: "john", path: "/", httpOnly: true },
-      });
-      return ctx.res.json({ cookiesSet: true });
-    });
+  const { portOffset, adapter } = getAdapter();
 
   before((done) => {
-    app.listen(5004, ({ port, server: sCallback }) => {
+    app = new Spear({ logger: true, adapter })
+      .get("/response/json", (ctx: any) => {
+        ctx.res.json({ name: "test", value: 123 });
+        return null;
+      })
+      .get("/response/send", (ctx: any) => {
+        ctx.res.send("Hello World");
+        return null;
+      })
+      .get("/response/html", (ctx: any) => {
+        ctx.res.html("<h1>Hello</h1>");
+        return null;
+      })
+      .get("/response/status-201", (ctx: any) => {
+        return ctx.res.status(201).json({ created: true });
+      })
+      .get("/response/status-400", (ctx: any) => {
+        return ctx.res.status(400).json({ error: "Bad Request" });
+      })
+      .get("/response/ok", (ctx: any) => {
+        return ctx.res.ok({ success: true });
+      })
+      .get("/response/created", (ctx: any) => {
+        return ctx.res.created({ id: 1, name: "created" });
+      })
+      .get("/response/no-content", (ctx: any) => {
+        return ctx.res.noContent();
+      })
+      .get("/response/bad-request", (ctx: any) => {
+        return ctx.res.badRequest("Custom bad request");
+      })
+      .get("/response/unauthorized", (ctx: any) => {
+        return ctx.res.unauthorized("Custom unauthorized");
+      })
+      .get("/response/forbidden", (ctx: any) => {
+        return ctx.res.forbidden("Custom forbidden");
+      })
+      .get("/response/not-found", (ctx: any) => {
+        return ctx.res.notFound("Custom not found");
+      })
+      .get("/response/server-error", (ctx: any) => {
+        return ctx.res.serverError("Custom server error");
+      })
+      .get("/response/cookies", (ctx: any) => {
+        ctx.res.setCookies({
+          session: "abc123",
+          user: { value: "john", path: "/", httpOnly: true },
+        });
+        return ctx.res.json({ cookiesSet: true });
+      });
+
+    app.listen(5003 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -68,7 +72,7 @@ describe("Response Methods Unit Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   it("res.json() should send JSON response", async () => {

@@ -20,6 +20,7 @@ import {
   MaxLength,
   IsPositive,
 } from "class-validator";
+import { getAdapter } from "./app/adapter";
 
 // ============== DTO Classes ==============
 
@@ -135,16 +136,20 @@ class ProductsController {
 describe("DTO Class Validator Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [UsersController, ProductsController],
   });
 
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5011, ({ port, server: sCallback }) => {
+    app.listen(5011 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -152,7 +157,7 @@ describe("DTO Class Validator Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("UsersController - CreateUserDto Validation", () => {

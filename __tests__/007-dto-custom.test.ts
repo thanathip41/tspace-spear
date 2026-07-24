@@ -11,6 +11,7 @@ import {
   type T,
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
+import { getAdapter } from "./app/adapter";
 
 // ============== Custom DTO Validators ==============
 
@@ -19,7 +20,7 @@ import { ApiClient } from "../src/lib/core/client";
  */
 const ValidateDtoCustomBody = (keys: string[]) => {
   return createDtoDecorator(
-    (ctx) => {
+    (ctx: any) => {
       const body = ctx.body ?? {};
       const issues: Array<{ path: string; message: string }> = [];
 
@@ -41,8 +42,7 @@ const ValidateDtoCustomBody = (keys: string[]) => {
         };
       }
     },
-    (ctx, error) => {
-      // you implement your custom error handling for async validation here
+    (ctx: any, error: any) => {
       return ctx.res.status(400).json({
         message: error.message || "Validation failed",
         issues: error.issues || [],
@@ -55,7 +55,7 @@ const ValidateDtoCustomBody = (keys: string[]) => {
  * Custom body validator with type check - validates field types
  */
 const ValidateTypes = (types: Record<string, string>) => {
-  return createDtoDecorator((ctx) => {
+  return createDtoDecorator((ctx: any) => {
     const body = ctx.body ?? {};
     const issues: Array<{ path: string; message: string }> = [];
 
@@ -93,7 +93,7 @@ const ValidateTypes = (types: Record<string, string>) => {
  * Custom query validator - checks if specified query params exist
  */
 const ValidateQueryParams = (keys: string[]) => {
-  return createDtoDecorator((ctx) => {
+  return createDtoDecorator((ctx: any) => {
     const query = ctx.query ?? {};
     const issues: Array<{ path: string; message: string }> = [];
 
@@ -121,7 +121,7 @@ const ValidateQueryParams = (keys: string[]) => {
  * Custom validator with min/max value check for numbers
  */
 const ValidateNumberRange = (key: string, min: number, max: number) => {
-  return createDtoDecorator((ctx) => {
+  return createDtoDecorator((ctx: any) => {
     const body = ctx.body ?? {};
     const issues: Array<{ path: string; message: string }> = [];
     const value = body[key];
@@ -158,7 +158,7 @@ const ValidateNumberRange = (key: string, min: number, max: number) => {
 const ValidateEmail = (key: string = "email") => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  return createDtoDecorator((ctx) => {
+  return createDtoDecorator((ctx: any) => {
     const body = ctx.body ?? {};
     const issues: Array<{ path: string; message: string }> = [];
     const value = body[key];
@@ -252,9 +252,13 @@ class CustomParamsController {
 describe("Custom DTO Validator Tests", () => {
   let server: Server;
   let client: ApiClient<any>;
+  let app: any;
 
-  const app = new Spear({
+  const { portOffset, adapter } = getAdapter();
+
+  app = new Spear({
     logger: true,
+    adapter,
     controllers: [
       CustomDtoController,
       CustomQueryController,
@@ -265,7 +269,7 @@ describe("Custom DTO Validator Tests", () => {
   app.useBodyParser();
 
   before((done) => {
-    app.listen(5013, ({ port, server: sCallback }) => {
+    app.listen(5013 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
       client = new ApiClient(`http://localhost:${port}`);
       done();
@@ -273,7 +277,7 @@ describe("Custom DTO Validator Tests", () => {
   });
 
   after((done) => {
-    server?.close(() => done());
+    done()
   });
 
   describe("ValidateDtoCustomBody - Basic field existence check", () => {
