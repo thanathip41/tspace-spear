@@ -9,8 +9,10 @@ import {
   HTTP_STATUS_MESSAGES 
 } from '../../const';
 
+import { PayloadTooLargeException } from "../../exception";
 
-const createResponseObject = (socket: Socket) => {
+
+const createResponseObject = (socket: Socket,method: string) => {
 
   let _writableEnded = false;
   let _aborted =  false;
@@ -41,6 +43,15 @@ const createResponseObject = (socket: Socket) => {
       
       if (context) {
         for (const key in context) {
+          if(
+            method === 'HEAD' && 
+            key === 'Content-Type' &&
+            context[key] === 'application/json'
+          ) {
+           
+            response.setHeader(key, 'text/plain');
+            continue;
+          }
           response.setHeader(key, context[key]);
         }
       }
@@ -53,6 +64,8 @@ const createResponseObject = (socket: Socket) => {
 
       response.net.cork();
 
+      if(method === 'HEAD') chunk = '';
+      
       const content = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk || ''));
 
       if (!response.headersSent()) {
@@ -113,6 +126,7 @@ export const netAdaptRequestResponse = (
   };
 
   socket.on("error", (err: any) => {
+   
     if (err.code === "ECONNRESET" || err.code === "ECONNABORTED") {
       return;
     }
@@ -172,7 +186,7 @@ export const netAdaptRequestResponse = (
         _bodyRead: false,
       } as unknown as T.Request
 
-      const res = createResponseObject(socket) as unknown as T.Response
+      const res = createResponseObject(socket,method) as unknown as T.Response
 
       callback(req, res);
 
@@ -183,10 +197,10 @@ export const netAdaptRequestResponse = (
 
       len = remain;
 
-      if (!keepAlive) {
-        socket.end();
-        return;
-      }
+      // if (!keepAlive) {
+      //   socket.end();
+      //   return;
+      // }
     }
   };
 
@@ -274,7 +288,7 @@ export const netFiles = async ({
     let body: Record<string, any> = {};
     let files: Record<string, any> = {};
     let buffer: Buffer = req._body || Buffer.alloc(0);
-      // let buffer: Buffer = Buffer.alloc(0);
+    
     let currentFileStream: fsSystem.WriteStream | null = null;
     let file: any = null;
     let headerParsed = false;
@@ -286,12 +300,9 @@ export const netFiles = async ({
         buffer = Buffer.concat([buffer, chunk]);
         totalBytesReceived += chunk.length;
       }
-      // console.log('onData loading');
-      // const data: Buffer = Buffer.from(new Uint8Array(chunk));
-
-      // buffer = buffer.length === 0 ? data : Buffer.concat([buffer, data]);
- 
+      
       try {
+
         while (true) {
 
           if (!headerParsed) {
@@ -389,12 +400,22 @@ export const netFiles = async ({
             break; 
           }
 
-          const filePart = buffer.subarray(0, boundaryIndex);
+          let end = boundaryIndex;
+
+          if (
+            end >= 2 &&
+            buffer[end - 2] === 0x0d && 
+            buffer[end - 1] === 0x0a   
+          ) {
+            end -= 2;
+          }
+
+          const filePart = buffer.subarray(0, end);
 
           currentFileStream?.write(filePart);
-          file.size += filePart.length;
 
-          currentFileStream?.end();
+         
+          file.size += filePart.length;
 
           file.sizes = {
             bytes: file.size,
@@ -405,23 +426,34 @@ export const netFiles = async ({
           
           buffer = buffer.subarray(boundaryIndex + boundaryBuf.length);
           headerParsed = false;
+
+          if (file.size > options.limit) {
+            const uploadError = new PayloadTooLargeException(
+              `The file '${file.name}' is too large. Limit: ${options.limit} bytes.`
+            );
+            socket.off('data', onData);
+
+            currentFileStream?.end(() => fsSystem.promises.unlink(file.tempFilePath).catch(() => null))
+           
+            return reject(uploadError);
+          }
+
+          currentFileStream?.end();
         }
 
         if (totalBytesReceived >= contentLength || buffer.toString().includes(boundary + "--")) {
           socket.off('data', onData);
-          // if (currentFileStream) currentFileStream.end();
+          if (currentFileStream) currentFileStream.end();
           return resolve({ body, files });
         }
       } catch (err) {
-        console.log(err)
-          socket.off('data', onData);
+        socket.off('data', onData);
         return reject(err);
       }
     };
 
     socket.on('data', onData);
     socket.on('error', (err:any) => {
-      console.log(err)
       return reject(err)
     });
 
