@@ -1,7 +1,11 @@
 import Spear from "../../src/lib";
+import { getAdapter } from "./adapter";
+
+const { adapter } = getAdapter();
 
 export const app = new Spear({
     logger : true,
+    adapter,
     controllers: {
         folder : `${__dirname}/modules/*`,
         name:/controller\.(ts|js)$/i,
