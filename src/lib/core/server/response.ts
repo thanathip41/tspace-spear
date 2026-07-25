@@ -1,4 +1,8 @@
-import { OutgoingHttpHeader, OutgoingHttpHeaders } from "http";
+import { 
+    OutgoingHttpHeader, 
+    OutgoingHttpHeaders 
+} from "http";
+
 import { 
     HEADER_CONTENT_TYPES 
 } from "../const";
@@ -104,6 +108,9 @@ function noContent(this: TResponse) {
     return this.status(204).end();
 }
 
+function partialContent(this: TResponse) {
+    return this.status(206).end();
+}
 function badRequest(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
     return this.status(400).json({ message });
@@ -127,6 +134,26 @@ function forbidden(this: TResponse, message?: string) {
 function notFound(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' was not found. Please re-check your URL again.`;
     return this.status(404).json({ message });
+}
+
+function notAllowed(this: TResponse, message?: string) {
+    message = message ?? `The HTTP method '${this._req.method}' is not allowed for '${this._req.url}'.`;
+    return this.status(405).json({ message });
+}
+
+function timeout(this: TResponse, message?: string) {
+    message = message ?? `The request to '${this._req.url}' timed out before the server could complete it.`;
+    return this.status(408).json({ message });
+}
+
+function conflict(this: TResponse, message?: string) {
+    message = message ?? `The request '${this._req.url}' conflicts with the current state of the resource.`;
+    return this.status(409).json({ message });
+}
+
+function tooLarge(this: TResponse, message?: string) {
+    message = message ?? `The request '${this._req.url}' exceeds the maximum allowed payload size.`;
+    return this.status(413).json({ message });
 }
 
 function unprocessable(this: TResponse, message?: string) {
@@ -303,13 +330,20 @@ export class Response {
             created,
             accepted,
             noContent,
+            partialContent,
+
             badRequest,
             unauthorized,
             paymentRequired,
             forbidden,
             notFound,
+            notAllowed,
+            timeout,
+            conflict,
+            tooLarge,
             unprocessable,
             tooManyRequests,
+
             serverError,
             setCookies,
             set,

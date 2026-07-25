@@ -7,7 +7,7 @@ import http, {
 } from "http";
 
 import WebSocket from "ws";
-import net from 'net';
+import net, { Socket } from 'net';
 
 export interface ContextExtensions  {
   req     : TRequest
@@ -84,7 +84,7 @@ type TResponse = {
      */
     uWS: any; // typeof import('uWebSockets.js').HttpResponse
     http : ServerResponse;
-    net : any;
+    net : Socket;
     
     writableEnded: () => boolean;
     aborted: () => boolean;
@@ -114,7 +114,10 @@ type TResponse = {
     accepted: <T extends Record<string, any>>(data?: T) => T.Response & T
 
     /** 204 No Content - Successful request with no response body */
-    noContent: <T extends string> (message?: T) => T.Response & T
+    noContent: () => T.Response;
+
+    /** 206 Partial Content - Successful request with a partial response body */
+    partialContent: () => T.Response
 
     /** 400 Bad Request - Invalid request from client */
     badRequest: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 400 }
@@ -130,6 +133,18 @@ type TResponse = {
 
     /** 404 Not Found - Resource does not exist */
     notFound: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 404 }
+
+    /** 405 Method Not Allowed - HTTP method is not supported for this resource */
+    notAllowed: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 405 }
+
+    /** 408 Request Timeout - The server timed out waiting for the request */
+    timeout: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 408 }
+
+    /** 409 Conflict - Request could not be completed due to a conflict with the current state of the resource */
+    conflict: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 409 }
+
+    /** 413 Content Too Large - Request payload exceeds the allowed size */
+    tooLarge: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 413 }
 
     /** 422 Unprocessable Entity - Valid request but semantic errors */
     unprocessable: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 422 }
