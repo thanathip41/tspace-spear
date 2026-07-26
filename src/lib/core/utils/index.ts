@@ -1,16 +1,15 @@
 import { HEADER_CONTENT_TYPES } from "../const";
 
-import { uWSPipeStream } from "../server/uWS";
+import { uWSPipeStream, uWSServer } from "../server/uWS";
+import { httpPipeStream, httpServer } from "../server/http";
+import { netPipeStream, netServer } from "../server/net";
 
-import type { T }   from "../..";
-import querystring  from "querystring";
-import { Stream }   from "stream";
-import fsSystem     from "fs";
-import pathSystem   from "path";
-import mime         from "mime-types";
-import xml2js       from "xml2js";
-import Crypto       from 'crypto';
-
+import type { T } from "../..";
+import querystring from "querystring";
+import { Stream } from "stream";
+import fsSystem from "fs";
+import pathSystem from "path";
+import xml2js from "xml2js";
 
 export const normalizeRequestBody = async ({
   contentType,
@@ -65,12 +64,12 @@ export const pipeStream = async ({
   req,
   res,
   filePath,
-  isUwebSocket,
+  adapter,
 }: {
   req: T.Request;
   res: T.Response;
   filePath: string;
-  isUwebSocket?: boolean;
+  adapter: "http" | "net" | "uWS";
 }): Promise<Stream> => {
   if (!fsSystem.existsSync(filePath)) {
     return res
@@ -78,111 +77,97 @@ export const pipeStream = async ({
       .end(`File not found: ${pathSystem.basename(filePath)}`);
   }
 
-  if (isUwebSocket) {
+  if (adapter === "uWS") {
     return uWSPipeStream({ req, res, filePath });
   }
-  
-  const stat = fsSystem.statSync(filePath);
 
-  const fileSize = stat.size;
-
-  const range = req.headers["range"] ?? null;
-
-  const contentType = mime.lookup(filePath) || HEADER_CONTENT_TYPES["octet"]["Content-Type"];
-
-  const isVideo = contentType.startsWith("video/");
-
-  const writeHead = (header: Record<string, any>, code = 200) => {
-    const extension = filePath.split(".").pop();
-    const previews = Object.values({
-      video: [
-        "mp4",
-        "webm",
-        "ogg",
-        "ogv",
-        "avi",
-        "mov",
-        "mkv",
-        "flv",
-        "f4v",
-        "wmv",
-        "ts",
-        "mpeg",
-      ],
-      audio: ["wav", "mp3"],
-      document: ["pdf","html"],
-      image: ["png", "jpeg", "jpg", "gif", "webp", "svg", "ico"],
-    }).flat();
-
-    if (previews.some((p) => extension?.toLocaleLowerCase().includes(p))) {
-      res.writeHead(code as T.StatusCode, header);
-      return;
-    }
-
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${+new Date()}.${extension}`,
-    );
-    res.setHeader("Content-Type", HEADER_CONTENT_TYPES["octet"]["Content-Type"]);
-  };
-
-  const maxAge = 1000 * 60 * 60 * 24 * 7;
-
-  const etag = Crypto
-  .createHash("md5")
-  .update(`${stat.size}-${stat.mtimeMs}`)
-  .digest("hex");
-
-  const baseHeader = {
-      "Connection" :"keep-alive",
-      "Keep-Alive" :"timeout=60, max=1000",
-      "Cache-Control": `public, max-age=${maxAge}, immutable`,
-      "Strict-transport-security": `max-age=${maxAge}; includeSubDomains`,
-      "ETag": `"${etag}"`,
-      "Date" : new Date(stat.birthtimeMs).toUTCString(),
-      "Last-modified": new Date(stat.birthtimeMs).toUTCString(),
-      "Vary" :"Origin, Accept-Encoding",
-      "Accept-Ranges": "bytes",
-      "Content-Length": fileSize,
-      "Content-Type": contentType,
-      "X-Content-type-options": "nosniff",
-      "X-Xss-protection": "1; mode=block",
-    }
-
-  if (!isVideo || range == null) {
-    const header = {
-      ...baseHeader,
-      "Content-Length": fileSize,
-      "Content-Type": contentType,
-    };
-
-    const stream = fsSystem.createReadStream(filePath);
-
-    writeHead(header);
-
-    stream.on("error", () => res.http.end());
-
-    return stream.pipe(res.http);
+  if (adapter === "net") {
+    return netPipeStream({ req, socket: res.net, filePath });
   }
 
-  const parts = range.replace(/bytes=/, "").split("-");
-  const start = parseInt(parts[0], 10);
-  const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+  return httpPipeStream({ req, res, filePath });
+};
 
-  const chunksize = end - start + 1;
+export const createServer = ({
+  adapter,
+  ws,
+  lookup,
+  cors,
+}: {
+  adapter: T.Adapter;
+  ws: T.WS;
+  lookup: Function;
+  cors?: (req: T.Request, res: T.Response) => void;
+}) => {
+  switch (adapter.kind) {
+    case "uWS": {
+      return uWSServer({
+        uWS: adapter.server,
+        ws,
+        cors,
+        lookup,
+      });
+    }
 
-  const stream = fsSystem.createReadStream(filePath, { start, end });
+    case "net": {
+      return netServer({
+        net: adapter.server,
+        ws,
+        cors,
+        lookup,
+      });
+    }
 
-  const header = {
-    ...baseHeader,
-    "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-    "Content-Length": chunksize,
-    "Accept-Ranges": "bytes"
-  };
+    case "http": {
+      return httpServer({
+        http: adapter.server,
+        ws,
+        cors,
+        lookup,
+      });
+    }
 
-  writeHead(header, 206);
+    default: {
+      throw new Error(`Unsupported adapter`);
+    }
+  }
+};
 
-  stream.on("error", () => res.http.end());
+export const litenServer = ({
+  adapterKind,
+  server,
+  port,
+  hostname,
+  callback,
+  onListening,
+}: {
+  adapterKind: T.Adapter["kind"];
+  server: T.Server;
+  port: number;
+  hostname?: string | ((callback: { server: T.Server; port: number }) => void);
+  callback?: (data: { server: T.Server; port: number }) => void;
+  onListening?: () => void | Promise<void>;
+}) => {
+  if (adapterKind === "uWS") {
+    const handler = async () => {
+      await onListening?.();
+      callback?.({ server, port });
+    };
 
-  return stream.pipe(res.http);
+    hostname
+      ? server.listen(port, hostname, handler)
+      : server.listen(port, handler);
+
+    return;
+  }
+
+  hostname
+    ? server.listen(port, hostname, () => callback?.({ server, port: port }))
+    : server.listen(port, () => callback?.({ server, port: port }));
+
+  server.on("listening", async () => {
+    await onListening?.();
+  });
+
+  return;
 };

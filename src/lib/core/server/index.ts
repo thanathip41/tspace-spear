@@ -1,6 +1,4 @@
-import http, { 
-    Server, 
-    IncomingMessage,
+import http, {  
     ServerResponse 
 } from 'http';
 
@@ -15,17 +13,13 @@ import fsSystem            from 'fs';
 import pathSystem          from 'path';
 import onFinished          from "on-finished";
 import WebSocket           from 'ws';
-import net , { Socket }    from 'net';
+import net                 from 'net';
 import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
 import { Response }        from './response';
 import { Compiler }        from '../compiler';
 import { AppRoutes }       from '../compiler/pre-routes';
-
-import { uWSAdaptRequestResponse } from './uWS';
-import { netAdaptRequestResponse } from './net';
-import { httpAdaptRequestResponse } from './http';
 
 import type { 
     T, 
@@ -42,6 +36,12 @@ import {
     SERVICE_METADATA, 
     SWAGGER_METADATA 
 } from '../metadata';
+
+import { 
+    createServer, 
+    litenServer 
+} from '../utils';
+
 
 const EMPTY = Object.freeze(Object.create(null));
 const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
@@ -106,13 +106,9 @@ class Spear<
     }
 
     private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
-    private _ws : {
-        handler ?: T.WebSocketHandler | null;
-        server  ?: WebSocket.Server | null;
-        options ?: WebSocket.ServerOptions | null;
-    } = {
+    private _ws : T.WS = {
         handler : null,
-        server : null,
+        server  : null,
         options : null
     }
     private _errorHandler : T.ErrorFunction | null = null
@@ -627,9 +623,9 @@ class Spear<
      */
     public async listen(
         port : number, 
-        hostname?: string | ((callback: { server: Server; port: number }) => void),
-        callback ?: (callback : { server : Server , port : number }) => void
-    ) : Promise<Server> {
+        hostname?: string | ((callback: { server: T.Server; port: number }) => void),
+        callback ?: (callback : { server : T.Server , port : number }) => void
+    ) : Promise<T.Server> {
 
         if(arguments.length === 2 && typeof hostname === 'function') {
             callback = hostname
@@ -657,39 +653,19 @@ class Spear<
             return server
         }
  
-        if (this._adapter.kind === 'uWS') {
-
-            const handler = async () => {
+        litenServer({
+            adapterKind: this._adapter.kind,
+            server,
+            port,
+            hostname,
+            callback,
+            onListening: async () => {
                 this._onListeners.forEach(listener => listener());
 
                 if (this._swagger.use) {
                     await this._swaggerHandler();
                 }
-
-                callback?.({ server, port });
-            };
-
-            if (hostname) {
-                server.listen(port, String(hostname), handler);
-            } else {
-                server.listen(port, handler);
-            }
-
-            return server;
-        }
-
-        const args: any[] = hostname
-        ? [port, hostname, () => callback?.({ server, port: port })]
-        : [port, () => callback?.({ server, port: port })];
-
-        server.listen(...args);
-
-        server.on('listening', async () => {
-            this._onListeners.forEach(listener => listener())
-
-            if(this._swagger.use) {
-                await this._swaggerHandler()
-            }
+            },
         })
 
         return server
@@ -1592,10 +1568,10 @@ class Spear<
     }
 
     private _clusterMode ({ server , port , hostname, callback} : {
-        server : Server;
+        server : T.Server;
         port : number;
-        hostname?: string | ((callback: { server: Server; port: number }) => void),
-        callback ?: (callback : { server : Server , port : number }) => void 
+        hostname?: string | ((callback: { server: T.Server; port: number }) => void),
+        callback ?: (callback : { server : T.Server , port : number }) => void 
     }) {
 
         if (cluster.isPrimary) {
@@ -1617,52 +1593,26 @@ class Spear<
 
         if(cluster.isWorker) {
             
-            if (this._adapter.kind === 'uWS') {
-
-                const handler = () => {
+            litenServer({
+                adapterKind: this._adapter.kind,
+                server,
+                port,
+                hostname,
+                callback,
+                onListening: async () => {
                     this._onListeners.forEach(listener => listener());
 
                     if (this._swagger.use) {
-                        this._swaggerHandler();
+                        await this._swaggerHandler();
                     }
-
-                    callback?.({ server, port });
-                };
-
-                if (hostname) {
-                    server.listen(port, hostname as string, handler);
-                    return server;
-                }
-
-                server.listen(port, handler);
-                
-                return server;
-            }
-
-            const args: any[] = hostname
-            ? [port, hostname, () => callback?.({ server, port: port })]
-            : [port, () => callback?.({ server, port: port })];
-
-            server.listen(...args);
-
-            server.on('listening', () => {
-                this._onListeners.forEach(listener => listener())
-    
-                if(this._swagger.use) {
-                    this._swaggerHandler()
-                }
-            })
-    
-            server.on('error', (_: NodeJS.ErrnoException) => {
-                port = Math.floor(Math.random() * 8999) + 1000
-                server.listen(port)
+                },
             })
         }
 
         return
     }
 
-    private async _createServer () : Promise<Server> {
+    private async _createServer () : Promise<T.Server> {
        
         await this._registerMiddlewares();
 
@@ -1674,135 +1624,16 @@ class Spear<
 
         const adapter = this._adapter;
 
-        if (adapter.kind === 'uWS') {
+        const ws = this._ws;
 
-            const server = adapter.server.App();
+        const server = createServer({
+            adapter,
+            ws,
+            cors,
+            lookup
+        })
 
-            server.any('/*', (uwsRes, uwsReq) => {
-
-                const { req , res } = uWSAdaptRequestResponse(uwsReq, uwsRes);
-                
-                if(cors) cors(req, res);
-                
-                return lookup(req, res);
-            })
-
-            if (this._ws?.handler) {
-                server.ws('/*', {
-                    open: (ws) => {
-                        this._ws.handler?.connection?.(ws);
-                    },
-
-                    message: (ws, message) => {
-                        this._ws.handler?.message?.(ws, Buffer.from(message));
-                    },
-
-                    close: (ws, code, message) => {
-                        this._ws.handler?.close?.(ws, code, Buffer.from(message));
-                    }
-                });
-            }
-
-            return server as unknown as Server;
-        } 
-
-        if(adapter.kind === 'net') {
-            
-            if (this._ws?.handler) {
-
-                const wss = new WebSocket.Server({
-                    noServer: true,
-                    ...this._ws.options,
-                });
-
-                this._ws.server = wss;
-
-                wss.on('connection', (ws) => {
-
-                    this._ws?.handler?.connection?.(ws);
-
-                    ws.on('message', (data) => {
-                        this._ws?.handler?.message?.(ws, data);
-                    });
-
-                    ws.on('close', (code, reason) => {
-                        this._ws?.handler?.close?.(ws, code, reason);
-                    });
-
-                    ws.on('error', (err) => {
-                        this._ws?.handler?.error?.(ws, err);
-                    });
-                });
-            }
-
-            const server = net.createServer((socket) => {
-
-                netAdaptRequestResponse(socket, (req, res) => {
-
-                    const wsServer = this._ws?.server;
-                    if (
-                        wsServer &&
-                        this._ws.handler &&
-                        req.headers?.upgrade?.toLowerCase() === 'websocket'
-                    ) {
-                        wsServer.handleUpgrade(
-                            req as any,
-                            socket,
-                            Buffer.alloc(0),
-                            (ws) => wsServer.emit('connection', ws, req)
-                        );
-                        return;
-                    }
-
-
-                    if (cors) cors(req, res);
-
-                    return lookup(req, res);
-                });
-
-            }) as unknown as Server;
-
-            return server;
-        }
-
-        if(adapter.kind === 'http') {
-            const server = http.createServer((httpReq: IncomingMessage, httpRes: ServerResponse) => {
-                const { req , res } = httpAdaptRequestResponse(httpReq, httpRes);
-                if (cors) cors(req, res);
-                return lookup(req, res);
-            })
-
-            if (this._ws?.handler) {
-                this._ws.server = new WebSocket.Server({ server , ...this._ws.options });
-
-                this._ws.server.on('connection', (ws) => {
-
-                    if (this._ws.handler?.connection) {
-                        this._ws.handler.connection(ws);
-                    }
-
-                    ws.on('message', (data) => {
-                        this._ws.handler?.message?.(ws, data);
-                    });
-
-                    ws.on('close', (code, reason) => {
-                        if (this._ws.handler?.close) {
-                            this._ws.handler?.close(ws, code, reason);
-                        }
-                    });
-
-                    ws.on('error', (err) => {
-                        if (this._ws.handler?.error) {
-                            this._ws.handler!.error(ws, err);
-                        }
-                    });
-                });
-            }
-            
-            return server
-        }
-
-        throw new Error(`Unsupported adapter`);
+        return server as T.Server;
     }
 
     private _createContext({ req, res, ps } : {
@@ -1815,7 +1646,7 @@ class Spear<
 
         const response = new Response(req, res, {
             formatResponse : this._formatResponse,
-            isUwebSocket :  this._adapter.kind === 'uWS'
+            adapter        :  this._adapter.kind
         }) as T.Response
 
         const headers = req.headers as T.Headers;

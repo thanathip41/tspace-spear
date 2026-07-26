@@ -11,7 +11,7 @@ import type { T }  from "../types";
 import { pipeStream } from "../utils";
 
 type TResponse = T.Response & {
-    _isUwebSocket : boolean;
+    _adapter : 'http' | 'net'| 'uWS';
     _formatResponse: Function | null;
     _req : T.Request;
 }
@@ -173,10 +173,10 @@ function serverError(this: TResponse, message?: string) {
 
 function serveMedia(this: TResponse, filePath: string) {
     return pipeStream({
-        req: this._req,
-        res: this,
-        filePath,
-        isUwebSocket: this._isUwebSocket
+        req      : this._req,
+        res      : this,
+        filePath : filePath,
+        adapter  : this._adapter
     });
 }
 
@@ -217,7 +217,7 @@ function setCookies(
         cookieLists.push(str);
     }
 
-    if (this._isUwebSocket) {
+    if (this._adapter === 'uWS') {
         for (const cookie of cookieLists) {
             this.setHeader("Set-Cookie", cookie);
         }
@@ -311,16 +311,15 @@ export class Response {
         res: T.Response,
         options: {
             formatResponse?: Function | null;
-            isUwebSocket?: boolean;
+            adapter?: 'http' | 'net'| 'uWS'
         }
     ) {
         Object.assign(this, res, {
             _res: res,
             _req: req,
             _formatResponse: options.formatResponse,
-            _isUwebSocket: options.isUwebSocket,
+            _adapter: options.adapter,
           
-            
             status,
             json,
             send,

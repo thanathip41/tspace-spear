@@ -23,6 +23,16 @@ export interface ContextExtensions  {
   files   : TFileUpload
 }
 
+type TServer = {
+    listen(
+        port: number,
+        hostname?:  string | ((callback: { server: T.Server; port: number }) => void),
+        callback?: (data: { server: T.Server; port: number }) => void
+    ): void;
+    on(event: string | symbol, listener: (...args: any[]) => void): void;
+    close(callback?: (err?: Error) => void): void;
+}
+
 type TContext<
     Override extends Partial<
         Pick<
@@ -295,7 +305,7 @@ type TMethodInput = Uppercase<Exclude<TMethod, 'all'>>;
 
 type HandlerUWS = (res: unknown, req: unknown) => void | Promise<void>;
 
-type UWS = {
+export type UWS = {
   App: () => {
     get: (path: string, handler: HandlerUWS) => any;
     post: (path: string, handler: HandlerUWS) => any;
@@ -540,6 +550,7 @@ export declare namespace T {
     type MethodInput      = TMethodInput
     type Response         = TResponse
     type Request          = TRequest
+    type Server           = TServer
 
     type Headers<T = IncomingHttpHeaders>  = THeaders<T>
     type Ip                                = TIp
@@ -551,6 +562,11 @@ export declare namespace T {
     type Params<T = Record<string, string | number | undefined>> = TParams<T>
     type Query<T = Record<string, string  | undefined>>          = TQuery<T>
     type Body<T = Record<string, any>>                           = TBody<T>
+    type WS = {
+        handler ?: WebSocketHandler | null;
+        server  ?: WebSocket.Server | null;
+        options ?: WebSocket.ServerOptions | null;
+    }
     namespace Swagger {
         export type Spec   = TSwagger
         export type Format = TSwaggerFormat
