@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -159,7 +158,7 @@ class ValidateController {
 }
 
 describe("DTO and Zod Validator Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -188,7 +187,7 @@ describe("DTO and Zod Validator Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   // ============== Zod Validation Tests ==============

@@ -1,19 +1,23 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Router } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
 describe("Router Unit Tests", () => {
   const { portOffset } = getAdapter();
-  
-  let server: Server;
+
+  let server;
   let client: ApiClient<any>;
 
   // Create a router for users
   const userRouter = new Router()
-    .get("/users", () => ({ users: [{ id: 1, name: "John" }, { id: 2, name: "Jane" }] }))
+    .get("/users", () => ({
+      users: [
+        { id: 1, name: "John" },
+        { id: 2, name: "Jane" },
+      ],
+    }))
     .get("/users/:id", (ctx) => ({ userId: ctx.params.id }))
     .post("/users", (ctx) => ({ created: ctx.body }))
     .put("/users/:id", (ctx) => ({
@@ -26,7 +30,12 @@ describe("Router Unit Tests", () => {
 
   // Create a router for cats (demonstrating multiple routers)
   const catRouter = new Router()
-    .get("/cats", () => ({ cats: [{ id: 1, name: "Whiskers" }, { id: 2, name: "Mittens" }] }))
+    .get("/cats", () => ({
+      cats: [
+        { id: 1, name: "Whiskers" },
+        { id: 2, name: "Mittens" },
+      ],
+    }))
     .get("/cats/:id", (ctx) => ({ catId: ctx.params.id }))
     .post("/cats", (ctx) => ({ created: ctx.body }));
 
@@ -48,7 +57,7 @@ describe("Router Unit Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   // Tests for /hello route (direct app route)
@@ -69,7 +78,10 @@ describe("Router Unit Tests", () => {
       expect(res.status).to.be.equal(200);
       if (res.ok) {
         expect(res.data).to.deep.equal({
-          users: [{ id: 1, name: "John" }, { id: 2, name: "Jane" }],
+          users: [
+            { id: 1, name: "John" },
+            { id: 2, name: "Jane" },
+          ],
         });
       }
     });
@@ -145,7 +157,10 @@ describe("Router Unit Tests", () => {
       expect(res.status).to.be.equal(200);
       if (res.ok) {
         expect(res.data).to.deep.equal({
-          cats: [{ id: 1, name: "Whiskers" }, { id: 2, name: "Mittens" }],
+          cats: [
+            { id: 1, name: "Whiskers" },
+            { id: 2, name: "Mittens" },
+          ],
         });
       }
     });

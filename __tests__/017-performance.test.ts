@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Controller, Get, Post, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
@@ -53,7 +52,7 @@ class PerformanceController {
 }
 
 describe("Performance Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -111,7 +110,7 @@ describe("Performance Tests", () => {
     it("should handle 100 requests per second", async () => {
       const start = Date.now();
       const requests = Array.from({ length: 100 }, () =>
-        client.get("/perf/simple")
+        client.get("/perf/simple"),
       );
 
       const results = await Promise.all(requests);
@@ -128,7 +127,7 @@ describe("Performance Tests", () => {
 
     it("should handle 50 concurrent connections", async () => {
       const requests = Array.from({ length: 50 }, () =>
-        client.get("/perf/simple")
+        client.get("/perf/simple"),
       );
 
       const results = await Promise.all(requests);
@@ -162,7 +161,7 @@ describe("Performance Tests", () => {
 
     it("should handle multiple memory allocations", async () => {
       const requests = Array.from({ length: 10 }, () =>
-        client.get("/perf/memory")
+        client.get("/perf/memory"),
       );
 
       const results = await Promise.all(requests);
@@ -219,7 +218,7 @@ describe("Performance Tests", () => {
 
       for (let batch = 0; batch < totalRequests / batchSize; batch++) {
         const requests = Array.from({ length: batchSize }, () =>
-          client.get("/perf/simple")
+          client.get("/perf/simple"),
         );
         const results = await Promise.all(requests);
         results.forEach((res) => {
@@ -236,7 +235,7 @@ describe("Performance Tests", () => {
 
       // Send 100 requests as fast as possible
       const requests = Array.from({ length: 100 }, () =>
-        client.get("/perf/simple")
+        client.get("/perf/simple"),
       );
       const results = await Promise.all(requests);
 
@@ -250,7 +249,7 @@ describe("Performance Tests", () => {
 
     it("should maintain response quality under load", async () => {
       const requests = Array.from({ length: 50 }, () =>
-        client.get("/perf/large-payload")
+        client.get("/perf/large-payload"),
       );
 
       const results = await Promise.all(requests);
@@ -291,7 +290,7 @@ describe("Performance Tests", () => {
 
       for (const load of loadLevels) {
         const requests = Array.from({ length: load }, () =>
-          client.get("/perf/simple")
+          client.get("/perf/simple"),
         );
         const results = await Promise.all(requests);
         const successCount = results.filter((r) => r.ok).length;
@@ -302,7 +301,7 @@ describe("Performance Tests", () => {
     it("should recover after stress", async () => {
       // Stress phase
       const stressRequests = Array.from({ length: 100 }, () =>
-        client.get("/perf/simple")
+        client.get("/perf/simple"),
       );
       await Promise.all(stressRequests);
 
@@ -340,7 +339,7 @@ describe("Performance Tests", () => {
 
     it("should handle connection termination gracefully", async () => {
       const requests = Array.from({ length: 20 }, () =>
-        client.get("/perf/simple")
+        client.get("/perf/simple"),
       );
 
       const results = await Promise.all(requests);
@@ -353,11 +352,15 @@ describe("Performance Tests", () => {
   describe("Benchmark Comparison Tests", () => {
     it("simple vs heavy endpoint comparison", async () => {
       const simpleStart = Date.now();
-      await Promise.all(Array.from({ length: 10 }, () => client.get("/perf/simple")));
+      await Promise.all(
+        Array.from({ length: 10 }, () => client.get("/perf/simple")),
+      );
       const simpleTime = Date.now() - simpleStart;
 
       const heavyStart = Date.now();
-      await Promise.all(Array.from({ length: 10 }, () => client.get("/perf/heavy")));
+      await Promise.all(
+        Array.from({ length: 10 }, () => client.get("/perf/heavy")),
+      );
       const heavyTime = Date.now() - heavyStart;
 
       // Both should complete successfully (timing varies by environment)
@@ -367,14 +370,16 @@ describe("Performance Tests", () => {
 
     it("GET vs POST performance comparison", async () => {
       const getStart = Date.now();
-      await Promise.all(Array.from({ length: 20 }, () => client.get("/perf/simple")));
+      await Promise.all(
+        Array.from({ length: 20 }, () => client.get("/perf/simple")),
+      );
       const getTime = Date.now() - getStart;
 
       const postStart = Date.now();
       await Promise.all(
         Array.from({ length: 20 }, () =>
-          client.post("/perf/echo", { body: { test: "data" } })
-        )
+          client.post("/perf/echo", { body: { test: "data" } }),
+        ),
       );
       const postTime = Date.now() - postStart;
 

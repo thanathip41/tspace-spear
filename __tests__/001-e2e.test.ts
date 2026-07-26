@@ -1,4 +1,3 @@
-import { Server }     from 'http';
 import { getAdapter } from './app/adapter';
 import fs             from "fs";
 import path           from 'path';
@@ -16,7 +15,7 @@ import { ApiClient } from "../src/lib/core/client";
 chai.use(chaiJsonSchema);
 const { expect } = chai;
 
-let server: Server;
+let server;
 let client: ApiClient<typeof app.contract>;
 
 describe("TSpear E2E Test", () => {

@@ -1,14 +1,6 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
-import {
-  Spear,
-  Controller,
-  Get,
-  Post,
-  Middleware,
-  type T,
-} from "../src/lib";
+import { Spear, Controller, Get, Post, Middleware, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
@@ -41,13 +33,13 @@ const rateLimitMiddleware = (maxRequests: number, windowMs: number) => {
 
 const csrfMiddleware = (ctx: T.Context, next: T.NextFunction) => {
   const token = ctx.headers["x-csrf-token"];
-  
+
   if (!token || token !== "valid-csrf-token") {
     return ctx.res.status(403).json({
       error: "CSRF token missing or invalid",
     });
   }
-  
+
   return next();
 };
 
@@ -121,7 +113,7 @@ class InputValidationController {
 }
 
 describe("Security Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -130,7 +122,11 @@ describe("Security Tests", () => {
   app = new Spear({
     logger: true,
     adapter,
-    controllers: [SecurityController, RateLimitedController, InputValidationController],
+    controllers: [
+      SecurityController,
+      RateLimitedController,
+      InputValidationController,
+    ],
   });
 
   app.useBodyParser();
@@ -313,7 +309,7 @@ describe("Security Tests", () => {
     it("should receive request headers", async () => {
       const res = await client.get("/security/headers-check", {
         headers: {
-          "Authorization": "Bearer token123",
+          Authorization: "Bearer token123",
         },
       });
       expect(res.ok).to.be.equal(true);
@@ -381,7 +377,7 @@ describe("Security Tests", () => {
       const requests = Array.from({ length: 10 }, (_, i) =>
         client.post("/security/echo", {
           body: { attempt: i, payload: "test data" },
-        })
+        }),
       );
 
       const results = await Promise.all(requests);

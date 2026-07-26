@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Controller, Get, Post, Delete, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
@@ -12,9 +11,10 @@ class CacheController {
   private cache = new Map<string, { data: any; expiry: number }>();
 
   @Get("/set/:key/:value")
-  setCache(
-    { params, query }: T.Context<{ params: { key: string; value: string } }>
-  ) {
+  setCache({
+    params,
+    query,
+  }: T.Context<{ params: { key: string; value: string } }>) {
     const ttl = query.ttl ? parseInt(query.ttl) : 60000;
 
     const key = decodeURIComponent(params.key);
@@ -113,7 +113,7 @@ describe("Advanced Features Tests", () => {
   adapter = adapterConfig.adapter;
 
   describe("Cache Tests", () => {
-    let server: Server;
+    let server;
     let client: ApiClient<any>;
 
     before((done) => {
@@ -143,14 +143,14 @@ describe("Advanced Features Tests", () => {
 
     it("should set a cache value with URL-encoded key and value", async () => {
       const res = await client.get(
-        "/cache/set/test-key%40special/test%20value?ttl=60000"
+        "/cache/set/test-key%40special/test%20value?ttl=60000",
       );
 
       expect(res.ok).to.equal(true);
       expect(res.data.success).to.equal(true);
       expect(res.data.key).to.equal("test-key@special");
     });
-  
+
     it("should get cached value", async () => {
       const res = await client.get("/cache/get/testkey");
       expect(res.ok).to.be.equal(true);
@@ -166,7 +166,7 @@ describe("Advanced Features Tests", () => {
     it("should clear cache", async () => {
       const res = await client.delete("/cache/clear");
       expect(res.ok).to.be.equal(true);
-      
+
       // Verify cache is cleared
       const getRes = await client.get("/cache/get/testkey");
       expect(getRes.ok).to.be.equal(false);
@@ -175,10 +175,10 @@ describe("Advanced Features Tests", () => {
     it("should handle expired cache", async () => {
       // Set cache with 100ms TTL
       await client.get("/cache/set/shortkey/shortvalue?ttl=100");
-      
+
       // Wait for expiry
       await new Promise((resolve) => setTimeout(resolve, 150));
-      
+
       // Should be expired now
       const res = await client.get("/cache/get/shortkey");
       expect(res.ok).to.be.equal(false);
@@ -186,7 +186,9 @@ describe("Advanced Features Tests", () => {
     });
 
     it("should handle cache with special characters in key", async () => {
-      const res = await client.get("/cache/set/test-key%40special/test%20value?ttl=60000");
+      const res = await client.get(
+        "/cache/set/test-key%40special/test%20value?ttl=60000",
+      );
       expect(res.ok).to.be.equal(true);
       expect(res.data.success).to.be.equal(true);
       expect(res.data.key).to.include("test-key");
@@ -206,11 +208,14 @@ describe("Advanced Features Tests", () => {
       prefixApp.useBodyParser();
       prefixApp.useGlobalPrefix("api/v1");
 
-      prefixApp.listen(5112 + portOffset, ({ port, server: sCallback }: any) => {
-        prefixServer = sCallback;
-        prefixClient = new ApiClient(`http://localhost:${port}`);
-        done();
-      });
+      prefixApp.listen(
+        5112 + portOffset,
+        ({ port, server: sCallback }: any) => {
+          prefixServer = sCallback;
+          prefixClient = new ApiClient(`http://localhost:${port}`);
+          done();
+        },
+      );
     });
 
     after((done) => {
@@ -246,7 +251,7 @@ describe("Advanced Features Tests", () => {
         controllers: [MiddlewareChainController],
       });
       chainApp.useBodyParser();
-      
+
       // Add middleware chain
       chainApp.use(createLoggingMiddleware("mw1"));
 
@@ -268,7 +273,7 @@ describe("Advanced Features Tests", () => {
 
     it("should execute middleware", async () => {
       const res = await chainClient.get("/middleware-chain/test");
-      
+
       // Middleware should have been executed
       expect(middlewareLog.length).to.be.greaterThan(0);
       expect(middlewareLog).to.include("mw1-before");
@@ -276,7 +281,7 @@ describe("Advanced Features Tests", () => {
 
     it("should execute handler after middleware", async () => {
       const res = await chainClient.get("/middleware-chain/test");
-      
+
       // Handler should log "handler"
       expect(middlewareLog).to.include("handler");
     });
@@ -284,9 +289,9 @@ describe("Advanced Features Tests", () => {
     it("should track middleware execution", async () => {
       await chainClient.get("/middleware-chain/clear");
       middlewareLog.length = 0;
-      
+
       const res = await chainClient.get("/middleware-chain/test");
-      
+
       // Verify middleware log is tracked
       expect(middlewareLog.length).to.be.greaterThan(0);
     });
@@ -296,4 +301,4 @@ describe("Advanced Features Tests", () => {
       expect(middlewareLog.length).to.equal(0);
     });
   });
-})
+});

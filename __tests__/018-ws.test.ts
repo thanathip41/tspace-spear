@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import WebSocket from "ws";
 import { Spear, Controller, Get, type T } from "../src/lib";
 import { getAdapter } from "./app/adapter";
@@ -16,7 +15,7 @@ class TestController {
 }
 
 describe("WebSocket (.ws) Tests", () => {
-  let server: Server;
+  let server;
   let app: any;
   let ws: WebSocket | null;
   let wsBaseUrl: string;
@@ -74,17 +73,14 @@ describe("WebSocket (.ws) Tests", () => {
   });
 
   after((done) => {
-    // Close any open WebSocket connections
     if (ws && ws.readyState !== WebSocket.CLOSED) {
       ws.close();
     }
-    // Close the server
     done();
   });
 
   describe("WebSocket Connection Tests", () => {
     beforeEach(() => {
-      // Reset counters
       connectionCount = 0;
       messageCount = 0;
       closeCount = 0;

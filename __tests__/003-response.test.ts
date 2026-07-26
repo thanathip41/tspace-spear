@@ -1,12 +1,11 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
 describe("Response Methods Unit Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -72,7 +71,7 @@ describe("Response Methods Unit Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   it("res.json() should send JSON response", async () => {

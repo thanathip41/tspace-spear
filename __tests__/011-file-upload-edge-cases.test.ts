@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import * as fs from "fs";
 import * as path from "path";
 import { Spear } from "../src/lib";
@@ -8,7 +7,7 @@ import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
 describe("File Upload Edge Cases Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let testImagePath: string;
   let testTextPath: string;
@@ -79,7 +78,7 @@ describe("File Upload Edge Cases Tests", () => {
     // Create a small test image (1x1 PNG)
     const pngData = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "base64"
+      "base64",
     );
     await fs.promises.writeFile(testImagePath, pngData);
 
@@ -96,8 +95,8 @@ describe("File Upload Edge Cases Tests", () => {
   });
 
   after((done) => {
-    fs.promises.unlink(testImagePath).catch(_ => null);
-    fs.promises.unlink(testTextPath).catch(_ => null);
+    fs.promises.unlink(testImagePath).catch((_) => null);
+    fs.promises.unlink(testTextPath).catch((_) => null);
     done();
   });
 
@@ -184,7 +183,7 @@ describe("File Upload Edge Cases Tests", () => {
 
       const res = await client.upload("/upload/single", {
         formdata: formData,
-      })
+      });
 
       expect(res.ok).to.be.equal(false);
       expect(res.status).to.be.equal(400);
@@ -206,12 +205,12 @@ describe("File Upload Edge Cases Tests", () => {
         formData.append(
           "files",
           new Blob([imageBuffer], { type: "image/png" }),
-          "image.png"
+          "image.png",
         );
         formData.append(
           "files",
           new Blob([textBuffer], { type: "text/plain" }),
-          "text.txt"
+          "text.txt",
         );
       } else {
         const FormDataPkg = (await import("form-data")).default;
@@ -247,7 +246,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("files", new Blob([buffer], { type: "image/png" }), "single.png");
+        formData.append(
+          "files",
+          new Blob([buffer], { type: "image/png" }),
+          "single.png",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -279,7 +282,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([buffer], { type: "image/png" }), "data.png");
+        formData.append(
+          "file",
+          new Blob([buffer], { type: "image/png" }),
+          "data.png",
+        );
         formData.append("title", "Test Image");
         formData.append("description", "A test image");
         formData.append("count", "42");
@@ -320,7 +327,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([buffer], { type: "image/png" }), "my test file.png");
+        formData.append(
+          "file",
+          new Blob([buffer], { type: "image/png" }),
+          "my test file.png",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -350,7 +361,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([buffer], { type: "image/png" }), "测试文件.png");
+        formData.append(
+          "file",
+          new Blob([buffer], { type: "image/png" }),
+          "测试文件.png",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -377,7 +392,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([buffer], { type: "image/png" }), "test-file_v1.0.png");
+        formData.append(
+          "file",
+          new Blob([buffer], { type: "image/png" }),
+          "test-file_v1.0.png",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -407,7 +426,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([emptyBuffer], { type: "application/octet-stream" }), "empty.bin");
+        formData.append(
+          "file",
+          new Blob([emptyBuffer], { type: "application/octet-stream" }),
+          "empty.bin",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -439,7 +462,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([largeBuffer], { type: "application/octet-stream" }), "large.bin");
+        formData.append(
+          "file",
+          new Blob([largeBuffer], { type: "application/octet-stream" }),
+          "large.bin",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -452,7 +479,7 @@ describe("File Upload Edge Cases Tests", () => {
       const res = await client.upload("/upload/single", {
         formdata: formData,
       });
-    
+
       expect(res.ok).to.be.equal(true);
       if (res.ok) {
         expect(res.data.file).to.have.property("size", 1024 * 1024);
@@ -472,7 +499,11 @@ describe("File Upload Edge Cases Tests", () => {
 
         if (useNative) {
           formData = new FormData();
-          formData.append("file", new Blob([buffer], { type: "image/png" }), `concurrent-${i}.png`);
+          formData.append(
+            "file",
+            new Blob([buffer], { type: "image/png" }),
+            `concurrent-${i}.png`,
+          );
         } else {
           const FormDataPkg = (await import("form-data")).default;
           formData = new FormDataPkg();
@@ -535,7 +566,11 @@ describe("File Upload Edge Cases Tests", () => {
 
       if (useNative) {
         formData = new FormData();
-        formData.append("file", new Blob([tooLargeBuffer], { type: "application/octet-stream" }), "toolarge.bin");
+        formData.append(
+          "file",
+          new Blob([tooLargeBuffer], { type: "application/octet-stream" }),
+          "toolarge.bin",
+        );
       } else {
         const FormDataPkg = (await import("form-data")).default;
         formData = new FormDataPkg();
@@ -545,15 +580,14 @@ describe("File Upload Edge Cases Tests", () => {
         });
       }
 
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
 
       const res = await client.upload("/upload/single", {
-        formdata: formData
-      })
+        formdata: formData,
+      });
 
       expect(res.ok).to.equal(false);
       expect(res.status).to.equal(413);
     });
-
   });
 });

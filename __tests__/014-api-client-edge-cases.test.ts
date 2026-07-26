@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Controller, Get, Post, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
@@ -82,7 +81,7 @@ class ClientTestController {
 }
 
 describe("ApiClient Edge Cases Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -112,7 +111,7 @@ describe("ApiClient Edge Cases Tests", () => {
     it("should handle GET request with headers", async () => {
       const res = await client.get("/client-test/echo", {
         headers: {
-          "Authorization": "Bearer test-token",
+          Authorization: "Bearer test-token",
           "X-Custom-Header": "custom-value",
         },
       });
@@ -218,7 +217,7 @@ describe("ApiClient Edge Cases Tests", () => {
       const start = Date.now();
       const res = await client.get("/client-test/delay/100");
       const elapsed = Date.now() - start;
-      
+
       expect(res.ok).to.be.equal(true);
       expect(elapsed).to.be.at.least(90); // Allow some tolerance
       if (res.ok) {
@@ -231,7 +230,7 @@ describe("ApiClient Edge Cases Tests", () => {
       const start = Date.now();
       const res = await client.get("/client-test/delay/500");
       const elapsed = Date.now() - start;
-      
+
       expect(res.ok).to.be.equal(true);
       expect(elapsed).to.be.at.least(450);
       if (res.ok) {
@@ -246,10 +245,10 @@ describe("ApiClient Edge Cases Tests", () => {
         client.get("/client-test/delay/100"),
         client.get("/client-test/delay/100"),
       ];
-      
+
       const results = await Promise.all(requests);
       const elapsed = Date.now() - start;
-      
+
       // All should complete in ~100ms since they run concurrently
       expect(elapsed).to.be.lessThan(250);
       results.forEach((res) => {
@@ -267,7 +266,7 @@ describe("ApiClient Edge Cases Tests", () => {
 
     it("should handle various status codes", async () => {
       const statusCodes = [200, 201, 400, 401, 403, 404, 500];
-      
+
       for (const code of statusCodes) {
         const res = await client.get(`/client-test/status/${code}`);
         expect(res.status).to.be.equal(200); // Route always returns 200 with status in body
@@ -293,12 +292,12 @@ describe("ApiClient Edge Cases Tests", () => {
   describe("ApiClient Sequential Requests Tests", () => {
     it("should handle multiple sequential requests", async () => {
       const results = [];
-      
+
       for (let i = 0; i < 5; i++) {
         const res = await client.get("/client-test/echo");
         results.push(res);
       }
-      
+
       results.forEach((res) => {
         expect(res.ok).to.be.equal(true);
       });
@@ -312,7 +311,7 @@ describe("ApiClient Edge Cases Tests", () => {
         client.get("/client-test/empty"),
         client.get("/client-test/empty"),
       ];
-      
+
       const results = await Promise.all(requests);
       results.forEach((res) => {
         expect(res.ok).to.be.equal(true);
@@ -321,10 +320,12 @@ describe("ApiClient Edge Cases Tests", () => {
 
     it("should handle mixed request types sequentially", async () => {
       const res1 = await client.get("/client-test/empty");
-      const res2 = await client.post("/client-test/echo-body", { body: { test: 1 } });
+      const res2 = await client.post("/client-test/echo-body", {
+        body: { test: 1 },
+      });
       const res3 = await client.get("/client-test/large-response");
       const res4 = await client.get("/client-test/special-chars");
-      
+
       expect(res1.ok).to.be.equal(true);
       expect(res2.ok).to.be.equal(true);
       expect(res3.ok).to.be.equal(true);
@@ -367,7 +368,7 @@ describe("ApiClient Edge Cases Tests", () => {
   describe("ApiClient Query Parameter Tests", () => {
     it("should handle query with special characters", async () => {
       const res = await client.get(
-        "/client-test/echo?name=John%20Doe&email=test%40example.com"
+        "/client-test/echo?name=John%20Doe&email=test%40example.com",
       );
       expect(res.ok).to.be.equal(true);
       if (res.ok) {
@@ -378,14 +379,14 @@ describe("ApiClient Edge Cases Tests", () => {
 
     it("should handle query with array values", async () => {
       const res = await client.get(
-        "/client-test/echo?tags=tag1&tags=tag2&tags=tag3"
+        "/client-test/echo?tags=tag1&tags=tag2&tags=tag3",
       );
       expect(res.ok).to.be.equal(true);
     });
 
     it("should handle query with boolean-like strings", async () => {
       const res = await client.get(
-        "/client-test/echo?active=true&enabled=false"
+        "/client-test/echo?active=true&enabled=false",
       );
       expect(res.ok).to.be.equal(true);
       if (res.ok) {
@@ -395,9 +396,7 @@ describe("ApiClient Edge Cases Tests", () => {
     });
 
     it("should handle query with numeric strings", async () => {
-      const res = await client.get(
-        "/client-test/echo?count=100&price=19.99"
-      );
+      const res = await client.get("/client-test/echo?count=100&price=19.99");
       expect(res.ok).to.be.equal(true);
       if (res.ok) {
         expect(res.data.query.count).to.equal("100");
@@ -484,12 +483,12 @@ describe("ApiClient Edge Cases Tests", () => {
   describe("ApiClient Stress Tests", () => {
     it("should handle 100 concurrent requests", async () => {
       const requests = Array.from({ length: 100 }, () =>
-        client.get("/client-test/empty")
+        client.get("/client-test/empty"),
       );
-      
+
       const results = await Promise.all(requests);
       const successCount = results.filter((r) => r.ok).length;
-      
+
       expect(successCount).to.equal(100);
     });
 

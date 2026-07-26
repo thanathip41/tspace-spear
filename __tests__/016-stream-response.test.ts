@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import * as http from "http";
 import { Spear, Controller, Get, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
@@ -50,7 +49,7 @@ class FileController {
   @Get("/download/:size")
   download({ params }: T.Context<{ params: { size: number } }>) {
     const size = params.size;
-    
+
     return {
       message: `Generating ${size}KB file`,
       size,
@@ -59,7 +58,7 @@ class FileController {
 }
 
 describe("Stream Response Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
   let portOffset: number;
@@ -171,7 +170,7 @@ describe("Stream Response Tests", () => {
         path: "/stream/delayed",
         method: "GET",
         headers: {
-          "Accept": "application/json",
+          Accept: "application/json",
         },
       };
 
@@ -284,7 +283,7 @@ describe("Stream Response Tests", () => {
     it("should handle client disconnect during stream", (done) => {
       const portNum = 5035 + portOffset;
       let completed = false;
-      
+
       const options = {
         hostname: "localhost",
         port: portNum,
@@ -339,7 +338,7 @@ describe("Stream Response Tests", () => {
 });
 
 describe("File Download Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
   let portOffset: number;
@@ -380,7 +379,7 @@ describe("File Download Tests", () => {
 
     it("should handle various file sizes", async () => {
       const sizes = [10, 100, 1000];
-      
+
       for (const size of sizes) {
         const res = await client.get(`/file/download/${size}`);
         expect(res.ok).to.be.equal(true);

@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -134,7 +133,7 @@ class ProductsController {
 }
 
 describe("DTO Class Validator Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -157,7 +156,7 @@ describe("DTO Class Validator Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   describe("UsersController - CreateUserDto Validation", () => {

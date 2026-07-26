@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Controller, Get, Post, Middleware, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
@@ -142,7 +141,7 @@ class ApiController {
 }
 
 describe("Controller + Middleware Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -170,7 +169,7 @@ describe("Controller + Middleware Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   describe("PublicController - /public (no middleware)", () => {

@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Controller, Get, Post, type T } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
@@ -75,7 +74,7 @@ class AsyncErrorController {
 }
 
 describe("Error Handling Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
   let portOffset: number;
@@ -236,7 +235,7 @@ describe("Error Handling Tests", () => {
       await client.get("/errors/throw");
       await client.get("/errors/async-throw");
       await client.get("/async-errors/rejected-promise");
-      
+
       expect(errorHandlerCalls.length).to.be.equal(3);
       expect(errorHandlerCalls[0].error).to.include("Intentional error");
       expect(errorHandlerCalls[1].error).to.include("Async intentional");
@@ -255,7 +254,7 @@ describe("Error Handling Tests", () => {
     it("should track notfound calls", async () => {
       await client.get("/nonexistent1");
       await client.get("/nonexistent2");
-      
+
       expect(notFoundCalls.length).to.be.equal(2);
     });
 
@@ -330,12 +329,19 @@ describe("Error Handling Tests", () => {
         if (test.checkOk) {
           expect(res.ok).to.be.equal(true, `Failed for ${test.path}`);
           if (test.checkErrorProp) {
-            expect(res.data).to.have.property("error", true, `Failed for ${test.path}`);
+            expect(res.data).to.have.property(
+              "error",
+              true,
+              `Failed for ${test.path}`,
+            );
           }
         } else {
           expect(res.ok).to.be.equal(false, `Failed for ${test.path}`);
           if (test.checkStatus) {
-            expect(res.status).to.be.equal(test.checkStatus, `Failed for ${test.path}`);
+            expect(res.status).to.be.equal(
+              test.checkStatus,
+              `Failed for ${test.path}`,
+            );
           }
         }
       }
@@ -346,7 +352,7 @@ describe("Error Handling Tests", () => {
     it("should call error handler before returning response", async () => {
       errorHandlerCalls.length = 0;
       const res = await client.get("/errors/throw");
-      
+
       // Error handler should be called before response is sent
       expect(errorHandlerCalls.length).to.be.equal(1);
       expect(res.data.message).to.include("Intentional error");

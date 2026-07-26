@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -35,7 +34,9 @@ class UsersController {
       {
         status: 200,
         description: "Successful response",
-        example: { users: [{ id: 1, name: "Alice", email: "alice@example.com" }] },
+        example: {
+          users: [{ id: 1, name: "Alice", email: "alice@example.com" }],
+        },
       },
     ],
   })
@@ -83,7 +84,9 @@ class UsersController {
       { status: 400, description: "Invalid input" },
     ],
   })
-  create({ body }: T.Context<{ body: { name: string; email: string; age?: number } }>) {
+  create({
+    body,
+  }: T.Context<{ body: { name: string; email: string; age?: number } }>) {
     const id = this.nextId++;
     const user = { id, ...body };
     this.users.set(id, user);
@@ -103,7 +106,14 @@ class UsersController {
       { status: 404, description: "User not found" },
     ],
   })
-  update({ res, params, body }: T.Context<{ params: { id: number }; body: { name?: string; email?: string } }>) {
+  update({
+    res,
+    params,
+    body,
+  }: T.Context<{
+    params: { id: number };
+    body: { name?: string; email?: string };
+  }>) {
     const user = this.users.get(params.id);
     if (!user) {
       throw res.notFound("User not found");
@@ -147,9 +157,7 @@ class ProductsController {
     summary: "Get all products",
     description: "Returns a list of all products",
     tags: ["Products"],
-    responses: [
-      { status: 200, description: "List of products" },
-    ],
+    responses: [{ status: 200, description: "List of products" }],
   })
   list() {
     return { products: this.products };
@@ -168,9 +176,7 @@ class ProductsController {
         price: { type: "number", required: true },
       },
     },
-    responses: [
-      { status: 200, description: "Product created successfully" },
-    ],
+    responses: [{ status: 200, description: "Product created successfully" }],
   })
   create({ body }: T.Context<{ body: { name: string; price: number } }>) {
     const newProduct = { id: this.products.length + 1, ...body };
@@ -180,7 +186,7 @@ class ProductsController {
 }
 
 describe("Swagger/OpenAPI Decorator Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 

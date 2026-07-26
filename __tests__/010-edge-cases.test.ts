@@ -1,12 +1,11 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear, Router } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
 describe("Edge Cases and Additional Coverage Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -96,7 +95,7 @@ describe("Edge Cases and Additional Coverage Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   describe("HEAD Method", () => {
@@ -161,7 +160,7 @@ describe("Edge Cases and Additional Coverage Tests", () => {
   //     const res = await client.get("/hello", {
   //       headers: { origin: "http://localhost:3000" },
   //     });
- 
+
   //     expect(res.ok).to.be.equal(true);
   //     // Check CORS headers are present in response
   //     expect(res.headers.has("access-control-allow-origin"));

@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -111,7 +110,7 @@ class ProductsController {
 }
 
 describe("Controller Unit Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -134,7 +133,7 @@ describe("Controller Unit Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   describe("ItemsController - GET /items", () => {

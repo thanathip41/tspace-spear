@@ -1,12 +1,11 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
 
 describe("Middleware Unit Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -66,8 +65,8 @@ describe("Middleware Unit Tests", () => {
   });
 
   after((done) => {
-    console.log('done!!')
-    done()
+    console.log("done!!");
+    done();
   });
 
   beforeEach(() => {
@@ -112,7 +111,7 @@ describe("Middleware Unit Tests", () => {
 });
 
 describe("Global Prefix Middleware Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -134,7 +133,7 @@ describe("Global Prefix Middleware Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   it("should apply global prefix to routes", async () => {
@@ -157,7 +156,7 @@ describe("Global Prefix Middleware Tests", () => {
 });
 
 describe("Error Handler Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -187,7 +186,7 @@ describe("Error Handler Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   it("should handle thrown errors with custom error handler", async () => {

@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -153,9 +152,9 @@ class CombinedController {
 
   @Get("/created-resource")
   @StatusCode(201)
-  @WriteHeader(201, { 
+  @WriteHeader(201, {
     "X-Resource-ID": "123",
-    "Location": "/api/users/123"
+    Location: "/api/users/123",
   })
   createdResource() {
     return { id: 123, name: "New Resource" };
@@ -173,7 +172,7 @@ class CombinedController {
 }
 
 describe("StatusCode & WriteHeader Decorator Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -182,7 +181,11 @@ describe("StatusCode & WriteHeader Decorator Tests", () => {
   app = new Spear({
     logger: true,
     adapter,
-    controllers: [StatusCodeController, WriteHeaderController, CombinedController],
+    controllers: [
+      StatusCodeController,
+      WriteHeaderController,
+      CombinedController,
+    ],
   });
 
   app.useBodyParser();
@@ -303,7 +306,7 @@ describe("StatusCode & WriteHeader Decorator Tests", () => {
       const res = await client.post("/headers/echo-headers", {
         body: { test: "data" },
         headers: {
-          "Authorization": "Bearer token123",
+          Authorization: "Bearer token123",
         },
       });
       expect(res.ok).to.be.equal(true);

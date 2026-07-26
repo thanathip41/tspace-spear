@@ -1,6 +1,5 @@
 import { describe, it, before, after } from "mocha";
 import { expect } from "chai";
-import { Server } from "http";
 import {
   Spear,
   Controller,
@@ -137,7 +136,7 @@ class ParamsTestController {
 }
 
 describe("Pure @Validate Decorator Tests", () => {
-  let server: Server;
+  let server;
   let client: ApiClient<any>;
   let app: any;
 
@@ -166,7 +165,7 @@ describe("Pure @Validate Decorator Tests", () => {
   });
 
   after((done) => {
-    done()
+    done();
   });
 
   describe("Body Validation - required: { allowNull: false, allowEmptyString: false }", () => {
