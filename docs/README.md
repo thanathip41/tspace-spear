@@ -26,6 +26,8 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 🧩 Simple and intuitive developer experience
 - 📘 Auto-generated [Swagger](#swagger) documentation via `app.useSwagger()` with zero manual configuration
 - 🔥 Lightweight and optimized for high-performance APIs and microservices
+- 🧪 First-class testing support with built-in mocks, spies, and test utilities
+- 🎯 Type-safe testing APIs with zero-boilerplate setup
 
 ---
 
@@ -1588,4 +1590,114 @@ await client.put("/cats",{
   body : { name : "super cat" , age : 5 }  ✅
 });
  
+```
+
+## Testing
+Basic testing examples for tspace-spear framework.
+
+### Example Service and Controller
+```js
+import { Controller, Get, Post, Service, type T } from "tspace-spear";
+
+@Service()
+class UserService {
+  private users = new Map([
+    [1, { id: 1, name: "Alice", email: "alice@example.com" }],
+    [2, { id: 2, name: "Bob", email: "bob@example.com" }],
+  ]);
+  findAll() { return Array.from(this.users.values()); }
+  findById(id) { return this.users.get(id); }
+  create(name, email) {
+    const id = this.users.size + 1;
+    const user = { id, name, email };
+    this.users.set(id, user);
+    return user;
+  }
+}
+
+@Controller("/users")
+@Service(UserService)
+class UsersController {
+  constructor(private userService: UserService) {}
+  @Get("/") list() { return { users: this.userService.findAll() }; }
+  @Get("/:id") show({ res, params }) {
+    const user = this.userService.findById(params.id);
+    if (!user) throw res.notFound("User not found");
+    return { user };
+  }
+  @Post("/") create({ body, res }) {
+    const { name, email } = body;
+    if (!name || !email) return res.status(400).json({ error: "Required" });
+    return { created: this.userService.create(name, email) };
+  }
+}
+```
+
+### Unit Testing a Service
+```js
+import { TestingService } from "tspace-spear/testing";
+
+const testing = new TestingService();
+const service = testing.createService(UserService);
+
+const users = service.findAll(); // [{ id: 1, name: "Alice", ... }]
+const user = service.findById(1); // { id: 1, name: "Alice", ... }
+```
+
+### Unit Testing a Controller with Mocked Service
+```js
+import { 
+  TestingController, 
+  createMockService 
+  } from "tspace-spear/testing";
+
+const testing = new TestingController();
+const mockService = createMockService(UserService, {
+  findAll: () => [{ id: 1, name: "Mock User" }],
+});
+
+const controller = testing.createController(UsersController, {
+  mocks: new Map([[UserService, mockService]]),
+});
+
+const ctx = testing.createContext({ params: { id: 1 } });
+const result = controller.show(ctx);
+```
+
+### Integration Testing with TestModule
+```js
+import { TestModule } from "tspace-spear/testing";
+
+const module = await TestModule.create()
+  .setControllers([UsersController])
+  .setLogger(false)
+  .compile();
+
+const res = await module.client.get("/users");
+await module.close();
+```
+
+### Integration Testing with createTestServer
+```js
+import { createTestServer } from "tspace-spear/testing";
+
+const testServer = await createTestServer({
+  controllers: [UsersController],
+  logger: false,
+});
+
+const res = await testServer.client.get("/users");
+await testServer.close();
+```
+
+### Spying on Service Methods
+```js
+import { TestingService } from "tspace-spear/testing";
+
+const testing = new TestingService();
+const service = new UserService();
+const spy = testing.spyOn(service, "findAll");
+
+service.findAll();
+console.log(spy.callCount); // 1
 ```

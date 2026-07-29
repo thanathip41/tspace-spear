@@ -24,3 +24,4 @@
 - [Web Socket](#web-socket)
 - [Graphql](#graphql)
 - [E2E](#e2e)
+- [Testing](#testing)

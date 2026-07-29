@@ -26,6 +26,8 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 🧩 Simple and intuitive developer experience
 - 📘 Auto-generated [Swagger](#swagger) documentation via `app.useSwagger()` with zero manual configuration
 - 🔥 Lightweight and optimized for high-performance APIs and microservices
+- 🧪 First-class testing support with built-in mocks, spies, and test utilities
+- 🎯 Type-safe testing APIs with zero-boilerplate setup
 
 ---
 
@@ -69,6 +71,7 @@ See the [`docs`](https://thanathip41.github.io/tspace-spear) directory for full 
 - [WebSocket](#websocket)
 - [Graphql](#graphql)
 - [E2E](#e2e)
+- [Testing](#testing)
 
 ## Getting Started
 ```js
@@ -998,676 +1001,112 @@ new Spear({
 
 ```
 
-## Swagger
-Provides built-in Swagger support to document your API endpoints.
+## Testing
+Basic testing examples for tspace-spear framework.
 
-It allows you to:
-
-* Describe request parameters (query, body, params)
-* Generate API documentation
-* Improve developer experience
-* Standardize API contracts
+### Example Service and Controller
 ```js
+import { Controller, Get, Post, Service, type T } from "tspace-spear";
 
-// file cat-controller.ts
+@Service()
+class UserService {
+  private users = new Map([
+    [1, { id: 1, name: "Alice", email: "alice@example.com" }],
+    [2, { id: 2, name: "Bob", email: "bob@example.com" }],
+  ]);
+  findAll() { return Array.from(this.users.values()); }
+  findById(id) { return this.users.get(id); }
+  create(name, email) {
+    const id = this.users.size + 1;
+    const user = { id, name, email };
+    this.users.set(id, user);
+    return user;
+  }
+}
+
+@Controller("/users")
+@Service(UserService)
+class UsersController {
+  constructor(private userService: UserService) {}
+  @Get("/") list() { return { users: this.userService.findAll() }; }
+  @Get("/:id") show({ res, params }) {
+    const user = this.userService.findById(params.id);
+    if (!user) throw res.notFound("User not found");
+    return { user };
+  }
+  @Post("/") create({ body, res }) {
+    const { name, email } = body;
+    if (!name || !email) return res.status(400).json({ error: "Required" });
+    return { created: this.userService.create(name, email) };
+  }
+}
+```
+
+### Unit Testing a Service
+```js
+import { TestingService } from "tspace-spear/testing";
+
+const testing = new TestingService();
+const service = testing.createService(UserService);
+
+const users = service.findAll(); // [{ id: 1, name: "Alice", ... }]
+const user = service.findById(1); // { id: 1, name: "Alice", ... }
+```
+
+### Unit Testing a Controller with Mocked Service
+```js
 import { 
-  type T,
-  Controller, 
-  Get , 
-  Post,
-  Put,
-  Patch,
-  Delete,
-  Swagger
-} from 'tspace-spear';
+  TestingController, 
+  createMockService 
+  } from "tspace-spear/testing";
 
-@Controller('/cats')
-class CatController {
-  @Get('/')
-  @Swagger({
-    query : {
-      id : {
-        type : 'integer'
-      },
-      name :  {
-        type : 'string'
-      }
-    }
-  })
-  public async index({ query }  : T.Context) {
+const testing = new TestingController();
+const mockService = createMockService(UserService, {
+  findAll: () => [{ id: 1, name: "Mock User" }],
+});
 
-    return {
-      query
-    }
-  }
+const controller = testing.createController(UsersController, {
+  mocks: new Map([[UserService, mockService]]),
+});
 
-  @Get('/:id')
-  @Swagger({
-    description : '- message',
-    query : {
-      id : {
-        type : 'integer'
-      }
-    },
-    responses : [
-      { status : 200 , description : "OK" , example : { id : 'catz' }},
-      { status : 400 , description : "Bad request" , example : { id : 'catz' }}
-    ]
-  })
-  public async show({ params } : T.Context) {
-    return {
-      params
-    }
-  }
-
-  @Post('/')
-  @Swagger({
-    bearerToken : true,
-    body : {
-      description : 'The description !',
-      required : true,
-      properties : {
-        id : {
-          type : 'integer',
-          example : 1
-        },
-        name :  {
-          type : 'string',
-          example : "xxxxx"
-        },
-        status :  {
-            type : 'string',
-            example: "active",
-            enum: ['active', 'inactive'],
-            description: "User status (active = enabled, inactive = disabled)",
-            required : true
-        },
-        roles: {
-            type: 'array',
-            items : {
-                type: 'string',
-                example: "roleA",
-                enum: ['roleA', 'roleB']
-            }
-        },
-      }
-    }
-  })
-  public async store({ body } : T.Context) {
-    return {
-      body
-    }
-  }
-
-  @Put('/:uuid')
-  @Swagger({
-    bearerToken : true,
-    body : {
-      description : 'The description !',
-      required : true,
-      properties : {
-        id : {
-          type : 'integer',
-          example : 1
-        },
-        name :  {
-          type : 'string',
-          example : "xxxxx"
-        }
-      }
-    }
-  })
-  public async updated({ body } : T.Context) {
-    return {
-      body
-    }
-  }
-
-  @Patch('/:uuid')
-  @Swagger({
-    bearerToken : true,
-    body : {
-      description : 'The description !',
-      required : true,
-      properties : {
-        id : {
-          type : 'integer',
-          example : 1
-        },
-        name :  {
-          type : 'string',
-          example : "xxxxx"
-        }
-      }
-    }
-  })
-  public async update({ body } : T.Context) {
-    return {
-      body
-    }
-  }
-
-  @Delete('/:uuid')
-  @Swagger({
-    bearerToken : true
-  })
-  public async delete({ params } : T.Context) {
-    return {
-      params
-    }
-  }
-
-  @Post('/upload')
-  @Swagger({
-    bearerToken : true,
-    files : {
-      required : true,
-      properties : {
-        file : {
-          type : 'array',
-          items: {
-            type  :"string",
-            format:"binary"
-          }
-        },
-        name : {
-          type : 'string'
-        }
-      }
-    }
-  })
-  public async upload({ body , files } : T.Context) {
-    return {
-      body,
-      files
-    }
-  }
-}
-
-(async () => {
-
-  await new Spear({
-    controllers: [ CatController ]
-  })
-   .get('/' , ({ res } : T.Context) => {
-    return res.json({
-      message : 'hello world!'
-    });
-  })
-  // .useSwagger() // by default path is "/api/docs"
-  .useSwagger({
-    path : "/docs",
-    servers : [
-      { url : "http://localhost:8000" , description : "development"}, 
-      { url : "http://localhost:8000" , description : "production"}
-    ],
-    info : {
-      "title" : "Welcome to the the documentation",
-      "description" : "This is the documentation"
-    }
-  })
-  .listen(8000 , () => console.log(`Server is now listening http://localhost:8000`))
-
-  // localhost:8000/docs
-})()
-
+const ctx = testing.createContext({ params: { id: 1 } });
+const result = controller.show(ctx);
 ```
 
-## WebSocket
-Provides built-in WebSocket support for real-time communication.
-
-It allows you to:
-
-* Handle client connections
-* Send/receive messages
-* Build chat systems
-* Manage real-time events
+### Integration Testing with TestModule
 ```js
-import { Spear } from "tspace-spear";
-import fs from 'fs';
-import path from 'path';
+import { TestModule } from "tspace-spear/testing";
 
-new Spear()
-.get('/',(ctx) => {
-  // you can serve a HTML file for testing WebSocket connection
-  const htmlWs = fs.readFileSync(path.join(path.resolve(), 'public', 'ws.html'), 'utf-8');
-  return ctx.res.html(htmlWs);
-})
-.ws(() => {
-  const clients = new Map<string, any>();
-  return {
-    connection: (ws) => {
-      console.log("connected");
-    },
+const module = await TestModule.create()
+  .setControllers([UsersController])
+  .setLogger(false)
+  .compile();
 
-    message: (ws, msg) => {
-      const data = JSON.parse(msg.toString());
-
-      if (data.type === "register") {
-        ws.userId = data.userId;
-        clients.set(data.userId, ws);
-
-        ws.send(JSON.stringify({
-          type: "system",
-          message: `registered as ${data.userId}`
-        }));
-
-        return;
-      }
-
-      if (data.type === "chat") {
-        const targetWs = clients.get(data.to);
-
-        if (!targetWs) {
-          ws.send(JSON.stringify({
-            type: "error",
-            message: "User not online"
-          }));
-          return;
-        }
-
-        targetWs.send(JSON.stringify({
-          type: "chat",
-          from: ws.userId,
-          text: data.text
-        }));
-
-        return;
-      }
-    },
-
-    close: (ws) => {
-      if (ws.userId) {
-        clients.delete(ws.userId);
-      }
-    },
-    
-    error: (ws, error) => {
-      console.error('WebSocket error:', error);
-    }
-  };
-})
-.listen(8000 , ({ port , server }) =>  {
-    console.log(`server listening on : http://localhost:${port}`)
-})
-
-
+const res = await module.client.get("/users");
+await module.close();
 ```
 
-## Graphql
-GraphQL CRUD Example with graphql-yoga + tspace-spear
-
-This example shows how to build a simple GraphQL CRUD API using graphql-yoga and tspace-spear.
-
-It includes:
-
-- GraphQL schema setup
-- Query and Mutation examples
-- Create / Read / Update / Delete operations
-- HTTP integration with graphql-yoga
-
-The server uses an in-memory array as a fake database for simplicity.
-
-Features
-- High performance HTTP server with tspace-spear
-- Native GraphQL schema definitions
-- Full CRUD operations
-- Simple and dependency-light setup
-- Works with standard GraphQL clients and tools
-
-```sh
-npm install graphql graphql-yoga
-```
-
+### Integration Testing with createTestServer
 ```js
-import { type T, Spear } from "tspace-spear";
+import { createTestServer } from "tspace-spear/testing";
 
-import {
-  createYoga,
-  createSchema,
-} from 'graphql-yoga';
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-};
-
-const users: User[] = [
-  {
-    id: 1,
-    name: 'John',
-    email: 'john@gmail.com',
-  },
-];
-
-const yoga = createYoga({
-  graphqlEndpoint: '/graphql',
-
-  schema: createSchema({
-    typeDefs: /* GraphQL */ `
-      type User {
-        id: Int!
-        name: String!
-        email: String!
-      }
-
-      input CreateUserInput {
-        name: String!
-        email: String!
-      }
-
-      input UpdateUserInput {
-        id: Int!
-        name: String
-        email: String
-      }
-
-      type Query {
-        users: [User!]!
-        user(id: Int!): User
-      }
-
-      type Mutation {
-        createUser(input: CreateUserInput!): User!
-        updateUser(input: UpdateUserInput!): User!
-        removeUser(id: Int!): User!
-      }
-    `,
-
-    resolvers: {
-      Query: {
-        users: () => users,
-
-        user: (_root, args) => {
-          return users.find(
-            (u) => u.id === args.id,
-          );
-        },
-      },
-
-      Mutation: {
-        createUser: (_root, args) => {
-          const user = {
-            id: Date.now(),
-            name: args.input.name,
-            email: args.input.email,
-          };
-
-          users.push(user);
-
-          return user;
-        },
-
-        updateUser: (_root, args) => {
-          const user = users.find(
-            (u) => u.id === args.input.id,
-          );
-
-          if (!user) {
-            throw new Error(
-              'User not found',
-            );
-          }
-
-          if (args.input.name !== undefined) {
-            user.name = args.input.name;
-          }
-
-          if (args.input.email !== undefined) {
-            user.email = args.input.email;
-          }
-
-          return user;
-        },
-
-        removeUser: (_root, args) => {
-          const index = users.findIndex(
-            (u) => u.id === args.id,
-          );
-
-          if (index === -1) {
-            throw new Error(
-              'User not found',
-            );
-          }
-
-          const deleted = users[index];
-
-          users.splice(index, 1);
-
-          return deleted;
-        },
-      },
-    },
-  }),
+const testServer = await createTestServer({
+  controllers: [UsersController],
+  logger: false,
 });
 
-const app = new Spear()
-.get('/graphql',({ req , res }) => yoga(req , res))
-.post('/graphql',({ req , res }) => yoga(req , res)) 
-.listen(4000 , ({ port , server }) =>  {
-  console.log(`server listening on : http://localhost:${port}/graphql`)
-})
+const res = await testServer.client.get("/users");
+await testServer.close();
 ```
 
-## E2E
-Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
-response output. It allows you to:
+### Spying on Service Methods
 ```js
-// file cat-controller.ts
-import z from 'zod';
-import {
-  type T,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  createDtoDecorator
-} from "tspace-spear";
+import { TestingService } from "tspace-spear/testing";
 
-const catSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  age: z.number(),
-});
+const testing = new TestingService();
+const service = new UserService();
+const spy = testing.spyOn(service, "findAll");
 
-const catSchemaAction = z.object({
-  name: z.string(),
-  age: z.number(),
-});
-
-type Cat = z.infer<typeof catSchema>
-
-let cats: z.infer<typeof catSchema>[] = [
-  { id: 1, name: 'cat1', age: 1.6 },
-  { id: 2, name: 'cat2', age: 1.8 },
-];
-
-const ValidateDtoBody = (schema: z.ZodTypeAny) => {
-  return createDtoDecorator((ctx) => {
-    const result = schema.parse(ctx.body);
-    ctx.body = result as T.Body;
-  });
-};
-@Controller('/cats')
-class CatController {
-
-  @Get('/')
-  public async index({
-    query,
-  }: T.Context) {
-    return {
-      cats,
-    };
-  }
-
-  @Get('/:id')
-  public async show({ res, params }: T.Context<{ params: { id: number } }>) : Promise<{
-    cat : Cat
-  }> {
-    const cat = cats.find((d) => d.id === Number(params.id));
-
-    if(cat == null) {
-      throw res.notFound('not found cat')
-    }
-
-    return {
-      cat
-    };
-  }
-
-  @Post('/')
-  @ValidateDtoBody(catSchemaAction)
-  public async create({
-    body,
-  }: T.Context<{ body: z.infer<typeof catSchemaAction> }>) {
-
-    const cat = {
-      id: cats.length + 1,
-      ...body
-    }
-
-    cats.push(cat);
-
-    return {
-      cat,
-      message: 'created',
-    };
-  }
-
-  @Put('/:id')
-  @ValidateDtoBody(catSchemaAction.partial())
-  public async update({
-    res,
-    params,
-    body,
-  }: T.Context<{
-    params: { id: number };
-    body: Partial<z.infer<typeof catSchemaAction>>;
-  }>) {
-    const id = Number(params.id);
-
-    const index = cats.findIndex((d) => d.id === id);
-
-    if (index === -1) {
-      throw res.notFound('not found cat')
-    }
-
-    cats[index] = {
-      ...cats[index],
-      ...body,
-      id
-    };
-
-    const cat = cats[index]
-
-    return {
-      message: 'updated',
-      cat,
-    };
-  }
-
-  @Delete('/:id')
-  public async remove({ res, params }: T.Context<{ params: { id: number } }>) {
-    const id = Number(params.id);
-
-    const index = cats.findIndex((d) => d.id === id);
-
-    if (index === -1) {
-      throw res.notFound('not found cat')
-    }
-
-    cats = cats.filter((d) => d.id !== id);
-
-    return {
-      message: 'deleted',
-    };
-  }
-}
-
-export { CatController };
-export default CatController;
-
-// file server/app.ts
-import Spear from "tspace-spear";
-const app = new Spear({
-  logger : true,
-  controllers: {
-      folder : `${__dirname}/controllers/*`,
-      name:/controller\.(ts|js)$/i,
-      // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
-      // and swagger documentation. By default if use .useSwagger() in app no need to set any description
-      preRouteTypes: true
-  }
-})
-
-app.useGlobalPrefix('api');
-app.useBodyParser();
-app.listen(8000 , () => console.log(`Server is now listening http://localhost:8000`));
-
-type AppRouter = typeof app.contract;
-export { AppRouter }
-export default app;
-
-// file frontend/index.ts
-import { AppRouter } from "./server/app";
-import { ApiClient } from "tspace-spear/client";
-
-const client: ApiClient<AppRouter> = new ApiClient(
-  `http://localhost:8000/api`
-);
-
-await client.get("/catsq"); ❌ // Type error: Argument of type '"/catsq"' is not assignable to parameter of type '"/cats" | "/cats/:id" | ... 3 more
-const res = await client.get("/cats");
-// res.ok -> true or false
-// res.status -> number
-// res.headers -> Hearders
-// res.data -> { cats: [{ id: 1, name: 'cat1', age: 1.6 },{ id: 2, name: 'cat2', age: 1.8 }] }
-
-// Without checking `res.ok`, `res.data` is always typed as `any`.
-if(res.ok) {
-  res.data.cats = 1 ❌ // Type error: Type 'number' is not assignable to type '{ id: number; name: string; age: number; }[]'
-  res.data.cats[0].name = 1 ❌ // Type error: Type 'number' is not assignable to type 'string'
-  res.data.cats[0].age = "1.6" ❌ // Type error: Type 'string' is not assignable to type 'number'
-}
-
-await client.get("/cats/:id") ❌ // Expected 2 arguments, but got 1.
-await client.get("/cats/:id", { params : { id : "1" }}) ❌ 
-// The expected type comes from property 'id' which is declared here on type '{ id: number; }'
-await client.get("/cats/:id", { params : { id : 1 }}) ✅
-
-await client.post("/cats") ❌ // Expected 2 arguments, but got 1.
-await client.post("/cats",{
-  body : {}  ❌ // Type '{}' is missing the following properties from type '{ name: string; age: number; }'
-});
-await client.post("/cats",{
-  body : { name : "super cat" } ❌ 
-  // Property 'age' is missing in type '{ name: string; }' 
-  // but required in type '{ name: string; age: number; }'.
-});
-await client.post("/cats",{
-  body : { name : "super cat" , age : 5 }  ✅
-});
-
-await client.put("/cats") ✅
-
-await client.put("/cats",{
-  body : {}  ✅
-});
-
-await client.put("/cats",{
-  body : { name : 1 } ❌ // Type 'number' is not assignable to type 'string'.
-});
-
-await client.put("/cats",{
-  body : { name : "super cat" } ✅
-});
-
-await client.put("/cats",{
-  body : { name : "super cat" , age : 5 }  ✅
-});
- 
+service.findAll();
+console.log(spy.callCount); // 1
 ```
-
