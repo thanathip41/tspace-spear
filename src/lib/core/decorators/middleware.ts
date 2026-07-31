@@ -12,41 +12,43 @@ type MiddlewareDecorator = {
 
 type MiddlewareClass = new (...args:any) => any;
 
+const isClass = (value: Function): boolean => {
+  return /^class\s/.test(Function.prototype.toString.call(value));
+};
+
 const normalizeMiddlewares = (mid: any): T.ContextHandler[] => {
-    const result: T.ContextHandler[] = [];
+  const items = Array.isArray(mid) ? mid.flat(Infinity) : [mid];
+  const result: T.ContextHandler[] = [];
 
-    const visit = (item: any): void => {
-        if (Array.isArray(item)) {
-            item.forEach(visit);
-            return;
-        }
+  for (const item of items) {
 
-        if (!item) return;
+    if (!item || typeof item !== "function") {
+      continue;
+    }
 
-        if (typeof item === "function") {
-            const proto = item.prototype;
+    if (isClass(item)) {
+      const instance = new item();
 
-            if (proto && proto !== Object.prototype) {
-                const instance = new item();
+      for (const name of Object.getOwnPropertyNames(item.prototype)) {
+        
+          if (name === "constructor") {
+              continue;
+          }
 
-                Object.getOwnPropertyNames(proto)
-                    .filter(name => name !== "constructor")
-                    .forEach(name => {
-                        if (typeof instance[name] === "function") {
-                            result.push(instance[name].bind(instance));
-                        }
-                    });
+          const handler = instance[name];
 
-                return;
-            }
+          if (typeof handler === "function") {
+              result.push(handler.bind(instance));
+          }
+      }
 
-            result.push(item);
-        }
-    };
+      continue;
+    }
 
-    visit(mid);
+    result.push(item);
+  }
 
-    return result;
+  return result;
 };
 
 /**
