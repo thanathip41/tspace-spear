@@ -133,7 +133,12 @@ class Spear<
         name: RegExp
     }
 
-    constructor(options: TOptions = {} as TOptions) {
+    constructor(options:  
+        & T.Application 
+        & TOptions 
+        & Record<Exclude<keyof TOptions, keyof T.Application>, never> 
+        = {} as any
+    ) {
         this._controllers   = options.controllers;
         this._middlewares   = options.middlewares;
 
