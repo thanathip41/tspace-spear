@@ -133,45 +133,33 @@ class Spear<
         name: RegExp
     }
 
-    constructor({
-        controllers,
-        middlewares,
-        globalPrefix,
-        logger,
-        cluster,
-        adapter
-    } : 
-        & T.Application 
-        & TOptions 
-        & Record<Exclude<keyof TOptions, keyof T.Application>, never> 
-        = {} as any
-    ) {
-        this._controllers   = controllers;
-        this._middlewares   = middlewares;
-        
-        if(logger)  this.useLogger();
-        if(cluster) this.useCluster(cluster);
-        if(adapter) this.useAdapter(adapter);
-        if(globalPrefix) this.useGlobalPrefix(globalPrefix);
+    constructor(options: TOptions = {} as TOptions) {
+        this._controllers   = options.controllers;
+        this._middlewares   = options.middlewares;
+
+        if(options.logger)  this.useLogger();
+        if(options.cluster) this.useCluster(options.cluster);
+        if(options.adapter) this.useAdapter(options.adapter);
+        if(options.globalPrefix) this.useGlobalPrefix(options.globalPrefix);
 
         // Ensure controllers is NOT an array and has the required shape
         // before enabling automatic route generation (used for E2E typing).
         const isValidControllerObject = 
-            controllers &&
-            !Array.isArray(controllers) &&
-            typeof controllers === "object" &&
-            "folder" in controllers &&
-            "name" in controllers &&
-            "preRouteTypes" in controllers &&
-            controllers.folder &&
-            controllers.name &&
-            controllers.preRouteTypes
+            this._controllers &&
+            !Array.isArray(this._controllers) &&
+            typeof this._controllers === "object" &&
+            "folder" in this._controllers &&
+            "name" in this._controllers &&
+            "preRouteTypes" in this._controllers &&
+            this._controllers.folder &&
+            this._controllers.name &&
+            this._controllers.preRouteTypes
 
         if (isValidControllerObject) {
             // Auto-generate route metadata for type-safe E2E usage;
             this._generatePreRouteTypes = {
-                folder: controllers.folder!,
-                name: controllers.name!,
+                folder: this._controllers.folder!,
+                name: this._controllers.name!,
             };
         }
     }
@@ -220,9 +208,8 @@ class Spear<
             TOptions["controllers"] extends { preRouteTypes?: true }
                 ? TRoutes & AppRoutes
                 : TRoutes
-        > 
+        >
     }
-
     /**
      * The 'usePreRouteTypes' method is used to create pre routes for e2e and swagger
      * 
@@ -787,7 +774,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>> { 
+    ): Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>,TOptions> { 
 
         this._onListeners.push(() => {
             return this._router.get(
@@ -799,7 +786,7 @@ class Spear<
             );
         })
 
-        return this as Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>>;
+        return this as Spear<TRegisterRoute<TRoutes, Path, "GET", Handlers>,TOptions>;
     }
 
     /**
@@ -822,7 +809,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.post(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'post' }), path),  
@@ -833,7 +820,7 @@ class Spear<
             );
         })
 
-        return this as Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>>;
+        return this as Spear<TRegisterRoute<TRoutes, Path, "POST", Handlers>,TOptions>;
     }
 
     /**
@@ -856,7 +843,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.put(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'put' }), path), 
@@ -866,7 +853,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>>;
+        return this as Spear<TRegisterRoute<TRoutes, Path, "PUT", Handlers>,TOptions>;
     }
 
     /**
@@ -889,7 +876,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.patch(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'patch' }), path),  
@@ -899,7 +886,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>>;
+        return this as Spear<TRegisterRoute<TRoutes, Path, "PATCH", Handlers>,TOptions>;
     }
 
     /**
@@ -922,7 +909,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.delete(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'delete' }), path), 
@@ -932,7 +919,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>>
+        return this as Spear<TRegisterRoute<TRoutes, Path, "DELETE", Handlers>,TOptions>
     }
 
     /**
@@ -955,7 +942,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.head(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'head' }), path), 
@@ -965,7 +952,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>>
+        return this as Spear<TRegisterRoute<TRoutes, Path, "HEAD", Handlers>,TOptions>
     }
 
     /**
@@ -988,7 +975,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.options(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'options' }), path), 
@@ -998,7 +985,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>>
+        return this as Spear<TRegisterRoute<TRoutes, Path, "OPTIONS", Handlers>,TOptions>
     }
 
     /**
@@ -1021,7 +1008,7 @@ class Spear<
     >(
         path: Path, 
         ...handlers: Handlers
-    ): Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>> {
+    ): Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>,TOptions> {
         this._onListeners.push(() => {
             return this._router.all(
                 this._normalizePath(this._resolveGlobalPrefix({ path , method : 'all' }), path), 
@@ -1031,7 +1018,7 @@ class Spear<
                 )
             );
         })
-        return this as Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>>
+        return this as Spear<TRegisterRoute<TRoutes, Path, "GET" | "POST" | "PUT" | "PATCH" | "DELETE", Handlers>,TOptions>
     }
 
     private async _import(
