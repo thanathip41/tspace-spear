@@ -318,6 +318,34 @@ class Spear<
     }
 
     /**
+     *  The 'set' method is used to add a global middleware that sets a response header.
+     *
+     * The header will be applied to every response handled by this application.
+     *
+     * @param {string} key - The name of the response header to set.
+     * @param {number | string | readonly string[]} value - The value of the response header.
+     *
+     * @returns {this}
+     *
+     * @example
+     * ```ts
+     * app.set("X-Powered-By", "Spear");
+     * app.set("Cache-Control", "no-cache");
+     * ```
+     */
+    public set (key: string, value: number | string | readonly string[]): this {
+
+        const middleware = (ctx : T.Context, next : T.NextFunction) => {
+            ctx.res.set(key, value);
+            return next();
+        }
+
+        this._globalMiddlewares.push(middleware);
+
+        return this
+    }
+
+    /**
      * The 'useGlobalPrefix' method is used to sets a global prefix for all routes in the router.
      *
      * This prefix will be prepended to every route path in the application.
