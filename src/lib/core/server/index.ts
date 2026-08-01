@@ -708,7 +708,10 @@ class Spear<
                 this._onListeners.forEach(listener => listener());
 
                 if (this._swagger.use) {
-                    await this._swaggerHandler();
+                    const baseContract = await new Compiler()
+                    .transformBaseContract();
+
+                    await this._swaggerHandler(baseContract);
                 }
             },
         })
@@ -1553,7 +1556,7 @@ class Spear<
                 }
 
                 if (typeof result === 'string') {
-                    ctx.res.end(result);
+                    ctx.res.send(result);
                     return;
                 }
 
@@ -1648,7 +1651,10 @@ class Spear<
                     this._onListeners.forEach(listener => listener());
 
                     if (this._swagger.use) {
-                        await this._swaggerHandler();
+                        const baseContract = await new Compiler()
+                        .transformBaseContract();
+
+                        await this._swaggerHandler(baseContract);
                     }
                 },
             })
@@ -1783,7 +1789,7 @@ class Spear<
         return normalizedPath || '/';
     }
 
-    private async _swaggerHandler () {
+    private async _swaggerHandler (baseContract = {}) : Promise<void> {
 
         const routes = (this.routers as unknown as { routes : any[]})
         .routes
@@ -1805,7 +1811,8 @@ class Spear<
             ...this._swagger,
             specs : this._swaggerSpecs,
             routes,
-            globalPrefix: this._globalPrefix
+            globalPrefix: this._globalPrefix,
+            baseContract : baseContract
         })
 
         this._router.get(staticUrl, staticSwaggerHandler)

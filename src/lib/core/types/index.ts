@@ -377,6 +377,7 @@ type TSwaggerDoc = {
             }[]
         }
     }
+    baseContract?: Record<string, any>;
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false

@@ -236,7 +236,10 @@ export class ParserFactory {
         .replace(/\/$/, '') || '/';
 
         //@ts-ignore
-        const preRoute = appRoutes[pathWithoutGlobalPrefix]?.[r.method];
+        const preRoute = ({
+          ...appRoutes, 
+          ...doc.baseContract
+        })?.[pathWithoutGlobalPrefix]?.[r.method];
 
         if (paths[path] == null) {
           paths[path] = {
@@ -310,6 +313,7 @@ export class ParserFactory {
           if (preRoute && Object.keys(preRoute.params ?? {}).length) {
 
             const queryParams = Object.entries(preRoute.params ?? {}).map(([k, v]) => {
+             
             return {
                 name: k,
                 in: "path",
@@ -418,26 +422,44 @@ export class ParserFactory {
           if(preRoute && Object.keys(preRoute.response ?? {}).length) {
             
             const responses: Record<string, any> = {};
-            
-              responses["200"] = {
-                description: null,
-                content: {
-                  "application/json": {
-                    schema: {
-                      type: "object",
-                      properties: Object.keys(preRoute.response ?? {}).reduce(
+
+            const example = preRoute.response;
+
+            const contentType =
+              typeof example === "string"
+                ? "text/plain"
+                : Array.isArray(example)
+                  ? "application/json"
+                  : "application/json";
+
+            responses["200"] = {
+              description: "Success",
+              content: {
+                [contentType]: {
+                  schema:
+                  typeof example === "string"
+                    ? {
+                        type: "string",
+                        example,
+                      }
+                    : {
+                    type: "object",
+                    properties:
+                      example == null
+                        ? {}
+                        : Object.keys(example).reduce(
                           (prev: Record<string, any>, key: string) => {
                             prev[key] = {
-                              example: (preRoute.response ?? {})[key] ?? {},
+                              example: example[key],
                             };
                             return prev;
                           },
                           {},
-                        )
-                    },
+                        ),
                   },
                 },
-              };
+              },
+            };
 
             spec.responses = {
               ...responses,

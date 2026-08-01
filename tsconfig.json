@@ -3,7 +3,7 @@
     "target": "esnext",
     "module": "commonjs",
     "lib": ["esnext","DOM"],
-    "types": ["node"],
+    "types": ["node","bun"],
     "allowJs": true,
     "checkJs": false,
     "outDir": "dist",
@@ -17,6 +17,6 @@
     "sourceMap": true,
     "declaration": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts","test/**/*.ts"],
   "exclude": ["node_modules", "dist/**/*.js"]
 }

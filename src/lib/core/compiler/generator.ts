@@ -496,6 +496,54 @@ const formatExampleValue = (v: any): string => {
   return JSON.stringify(v);
 };
 
+type MockData = Record<string, any>;
+
+const transformMockData = (obj: MockData): void => {
+  for (const key in obj) {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+
+    const value = obj[key];
+
+    if (value && typeof value === 'object') {
+      if (Object.keys(value).length === 0 || "[x: string]" in value) {
+        obj[key] = undefined;
+      } else {
+        transformMockData(value);
+      }
+    } else {
+      switch (value) {
+        case 'string':
+          obj[key] = "example";
+          break;
+        case 'number':
+          obj[key] = 123;
+          break;
+        case 'boolean':
+          obj[key] = true;
+          break;
+        default:
+          obj[key] = undefined;
+          break;
+      }
+    }
+  }
+};
+
+const parseTypeScriptString = (tsString: string): MockData => {
+  const jsonStr = tsString
+    .replace(/;/g, ',')
+    .replace(/\[x:\s*string\]/g, '"[x: string]"')
+    .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/:\s*([^"'{},]+)(?=[,}])/g, (_, p1) => `: "${p1.trim()}"`)
+    .replace(/,\s*}/g, '}');
+
+  const parsedObj: MockData = JSON.parse(jsonStr);
+
+  transformMockData(parsedObj);
+  
+  return parsedObj;
+};
+
 export const generateRoutes = async (globalPrefix: string, options: Options) => {
   const project = new Project({
     tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
@@ -698,4 +746,29 @@ ${routerMapValues}
   ])
 
   return routes
+}
+
+export const transformBaseContract = async () => {
+
+  const project = new Project({
+      tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
+  });
+
+  const entry = typeof Bun !== "undefined"
+      ? Bun.main
+      : require.main?.filename;
+
+  const filePath = path.resolve(entry!);
+                    
+  const source = project.getSourceFile(filePath)!
+
+  const appDeclaration = source.getVariableDeclaration("app")!;
+
+  const appType = appDeclaration.getType();
+
+  const contractProperty = appType.getProperty("baseContract")!;
+
+  const contractType = contractProperty.getTypeAtLocation(appDeclaration);
+
+  return parseTypeScriptString(contractType.getText());
 }
