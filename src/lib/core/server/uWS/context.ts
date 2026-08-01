@@ -69,9 +69,6 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         return;
       }
 
-      response.setHeader('connection','keep-alive');
-      response.setHeader('keep-alive','timeout=5');
-
       response.uWS.cork(() => {
         if (!response.aborted()) {
           _aborted = true;
