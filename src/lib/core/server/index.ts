@@ -654,7 +654,7 @@ class Spear<
      */
     public useRouter<Routes>(
         router: Router<Routes>
-    ): Spear<typeof this.contract & Routes> {
+    ): Spear<typeof this.contract & Routes, TOptions> {
 
         const routes = router.routes;
 
@@ -668,7 +668,7 @@ class Spear<
             );
         }
 
-        return this as Spear<typeof this.contract & Routes>
+        return this as Spear<typeof this.contract & Routes, TOptions>
     }
 
     /**
