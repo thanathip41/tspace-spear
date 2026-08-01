@@ -40,7 +40,15 @@ function json(this: TResponse, results?: Record<string, any>) {
 }
 
 function send(this: TResponse, message: string) {
+    
     if (this.writableEnded()) return;
+
+    if (!this.headersSent()) {
+        this.writeHead(
+            this.statusCode() as T.StatusCode, 
+            HEADER_CONTENT_TYPES.text
+        );   
+    }
 
     return this.end(message);
 }
