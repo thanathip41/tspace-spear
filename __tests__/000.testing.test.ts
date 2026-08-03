@@ -174,8 +174,8 @@ describe("Example 4: Integration Testing with TestModule", () => {
    
     module = await TestModule.create()
       .setControllers([UsersController])
-      .setLogger(false)
-      .setPortOffset(200)
+      .setLogger(true)
+      .setPort(2000)
       .compile();
   });
 
@@ -225,8 +225,8 @@ describe("Example 5: Integration Testing with createTestServer", () => {
   before(async () => {
     testServer = await createTestServer({
       controllers: [UsersController],
-      logger: false,
-      portOffset: 300,
+      logger: true,
+      port: 3000,
     });
   });
 
@@ -288,7 +288,7 @@ describe("Example 7: Integration Testing with Real Service", () => {
   before(async () => {
     module = await TestModule.create()
       .setControllers([UsersController])
-      .setPortOffset(400)
+      .setPort(4000)
       .compile();
   });
 
@@ -333,7 +333,7 @@ describe("Example 8: Complete CRUD Test Pattern", () => {
   before(async () => {
     module = await TestModule.create()
       .setControllers([UsersController])
-      .setPortOffset(500)
+      .setPort(5000)
       .compile();
   });
 
