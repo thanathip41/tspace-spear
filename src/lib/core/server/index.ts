@@ -102,7 +102,8 @@ class Spear<
             title : "API Documentation",
             description : "This is a sample documentation",
             version : "1.0.0"
-        }
+        },
+        complie : 'app'
     }
 
     private _swaggerSpecs : (T.Swagger.Spec & { path : string , method : string })[] = []
@@ -694,7 +695,7 @@ class Spear<
             servers : servers ?? this._swagger.servers,
             tags : tags ?? this._swagger.tags,
             info : info ?? this._swagger.info,
-            complie : complie ?? 'app'
+            complie : complie ?? this._swagger.complie
         }
 
         return this
