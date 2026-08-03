@@ -1,15 +1,15 @@
 /**
  * Testing utilities for tspace-spear framework.
  * 
- * Provides NestJS-like testing capabilities for Controllers and Services.
+ * Provides Testing capabilities for Controllers and Services.
  * 
  * @module tspace-spear/testing
  */
+import type { T }           from '../types';
+import { Spear }            from '../server';
+import { ApiClient }        from '../client';
+import { SERVICE_METADATA } from '../metadata';
 
-import { Spear } from '../server';
-import { ApiClient } from '../client';
-import { CONTROLLER_METADATA, SERVICE_METADATA } from '../metadata';
-import type { T } from '../types';
 
 type ClassType = new (...args: any) => any;
 
@@ -21,7 +21,7 @@ export interface TestModuleOptions {
   services?: ClassType[];
   mocks?: Map<ClassType, any>;
   logger?: boolean;
-  portOffset?: number;
+  port?: number;
 }
 
 /**
@@ -39,7 +39,25 @@ export interface TestModuleResult {
  * Testing service for creating isolated test instances.
  */
 export class TestingService {
-  createService<T extends ClassType>(
+  
+  /**
+   * Creates a service instance with its dependencies.
+   *
+   * Dependencies are resolved from the `@Dependencies()` decorator metadata
+   * or from the `dependencies` option if no metadata exists.
+   *
+   * Mock implementations can be supplied through the `mocks` map. Any
+   * dependency without a mock is instantiated using its default constructor.
+   *
+   * @template T Service class type.
+   * @param ServiceClass The service class to instantiate.
+   * @param options Service creation options.
+   * @param options.dependencies Fallback dependency classes to inject when
+   * no `@Dependencies()` metadata is present.
+   * @param options.mocks A map of dependency classes to mock implementations.
+   * @returns A fully constructed service instance.
+   */
+  public createService<T extends ClassType>(
     ServiceClass: T,
     options: {
       dependencies?: ClassType[];
@@ -66,13 +84,20 @@ export class TestingService {
     
     return new ServiceClass(...resolvedDeps);
   }
-  
+
   /**
-   * Creates a mock service with type inference from the service class.
-   * TypeScript will check that method names match the actual service.
-   * The return type only includes the methods you provide.
+   * Creates a type-safe mock object for a service.
+   *
+   * Only the specified methods or properties need to be implemented,
+   * making it easy to mock a subset of a service's API.
+   *
+   * @template T Service class type.
+   * @template K Keys of the service to mock.
+   * @param ServiceClass The service class being mocked.
+   * @param methods The mock implementations.
+   * @returns The typed mock object.
    */
-  createMockService<
+  public createMockService<
     T extends ClassType,
     K extends keyof InstanceType<T>
   >(
@@ -90,7 +115,19 @@ export class TestingService {
     return methods;
   }
   
-  spyOn<T extends Record<string, Function>>(
+  /**
+   * Creates a spy for a method on an object.
+   *
+   * The original method continues to execute while the spy records
+   * invocation count, arguments, and return values.
+   *
+   * @template T Object containing the target method.
+   * @param target The object whose method should be spied on.
+   * @param methodName The name of the method to spy on.
+   * @returns An object containing the original method, call count,
+   * captured arguments, and captured return values.
+   */
+  public spyOn<T extends Record<string, Function>>(
     target: T,
     methodName: keyof T
   ): {
@@ -100,7 +137,6 @@ export class TestingService {
     original: Function;
   } {
     const original = target[methodName] as Function;
-    const callCount = { value: 0 };
     const calls: any[][] = [];
     const results: any[] = [];
     
@@ -127,7 +163,25 @@ export class TestingService {
  */
 export class TestingController {
   
-  createController<T extends ClassType>(
+  /**
+   * Creates a controller instance with its dependencies.
+   *
+   * Dependencies are resolved from the `@Dependencies()` decorator metadata
+   * or from the `services` option if no metadata exists.
+   *
+   * Mock implementations can be provided through the `mocks` map.
+   * Each mocked service is instantiated from a temporary subclass, so the
+   * original service prototype is never modified.
+   *
+   * @template T Controller class type.
+   * @param ControllerClass The controller class to instantiate.
+   * @param options Controller creation options.
+   * @param options.services Fallback service classes to inject when no
+   * `@Dependencies()` metadata is present.
+   * @param options.mocks A map of service classes to mock implementations.
+   * @returns A fully constructed controller instance.
+   */
+  public createController<T extends ClassType>(
     ControllerClass: T,
     options: {
       services?: ClassType[];
@@ -165,13 +219,38 @@ export class TestingController {
     return new ControllerClass(...resolvedDeps);
   }
   
-  createMockController<T extends Record<string, Function>>(
+   /**
+   * Creates a mock controller object from a set of handlers.
+   *
+   * This is useful for testing middleware, routing, or decorators without
+   * creating a controller class.
+   *
+   * @template T Object containing controller handler functions.
+   * @param handlers An object whose properties are controller handlers.
+   * @returns The same handlers object with its original type preserved.
+   */
+  public createMockController<T extends Record<string, Function>>(
     handlers: T
   ): T {
     return handlers;
   }
   
-  createContext<T extends Partial<T.Context> = Partial<T.Context>>(
+
+  /**
+   * Creates a mock request context for unit tests.
+   *
+   * Any provided values override the default mock context, allowing tests
+   * to customize only the fields they need.
+   *
+   * The returned response object includes helper methods such as
+   * `status()`, `json()`, `send()`, and common HTTP error helpers
+   * (`notFound()`, `badRequest()`, etc.).
+   *
+   * @template T Additional context properties to merge into the mock context.
+   * @param partial Partial context values to override the defaults.
+   * @returns A mock context object suitable for controller and middleware tests.
+   */
+  public createContext<T extends Partial<T.Context> = Partial<T.Context>>(
     partial: T
   ): T.Context & T {
     const mockRes = {
@@ -239,55 +318,128 @@ export class TestModule {
   private services: ClassType[] = [];
   private mocks: Map<ClassType, any> = new Map();
   private logger: boolean = false;
-  private portOffset: number = 0;
+  private port: number = 5050;
   
   private constructor() {}
   
+  /**
+   * Creates a new test module builder.
+   *
+   * The returned instance can be configured with controllers, services,
+   * mocks, and other testing options before calling {@link compile}.
+   *
+   * @returns A new {@link TestModule} instance.
+   */
   static create(): TestModule {
     return new TestModule();
   }
   
-  setControllers(controllers: ClassType[]): this {
+  /**
+   * Replaces the list of controllers registered in this test module.
+   *
+   * @param controllers Controller classes to register.
+   * @returns {this}
+   */
+  public setControllers(controllers: ClassType[]): this {
     this.controllers = controllers;
     return this;
   }
   
-  addController(controller: ClassType): this {
+  /**
+   * Registers a controller in this test module.
+   *
+   * @param controller The controller class to register.
+   * @returns {this}
+   */
+  public addController(controller: ClassType): this {
     this.controllers.push(controller);
     return this;
   }
   
-  setServices(services: ClassType[]): this {
+  /**
+   * Replaces the list of services registered in this test module.
+   *
+   * @param services Service classes to register.
+   * @returns {this}
+   */
+  public setServices(services: ClassType[]): this {
     this.services = services;
     return this;
   }
   
-  addService(service: ClassType): this {
+  /**
+   * Registers a service in this test module.
+   *
+   * @param service The service class to register.
+   * @returns {this}
+   */
+  public addService(service: ClassType): this {
     this.services.push(service);
     return this;
   }
   
-  setMocks(mocks: Map<ClassType, any>): this {
+  /**
+   * Replaces all mocked services.
+   *
+   * Each key is a service class and its value is the mock implementation
+   * that should be used during testing.
+   *
+   * @param mocks A map of service classes to mock implementations.
+   * @returns {this}
+   */
+  public setMocks(mocks: Map<ClassType, any>): this {
     this.mocks = mocks;
     return this;
   }
   
-  addMock(service: ClassType, mock: any): this {
+  /**
+   * Registers a mock implementation for a service.
+   *
+   * @param service The service class to mock.
+   * @param mock The mock implementation.
+   * @returns {this}
+   */
+  public addMock(service: ClassType, mock: any): this {
     this.mocks.set(service, mock);
     return this;
   }
   
-  setLogger(enabled: boolean): this {
+  /**
+   * Enables or disables the application logger.
+   *
+   * @param enabled Whether logging should be enabled.
+   * @returns {this}
+   */
+  public setLogger(enabled: boolean): this {
     this.logger = enabled;
     return this;
   }
   
-  setPortOffset(offset: number): this {
-    this.portOffset = offset;
+  /**
+   * Sets the port  used when starting the test server.
+   *
+   * The application listens on `port`.
+   *
+   * @param port The port port.
+   * @returns {this}
+   */
+  public setPort(port: number): this {
+    this.port = port;
     return this;
   }
   
-  async compile(): Promise<TestModuleResult> {
+  /**
+   * Compiles the test module and starts a Spear application.
+   *
+   * The application automatically enables the body parser and file upload
+   * middleware. Once the server starts, a test client is created and
+   * returned along with helper utilities.
+   *
+   * @returns A promise that resolves to a {@link TestModuleResult}
+   * containing the application, server, API client, listening port,
+   * and a helper to gracefully shut down the server.
+   */
+  public async compile(): Promise<TestModuleResult> {
     const app = new Spear({
       controllers: this.controllers,
       logger: this.logger
@@ -296,7 +448,7 @@ export class TestModule {
     app.useBodyParser();
     app.useFileUpload();
     
-    const port = 5000 + this.portOffset;
+    const port = this.port;
     
     return new Promise((resolve, reject) => {
       app.listen(port, ({ port: actualPort, server }: any) => {
@@ -333,7 +485,7 @@ export async function createTestServer(
     services = [],
     mocks = new Map(),
     logger = false,
-    portOffset = 0
+    port = 5050
   } = options;
   
   return TestModule.create()
@@ -341,7 +493,7 @@ export async function createTestServer(
     .setServices(services)
     .setMocks(mocks)
     .setLogger(logger)
-    .setPortOffset(portOffset)
+    .setPort(port)
     .compile();
 }
 
