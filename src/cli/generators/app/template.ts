@@ -2,28 +2,31 @@ export const AppTemplate = `
 import Spear from "tspace-spear";
 
 const app = new Spear({
-  logger: true,
-  controllers: {
-    folder: \`\${__dirname}/modules/*\`,
-    name: /controller\\\.(ts|js)$/i,
+    logger: true,
+    controllers: {
+      folder: \`\${__dirname}/modules/*\`,
+      name: /controller\\\.(ts|js)$/i,
 
-    // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
-    // and swagger documentation. By default if use .useSwagger() in app no need to set any description
-    preRouteTypes: true
-  }
-})
+      // don't forget to set this option for auto-generate route metadata for type-safe E2E usage, 
+      // and swagger documentation. By default if use .useSwagger() in app no need to set any description
+      preRouteTypes: true
+    }
+  })
+  .cors({
+    origins: [ 
+      /^http:\\/\\/localhost:\\d+$/\
+      
+    ],
+    credentials: true
+  })
+  .useGlobalPrefix("api", {
+    exclude : [{ path : '/' , methods : '*' }]
+  })
+  .useSwagger()
+  .useBodyParser()
 
-app.cors({
-  origins: [ 
-    /^http:\\/\\/localhost:\\d+$/\
-    
-  ],
-  credentials: true
-});
-
-app.useGlobalPrefix("api");
-app.useSwagger();
-app.useBodyParser();
+  .get('/',() => ({ message : 'GET: Hi app!' }))
+  .post('/',() => ({ message : 'POST: Hi app!' }))
 
 app.listen(8000 , ({ port , server }) =>  {
   console.log(\`Server listening on : http://localhost:\${port}\`)
