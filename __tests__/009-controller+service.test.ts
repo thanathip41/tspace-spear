@@ -7,7 +7,7 @@ import {
   Post,
   Put,
   Delete,
-  Service,
+  Dependencies,
   type T,
 } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
@@ -15,7 +15,7 @@ import { getAdapter } from "./app/adapter";
 
 // ============== Services ==============
 
-@Service()
+@Dependencies()
 class UserService {
   private users: Map<number, { id: number; name: string; email: string }> =
     new Map([
@@ -131,7 +131,7 @@ class OrderService {
 
 // ============== Controllers ==============
 @Controller("/users")
-@Service(UserService)
+@Dependencies(UserService)
 class UsersController {
   constructor(private userService: UserService) {}
 
@@ -195,7 +195,7 @@ class UsersController {
 }
 
 @Controller("/products")
-@Service(ProductService)
+@Dependencies(ProductService)
 class ProductsController {
   constructor(private productService: ProductService) {}
 
@@ -236,7 +236,7 @@ class ProductsController {
 }
 
 @Controller("/orders")
-@Service(OrderService, UserService)
+@Dependencies(OrderService, UserService)
 class OrdersController {
   constructor(
     private orderService: OrderService,

@@ -2,7 +2,7 @@ export const ControllerTemplate = `
 import {
   type T,
   Controller,
-  Service,
+  Dependencies,
   Middleware,
   Get,
   Post,
@@ -14,7 +14,7 @@ import { CatService }    from "./cat.service";
 import { CreateCatDto , UpdateCatDto }  from "./cat.dto";
 import { LogMiddleware } from "../../common/middlewares/log.middleware";
 
-@Service([CatService])
+@Dependencies([CatService])
 @Controller("/cats")
 class CatController {
 

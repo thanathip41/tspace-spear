@@ -8,7 +8,7 @@ import {
   Delete,
   ValidateDto,
   Validate,
-  Service
+  Dependencies
 } from "../../../../src/lib";
 
 import { 
@@ -17,8 +17,8 @@ import {
 } from "./cat-dto";
 import { CatService } from "./cat-service";
 
-@Service([CatService])
 @Controller('/cats')
+@Dependencies([CatService])
 class CatController {
 
   constructor(

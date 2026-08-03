@@ -1351,7 +1351,7 @@ class Spear<
 
         if (!services.length) {
             throw new Error(
-                `\x1b[31m[ServiceLoader ERROR]\x1b[0m \x1b[36m${ControllerClass.name}\x1b[0m requires dependencies but no @Service() decorator was found`
+                `\x1b[31m[ServiceLoader ERROR]\x1b[0m \x1b[36m${ControllerClass.name}\x1b[0m requires dependencies but no @Dependencies() decorator was found`
             );
         }
 
@@ -1363,7 +1363,7 @@ class Spear<
                 typeof ServiceClass !== 'function'
             ) {
                 throw new Error(
-                    `\x1b[31m[ServiceLoader ERROR]\x1b[0m Invalid service in @Service() of ${ControllerClass.name}`
+                    `\x1b[31m[ServiceLoader ERROR]\x1b[0m Invalid service in @Dependencies([...]) of ${ControllerClass.name}`
                 );
             }
 
@@ -1397,12 +1397,12 @@ class Spear<
                         `\x1b[36mAvailable \x1b[0m : ${available.join(', ')}`,
                         '',
                         '\x1b[33mHint\x1b[0m',
-                        '@Service([',
+                        '@Dependencies([',
                         `    ${available.join(',\n    ')},`,
                         `    ${DependencyClass.name}`,
                         '])',
                         '',
-                        `Register '${DependencyClass.name}' in @Service()`
+                        `Register '${DependencyClass.name}' in @Dependencies()`
                     ].join('\n')
                 );
             }

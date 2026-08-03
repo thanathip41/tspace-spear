@@ -8,7 +8,7 @@ type ServiceClass = new () => unknown;
  *
  * @example
  * ```ts
- * \@Service([
+ * \@Dependencies([
  *   CatService,
  *   DogService
  * ])
@@ -22,10 +22,10 @@ type ServiceClass = new () => unknown;
  * }
  * ```
  *
- * @param services Array of service classes to register.
+ * @param Dependencies Array of service classes to register.
  * @returns Class decorator.
  */
-export const Service = (...services: (ServiceClass | ServiceClass[])[]): ClassDecorator => {
+export const Dependencies = (...services: (ServiceClass | ServiceClass[])[]): ClassDecorator => {
   return (target) => {
     Reflect.defineMetadata(SERVICE_METADATA,services.flat(),target);
   };

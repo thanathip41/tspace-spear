@@ -655,7 +655,7 @@ import {
 } from 'tspace-spear';
 import CatService from './cat-service.ts'
 
-@Service([CatService]) // don't forgot this to send CatService for Dependency Injection(DI)
+@Dependencies([CatService]) // don't forgot this to send CatService for Dependency Injection(DI)
 @Controller('/cats')
 class CatController {
 
@@ -1662,38 +1662,50 @@ Basic testing examples for tspace-spear framework.
 
 ### Example Service and Controller
 ```js
-import { Controller, Get, Post, Service, type T } from "tspace-spear";
+import { Controller, Get, Post, Dependencies, type T } from "tspace-spear";
 
-@Service()
 class UserService {
   private users = new Map([
-    [1, { id: 1, name: "Alice", email: "alice@example.com" }],
-    [2, { id: 2, name: "Bob", email: "bob@example.com" }],
+      [1, { id: 1, name: "Alice", email: "alice@example.com" }],
+      [2, { id: 2, name: "Bob", email: "bob@example.com" }],
   ]);
-  findAll() { return Array.from(this.users.values()); }
-  findById(id) { return this.users.get(id); }
-  create(name, email) {
-    const id = this.users.size + 1;
-    const user = { id, name, email };
-    this.users.set(id, user);
-    return user;
+
+  findAll() { 
+      return Array.from(this.users.values()); 
+  }
+
+  findById(id:number | string) { 
+      return this.users.get(+id); 
+  }
+
+  create(name:string, email:string) {
+      const id = this.users.size + 1;
+      const user = { id, name, email };
+      this.users.set(id, user);
+      return user;
   }
 }
 
 @Controller("/users")
-@Service(UserService)
+@Dependencies([UserService])
 class UsersController {
-  constructor(private userService: UserService) {}
-  @Get("/") list() { return { users: this.userService.findAll() }; }
-  @Get("/:id") show({ res, params }) {
-    const user = this.userService.findById(params.id);
-    if (!user) throw res.notFound("User not found");
-    return { user };
+  constructor(private userService: UserService ) {}
+
+  @Get("/") 
+  index() { 
+      return this.userService.findAll();
   }
-  @Post("/") create({ body, res }) {
-    const { name, email } = body;
-    if (!name || !email) return res.status(400).json({ error: "Required" });
-    return { created: this.userService.create(name, email) };
+  @Get("/:id") 
+  show({ res, params } : T.Context) {
+      const user = this.userService.findById(params.id!);
+      if (!user) throw res.notFound("User not found");
+      return  user;
+  }
+  @Post("/") 
+  create({ body, res }: T.Context) {
+      const { name, email } = body;
+      if (!name || !email) throw res.status(400).json({ error: "Required" });
+      return { created: this.userService.create(name, email) };
   }
 }
 ```
