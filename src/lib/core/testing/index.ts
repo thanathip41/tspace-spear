@@ -144,13 +144,18 @@ export class TestingController {
     
     const depsToResolve = serviceMetadata ?? services;
     const resolvedDeps: any[] = [];
-    
+
     for (const dep of depsToResolve) {
+
       if (mocks.has(dep)) {
-        resolvedDeps.push(mocks.get(dep));
-      } else {
-        resolvedDeps.push(new (dep as any)());
-      }
+        const mockService = mocks.get(dep);
+        Object.assign(dep.prototype, mockService);
+        resolvedDeps.push(new dep());
+        continue;
+      } 
+      
+      resolvedDeps.push(new dep());
+      
     }
     
     return new ControllerClass(...resolvedDeps);
