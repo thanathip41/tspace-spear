@@ -126,7 +126,6 @@ export class TestingService {
  * Testing controller for creating isolated controller test instances.
  */
 export class TestingController {
-  private testingService = new TestingService();
   
   createController<T extends ClassType>(
     ControllerClass: T,
@@ -149,8 +148,13 @@ export class TestingController {
 
       if (mocks.has(dep)) {
         const mockService = mocks.get(dep);
-        Object.assign(dep.prototype, mockService);
-        resolvedDeps.push(new dep());
+
+        const mockDep = class extends dep {};
+
+        Object.assign(mockDep.prototype, mockService);
+
+        resolvedDeps.push(new mockDep());
+
         continue;
       } 
       
