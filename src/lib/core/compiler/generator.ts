@@ -762,7 +762,8 @@ export const transformBaseContract = async () => {
                     
   const source = project.getSourceFile(filePath)!
 
-  const appDeclaration = source.getVariableDeclaration("app")!;
+  const appDeclaration = (source.getVariableDeclaration("app") 
+  ?? source.getVariableDeclaration("server"))!;
 
   const appType = appDeclaration.getType();
 
