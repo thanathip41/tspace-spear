@@ -678,7 +678,14 @@ class Spear<
      * @returns 
      */
     public useSwagger(doc: T.Swagger.Doc = {}) {
-        const { path , servers , tags , info , options } = doc;
+        const { 
+            path, 
+            servers, 
+            tags, 
+            info, 
+            options,
+            complie
+        } = doc;
 
         this._swagger = {
             use : true,
@@ -686,7 +693,8 @@ class Spear<
             path : path ?? this._swagger.path,
             servers : servers ?? this._swagger.servers,
             tags : tags ?? this._swagger.tags,
-            info : info ?? this._swagger.info
+            info : info ?? this._swagger.info,
+            complie : complie ?? 'app'
         }
 
         return this
@@ -742,7 +750,7 @@ class Spear<
 
                 if (this._swagger.use) {
                     const baseContract = await new Compiler()
-                    .transformBaseContract();
+                    .transformBaseContract(this._swagger.complie!);
 
                     await this._swaggerHandler(baseContract);
                 }
@@ -1685,7 +1693,7 @@ class Spear<
 
                     if (this._swagger.use) {
                         const baseContract = await new Compiler()
-                        .transformBaseContract();
+                        .transformBaseContract(this._swagger.complie!);
 
                         await this._swaggerHandler(baseContract);
                     }

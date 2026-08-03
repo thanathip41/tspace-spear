@@ -748,7 +748,7 @@ ${routerMapValues}
   return routes
 }
 
-export const transformBaseContract = async () => {
+export const transformBaseContract = async (complie: string) => {
 
   const project = new Project({
       tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
@@ -762,8 +762,7 @@ export const transformBaseContract = async () => {
                     
   const source = project.getSourceFile(filePath)!
 
-  const appDeclaration = (source.getVariableDeclaration("app") 
-  ?? source.getVariableDeclaration("server"))!;
+  const appDeclaration = source.getVariableDeclaration(complie)!;
 
   const appType = appDeclaration.getType();
 

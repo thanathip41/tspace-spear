@@ -377,7 +377,13 @@ type TSwaggerDoc = {
             }[]
         }
     }
-    baseContract?: Record<string, any>;
+    /**
+     * The 'complie' is variable name of the Spear instance used during compilation
+     * (e.g. `"app"` for `const app = new Spear()`).
+     *
+     * @default "app"
+     */
+    complie ?: string; 
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false

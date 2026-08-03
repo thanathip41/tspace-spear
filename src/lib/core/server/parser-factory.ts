@@ -97,7 +97,7 @@ export class ParserFactory {
     return cookies;
   }
 
-  public async swagger(doc: T.Swagger.Doc) {
+  public async swagger(doc: T.Swagger.Doc & { baseContract : Record<string,any> | undefined }) {
 
     const resolveGlobalPrefix = (
         {

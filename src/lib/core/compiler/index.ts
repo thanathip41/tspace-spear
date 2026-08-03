@@ -1,4 +1,7 @@
-import { generateRoutes, transformBaseContract } from "./generator"
+import { 
+    generateRoutes, 
+    transformBaseContract 
+} from "./generator";
 export class Compiler {
     public async generateRoutes (globalPrefix: string , options: {
         folder: string
@@ -8,8 +11,8 @@ export class Compiler {
         .catch(err => console.log(err))
     }   
 
-    public async transformBaseContract () {
-        return await transformBaseContract()
+    public async transformBaseContract (complie: string) {
+        return await transformBaseContract(complie)
         .catch(_ => ({}))
     }
 }
