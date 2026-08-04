@@ -88,6 +88,8 @@ type TRequest = {
     headers : THeaders;
 } & Partial<any>
 
+export type TResponseError<T,C> = { message : T , statusCode : C }
+
 type TResponse = {
     /**
      * Raw uWS HttpResponse instance.
@@ -130,49 +132,49 @@ type TResponse = {
     partialContent: () => T.Response
 
     /** 400 Bad Request - Invalid request from client */
-    badRequest: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 400 }
-
+    badRequest: <T extends string, C = 400> (message?: T) => TResponseError<T,C>;
+     
     /** 401 Unauthorized - Authentication required or failed */
-    unauthorized: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 401 }
+    unauthorized: <T extends string, C = 401> (message?: T) =>  TResponseError<T,C>
 
     /** 402 Payment Required - Reserved for future/payment flow */
-    paymentRequired: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 402 }
+    paymentRequired: <T extends string, C = 402> (message?: T) => TResponseError<T,C>
 
     /** 403 Forbidden - Client does not have access rights */
-    forbidden: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 403 }
+    forbidden: <T extends string, C = 403> (message?: T) => TResponseError<T,C>
 
     /** 404 Not Found - Resource does not exist */
-    notFound: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 404 }
+    notFound: <T extends string, C = 404> (message?: T) => TResponseError<T,C>
 
     /** 405 Method Not Allowed - HTTP method is not supported for this resource */
-    notAllowed: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 405 }
+    notAllowed: <T extends string, C = 405> (message?: T) => TResponseError<T,C>
 
     /** 408 Request Timeout - The server timed out waiting for the request */
-    timeout: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 408 }
+    timeout: <T extends string, C = 408> (message?: T) => TResponseError<T,C>
 
     /** 409 Conflict - Request could not be completed due to a conflict with the current state of the resource */
-    conflict: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 409 }
+    conflict: <T extends string, C = 409> (message?: T) => TResponseError<T,C>
 
     /** 413 Content Too Large - Request payload exceeds the allowed size */
-    tooLarge: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 413 }
+    tooLarge: <T extends string, C = 413> (message?: T) => TResponseError<T,C>
 
     /** 422 Unprocessable Entity - Valid request but semantic errors */
-    unprocessable: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 422 }
+    unprocessable: <T extends string, C = 422> (message?: T) => TResponseError<T,C>
 
     /** 429 Too Many Requests - Rate limit exceeded */
-    tooManyRequests: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 429 }
+    tooManyRequests: <T extends string, C = 429> (message?: T) => TResponseError<T,C>
 
     /** 500 Internal Server Error - Generic server failure */
-    serverError: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 500 }
+    serverError: <T extends string, C = 500> (message?: T) => TResponseError<T,C>
 
     /** 502 Bad Gateway - Invalid response from upstream server */
-    badGateway: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 502 }
+    badGateway: <T extends string, C = 502> (message?: T) => TResponseError<T,C>
 
     /** 503 Service Unavailable - Server temporarily unavailable */
-    unavailable: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 503 }
+    unavailable: <T extends string, C = 503> (message?: T) => TResponseError<T,C>
 
     /** 504 Gateway Timeout - Upstream server timeout */
-    gatewayTimeout: <T extends string> (message?: T) => T.Response & { message : T , statusCode : 504 }
+    gatewayTimeout: <T extends string, C = 504> (message?: T) => TResponseError<T,C>
 
     /**
      * Serve a media file (video, image, PDF, etc.) from file system.
@@ -463,13 +465,15 @@ type Route<
   Query = never,
   Body = never,
   Files = never,
-  Response = unknown
+  Response = unknown,
+  Error = never
 > = {
   params: Params;
   query: Query;
   body: Body;
   files: Files;
   response: Response;
+  errors : Error
 };
 
 type Last<T extends any[]> = T extends [...any[], infer L] ? L : never;
@@ -486,10 +490,21 @@ type ParseParams<Path extends string> =
     ? never 
     : TPrettify<_ParseParams<Path>>;
 
-type ExtractResponse<T> =
-    Awaited<T> extends T.Response & infer U
+type ExtractResponse<T> = Awaited<T> extends infer R
+    ? R extends TResponse & infer U
         ? U
-        : Awaited<T>;
+        : R extends TResponseError<infer E , infer S>
+            ? never
+            : R
+    : never;
+
+type ExtractError<T> = Awaited<T> extends infer R
+    ? R extends TResponse
+        ? never
+        : R extends TResponseError<infer E , infer S>
+            ? { message: E; statusCode: S }
+            : R
+    : never;
 
 type ExtractRoute<H, Path extends string> = H extends (ctx: infer C, ...args: any[]) => infer R
   ? Route<
@@ -503,7 +518,8 @@ type ExtractRoute<H, Path extends string> = H extends (ctx: infer C, ...args: an
       C extends { query: infer Q } ? Q : never,
       C extends { body: infer B } ? B : never,
       C extends { files: infer F } ? F : never,
-    ExtractResponse<R>
+    ExtractResponse<R>,
+    ExtractError<R>
     >
   : Route<never, never, never, never, unknown>;
 
@@ -526,7 +542,11 @@ export type TExtractParams<Path extends string> =
         : {};
 
 export type TPrettify<T> = {
-  [K in keyof T]: T[K] extends object ? TPrettify<T[K]> : T[K];
+  [K in keyof T]: T[K] extends Date
+    ? T[K]
+    : T[K] extends object
+      ? TPrettify<T[K]>
+      : T[K];
 } & {};
 
 export type TRegisterRoute<

@@ -261,31 +261,14 @@ const resolveType = (type: Type): string => {
     return resolveType(t);
   }
 
-  if (type.isUnion())     {
+  if (type.isUnion()) {
+    
     const text = type.getText();
 
-    if(text.includes('| null') || text.includes('| undefined')) {
-
-      const types = type.getUnionTypes();
-
-      if (types.length > 1) {
-        const nonSpecial = types.filter(
-          t => !t.isNull() && !t.isUndefined()
-        );
-
-        const hasNull = types.some(t => t.isNull());
-        const hasUndefined = types.some(t => t.isUndefined());
-
-        const sorted = [
-          ...nonSpecial,
-          ...(hasNull ? [types.find(t => t.isNull())!] : []),
-          ...(hasUndefined ? [types.find(t => t.isUndefined())!] : []),
-        ];
-
-        return sorted.map(t => resolveType(t)).join(" | ");
-      }
+    if(text.startsWith("import")) {
+      return "{}";
     }
-   
+
     return text;
   }
 
@@ -365,11 +348,14 @@ const extractPropertyType = (
 
 const formatExampleValue = (v: any): string => {
 
-  if (v === null) {
+  if(v === '{}') {
+    return "{}";
+  }
+  if (v === null || v === 'null') {
     return "null";
   }
 
-  if(v === undefined) {
+  if(v === undefined || v === 'undefined') {
     return "undefined"
   }
 
@@ -421,34 +407,34 @@ const formatExampleValue = (v: any): string => {
   
     switch (t) {
       case "string":
-        return `"example"`;
+        return `"string"`;
 
       case "string[]":
-        return `["example1", "example2", "example3"]`;
+        return `["string", "string"]`;
 
       case "number":
-        return "123";
+        return "0";
       
       case "number[]":
-        return "[1 ,2, 3]"
+        return "[0, 0]"
 
       case "boolean":
         return "true";
 
       case "boolean[]":
-        return "[true, false, true]";
+        return "[true, false]";
 
       case "null":
         return "null";
 
       case "null[]":
-        return "[null, null, null]";
+        return "[null, null]";
 
       case "undefined":
         return "undefined";
 
       case "undefined[]":
-        return "[undefined, undefined, undefined]";
+        return "[undefined, undefined]";
 
       case "date":
       case "Date":
@@ -470,83 +456,182 @@ const formatExampleValue = (v: any): string => {
 
     return `[
       ${formatExampleValue(v[0])},
-      ${formatExampleValue(v[0])},
       ${formatExampleValue(v[0])}
     ]`;
   }
 
   if (typeof v === "object") {
-    const entries = Object.entries(v).map(
+
+    const entries = Object
+    .entries(v)
+    .map(
       ([key, value]) => {
+
+        if(String(value).includes('any[]')) {
+          return `"${key}": []`;
+        }
+
+        if(key.includes(`[x: string]`)) {
+          return undefined;
+        }
 
         if (key.includes("uuid")) {
           return `"${key}": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`;
         }
   
         if (key === "id" || key.endsWith("id")) {
-          return `"${key}": 123`;
+          return `"${key}": 0`;
         }
 
         return `"${key}": ${formatExampleValue(value)}`;
       }
     );
-    return `{ ${entries.map(v => `${v}`).join(", ")} }`;
+    return `{ ${entries.filter(Boolean).map(v => `${v}`).join(", ")} }`;
   }
 
   return JSON.stringify(v);
 };
 
-type MockData = Record<string, any>;
+const transformMockData = (obj: any): any => {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
 
-const transformMockData = (obj: MockData): void => {
+  const result: any = Array.isArray(obj) ? [] : {};
+
   for (const key in obj) {
     if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
 
-    const value = obj[key];
+    let value = obj[key];
 
-    if (value && typeof value === 'object') {
+    if (value && typeof value === "object") {
       if (Object.keys(value).length === 0 || "[x: string]" in value) {
-        obj[key] = undefined;
+        result[key] = undefined;
       } else {
-        transformMockData(value);
+        result[key] = transformMockData(value);
       }
-    } else {
-      switch (value) {
-        case 'string':
-          obj[key] = "example";
-          break;
-        case 'number':
-          obj[key] = 123;
-          break;
-        case 'boolean':
-          obj[key] = true;
-          break;
-        default:
-          obj[key] = undefined;
-          break;
-      }
+      continue;
+    }
+
+    if (typeof value === "string" && value.includes("|")) {
+      value = value.split("|")[0].trim();
+    }
+
+    switch (value) {
+      case "date[]":
+      case "Date[]":
+        result[key] = ["2000-01-01T00:00:00.000Z","2000-01-02T00:00:00.000Z","2000-01-03T00:00:00.000Z"];
+        break; 
+      case "Date": 
+        result[key] = "2000-01-01T00:00:00.000Z";
+        break;
+
+      case "string":
+        result[key] = "string";
+        break;
+
+      case "string[]":
+        result[key] = ["string", "string"];
+         break;
+
+      case "number":
+        result[key] = 0;
+        break;
+
+      case "number[]":
+        result[key] = [0, 0]
+        break;
+
+      case "boolean":
+        result[key] = true;
+        break;
+
+      case "boolean[]":
+        result[key] = [true,false];
+        break;
+
+      case "null":
+        result[key] = "null";
+        break;
+
+      case "null[]":
+        result[key] = [null, null];
+        break;
+
+      case "undefined":
+        result[key] = undefined;
+        break;
+
+      case "undefined[]":
+        result[key] = [undefined, undefined];
+        break;
+
+      
+      default:
+        result[key] = !isNaN(Number(value)) ? Number(value) : "string";
+        break;
     }
   }
+
+  return result;
 };
 
-const parseTypeScriptString = (tsString: string): MockData => {
-  const jsonStr = tsString
-    .replace(/;/g, ',')
-    .replace(/\[x:\s*string\]/g, '"[x: string]"')
-    .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
-    .replace(/:\s*([^"'{},]+)(?=[,}])/g, (_, p1) => `: "${p1.trim()}"`)
-    .replace(/,\s*}/g, '}');
+const parseTypeScriptString = (tsString: string) => {
+  let cleaned = tsString.trim();
 
-  const parsedObj: MockData = JSON.parse(jsonStr);
+  if (!cleaned.startsWith('{')) {
+    cleaned = `{ ${cleaned} }`;
+  }
 
-  transformMockData(parsedObj);
-  
-  return parsedObj;
+  let openBraces = 0;
+  let balancedStr = '';
+  for (const char of cleaned) {
+    if (char === '{') openBraces++;
+    if (char === '}') openBraces--;
+    if (openBraces < 0) {
+      openBraces = 0;
+      continue;
+    }
+    balancedStr += char;
+  }
+
+  let jsonStr = balancedStr;
+
+  while (jsonStr.includes('}[]')) {
+    jsonStr = jsonStr.replace(/(\{((?:[^{}]|\{[^{}]*\})*)\})\[\]/g, '[$1]');
+  }
+
+  let previousStr = "";
+  while (previousStr !== jsonStr) {
+    previousStr = jsonStr;
+    jsonStr = jsonStr.replace(/\|\s*\{[^{}]*\}/g, '');
+  }
+
+  jsonStr = jsonStr.replace(/:\s*[^"'{}\[\];,]+\s*\|\s*(\{|\[)/g, ': $1');
+
+  jsonStr = jsonStr.replace(/(\}|\])\s*\|\s*[^,;}\]]+/g, '$1');
+
+  jsonStr = jsonStr.replace(/;/g, ',');
+
+  jsonStr = jsonStr.replace(/([{,]\s*)"?([a-zA-Z_][a-zA-Z0-9_]*)"?\?\s*:/g, '$1"$2":');
+
+  jsonStr = jsonStr.replace(/(?<!")\[x:\s*string\](?!")/g, '"[x: string]"');
+
+  jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+  jsonStr = jsonStr.replace(/:\s*([^"'{},|]+)(?:\s*\|[^,}]*)*(?=[,}])/g, (_, p1) => `: "${p1.trim()}"`);
+
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+
+  const result = JSON.parse(jsonStr);
+
+  return result;
 };
 
 export const generateRoutes = async (globalPrefix: string, options: Options) => {
   const project = new Project({
     tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
+    skipAddingFilesFromTsConfig: false,
   })
 
   project.addSourceFilesAtPaths(
@@ -674,7 +759,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       body: parseType(route.body),
       files: parseType(route.files),
       headers: parseType(route.headers),
-      response: parseType(route.response),
+      response: parseTypeScriptString(route.response),
     };
 
     return acc;
@@ -770,5 +855,11 @@ export const transformBaseContract = async (complie: string) => {
 
   const contractType = contractProperty.getTypeAtLocation(appDeclaration);
 
-  return parseTypeScriptString(contractType.getText());
+  const types = transformMockData(
+    parseTypeScriptString(
+      contractType.getText()
+    )
+  )
+  
+  return types;
 }

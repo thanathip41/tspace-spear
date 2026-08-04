@@ -13,6 +13,9 @@ export class Compiler {
 
     public async transformBaseContract (complie: string) {
         return await transformBaseContract(complie)
-        .catch(_ => ({}))
+        .catch(_ => {
+            console.log(_)
+            return {}
+        })
     }
 }
