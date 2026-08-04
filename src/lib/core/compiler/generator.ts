@@ -551,7 +551,7 @@ const transformMockData = (obj: any): any => {
         break;
 
       case "null":
-        result[key] = "null";
+        result[key] = null;
         break;
 
       case "null[]":
