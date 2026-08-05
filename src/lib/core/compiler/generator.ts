@@ -4,7 +4,7 @@ import {
   Type 
 } from "ts-morph";
 
-import ts   from "typescript";
+import ts  from "typescript";
 import fs   from "fs";
 import path from "path";
 
@@ -27,6 +27,7 @@ type Route = {
   files: string;
   headers: string;
   response: string;
+  errors : string;
 }
 
 type Options = {
@@ -96,6 +97,10 @@ const splitTopLevel = (input: string) => {
 const parseType = (type: string): any => {
   type = type.trim();
 
+  if(type === 'true' || type === 'false') {
+    return "boolean";
+  }
+
   if (type === "never") {
     return undefined;
   }
@@ -164,11 +169,11 @@ const parseType = (type: string): any => {
         parsed = optional
           ? "string | null"
           : "string";
-      } else if (value === "number") {
+      } else if (value === "number" || typeof value === 'number' || /^\d+$/.test(value)) {
         parsed = optional
           ? "number | null"
           : "number";
-      } else if (value === "boolean") {
+      } else if (value === "boolean" || typeof value === 'boolean' || /^(true|false)$/i.test(value)) {
         parsed = optional
           ? "boolean | null"
           : "boolean";
@@ -239,6 +244,21 @@ const resolveType = (type: Type): string => {
   }
 
   if (
+    type.getText().includes("TResponseError")
+  ) {
+
+    const mapping = type.getText().replace(/^Promise<(.*)>$/, "$1").split(" | ");
+
+    const response = mapping.find(t => t.includes("TResponse &"));
+
+    if (response) {
+      return response.replace(/^.*?&\s*/, "").replace(/^\(|\)$/g, "");
+    }
+
+    return mapping.findLast(t => !t.startsWith("TResponseError<")) ?? "never";
+  }
+
+  if (
     type.getText().includes("Response") &&
     type.getText().includes("TResponse")
   ) {
@@ -260,6 +280,8 @@ const resolveType = (type: Type): string => {
 
     return resolveType(t);
   }
+
+  
 
   if (type.isUnion()) {
     
@@ -326,6 +348,46 @@ const resolveType = (type: Type): string => {
 
   return type.getText();
 }
+
+const resolveTypeErrorOnly = (type: Type) => {
+  if (
+    type.getText().includes("TResponseError")
+  ) {
+
+    const mapping = type.getText().replace(/^Promise<(.*)>$/, "$1").split(' | ')
+    
+    const result = mapping
+    .flatMap(type => {
+      const match = type.match(
+        /^TResponseError<\s*(["'`])([\s\S]*?)\1\s*,\s*(\d+)\s*>$/
+      );
+
+      if (!match) return [];
+
+      const [, quote, message, statusCode] = match;
+
+      return [`{ message: ${quote}${message}${quote}; statusCode: ${statusCode}; }`];
+    })
+
+    return !result.length ? 'never' : result.join(" | ");
+  }
+
+  return 'never';
+}
+
+const formatExampleErrorsValue = (v: any) => {
+  if(v === 'never') {
+    return `[]`;
+  }
+  const result = `[${v
+    .replace(/\s*\|\s*/g, ", ")
+    .replace(/;\s*(?=\w+\s*:)/g, ", ")
+    .replace(/;\s*}/g, " }")
+  }]`;
+
+  return result
+
+};
 
 const extractPropertyType = (
   type: Type,
@@ -575,58 +637,106 @@ const transformMockData = (obj: any): any => {
 
   return result;
 };
+interface Token {
+  type: 'string' | 'id' | 'array_suffix' | 'punct';
+  value: string;
+}
 
-const parseTypeScriptString = (tsString: string) => {
-  let cleaned = tsString.trim();
+function parseBaseContractTypeString(input: string): Record<string, any> {
 
-  if (!cleaned.startsWith('{')) {
-    cleaned = `{ ${cleaned} }`;
+  const tokens: Token[] = [];
+  const lexer = /"([^"]*)"|'([^']*)'|(\[[a-zA-Z]+:\s*string\])|(\[\])|([{}|:;,])|([A-Za-z0-9_]+(?:\[\])*)/g;
+  let match: RegExpExecArray | null;
+  
+  while ((match = lexer.exec(input)) !== null) {
+    if (match[1] !== undefined) tokens.push({ type: 'string', value: match[1] });
+    else if (match[2] !== undefined) tokens.push({ type: 'string', value: match[2] });
+    else if (match[3] !== undefined) tokens.push({ type: 'id', value: '[x: string]' });
+    else if (match[4] !== undefined) tokens.push({ type: 'array_suffix', value: '[]' });
+    else if (match[5] !== undefined) tokens.push({ type: 'punct', value: match[5] });
+    else if (match[6] !== undefined) tokens.push({ type: 'id', value: match[6] });
   }
 
-  let openBraces = 0;
-  let balancedStr = '';
-  for (const char of cleaned) {
-    if (char === '{') openBraces++;
-    if (char === '}') openBraces--;
-    if (openBraces < 0) {
-      openBraces = 0;
-      continue;
+
+  let current = 0;
+  function peek(): Token { return tokens[current]; }
+  function consume(): Token { return tokens[current++]; }
+  function expect(val: string): Token {
+    const t = consume();
+    if (!t || t.value !== val) throw new Error(`Expected '${val}', got '${t ? t.value : 'EOF'}'`);
+    return t;
+  }
+
+  function parseTypeWithoutUnion(): any {
+    const t = peek();
+    let node: any;
+    
+    if (!t) throw new Error("Unexpected EOF");
+
+    if (t.type === 'punct' && t.value === '{') {
+      node = parseObject();
+    } else if (t.type === 'string' || t.type === 'id') {
+      consume();
+      node = t.value;
+    } else {
+      throw new Error(`Unexpected token: ${t.value}`);
     }
-    balancedStr += char;
+
+    while (peek() && peek().type === 'array_suffix') {
+      consume();
+      node = [node];
+    }
+    
+    return node;
   }
 
-  let jsonStr = balancedStr;
+  function parseType(currentKey?: string): any {
+    let node = parseTypeWithoutUnion();
+    let isUnion = false;
+    let unionNodes: any[] = [node];
 
-  while (jsonStr.includes('}[]')) {
-    jsonStr = jsonStr.replace(/(\{((?:[^{}]|\{[^{}]*\})*)\})\[\]/g, '[$1]');
+    while (peek() && peek().type === 'punct' && peek().value === '|') {
+      consume();
+      isUnion = true;
+      unionNodes.push(parseTypeWithoutUnion());
+    }
+    
+    if (isUnion) {
+      unionNodes = unionNodes.filter(n => n !== 'undefined');
+      
+      if (currentKey === 'errors') {
+        node = unionNodes;
+      } else {
+        node = unionNodes[0];
+      }
+    } else if (currentKey === 'errors') {
+      node = Array.isArray(node) ? node : [node];
+    }
+
+    return node;
   }
 
-  let previousStr = "";
-  while (previousStr !== jsonStr) {
-    previousStr = jsonStr;
-    jsonStr = jsonStr.replace(/\|\s*\{[^{}]*\}/g, '');
+  function parseObject(): Record<string, any> {
+    expect('{');
+    const obj: Record<string, any> = {};
+    
+    while (peek() && peek().value !== '}') {
+      const key = consume().value;
+      
+      expect(':');
+      const valueType = parseType(key);
+      
+      if (peek() && (peek().value === ';' || peek().value === ',')) consume();
+      
+      obj[key] = valueType;
+    }
+    
+    expect('}');
+    return obj;
   }
 
-  jsonStr = jsonStr.replace(/:\s*[^"'{}\[\];,]+\s*\|\s*(\{|\[)/g, ': $1');
-
-  jsonStr = jsonStr.replace(/(\}|\])\s*\|\s*[^,;}\]]+/g, '$1');
-
-  jsonStr = jsonStr.replace(/;/g, ',');
-
-  jsonStr = jsonStr.replace(/([{,]\s*)"?([a-zA-Z_][a-zA-Z0-9_]*)"?\?\s*:/g, '$1"$2":');
-
-  jsonStr = jsonStr.replace(/(?<!")\[x:\s*string\](?!")/g, '"[x: string]"');
-
-  jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-
-  jsonStr = jsonStr.replace(/:\s*([^"'{},|]+)(?:\s*\|[^,}]*)*(?=[,}])/g, (_, p1) => `: "${p1.trim()}"`);
-
-  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
-
-  const result = JSON.parse(jsonStr);
-
-  return result;
-};
+  return parseType();
+}
 
 export const generateRoutes = async (globalPrefix: string, options: Options) => {
   const project = new Project({
@@ -674,7 +784,9 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
 
           const fullPath = normalizePath(`${basePath}/${methodPath}`)
 
-          const response = resolveType(method.getReturnType())
+          const response = resolveType(method.getReturnType());
+
+          const errors = resolveTypeErrorOnly(method.getReturnType());
 
           let body = "never"
           let params = "never"
@@ -699,12 +811,13 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
           routes.push({
             method: http,
             path: fullPath,
-            response,
             body,
             params,
             query,
             files,
-            headers
+            headers,
+            response,
+            errors,
           })
         }
       }
@@ -716,12 +829,13 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
     acc[r.path] = acc[r.path] ?? {};
 
     acc[r.path][r.method] = {
-      response: r.response,
       body: r.body,
       params: r.params,
       query: r.query,
       files: r.files,
-      headers: r.headers
+      headers: r.headers,
+      response: r.response,
+      errors: r.errors,
     };
 
     return acc;
@@ -739,6 +853,7 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       files: ${c.files}
       headers: ${c.headers}
       response: ${c.response}
+      errors: ${c.errors}
     }`).join("\n")
 
     return `
@@ -759,7 +874,8 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
       body: parseType(route.body),
       files: parseType(route.files),
       headers: parseType(route.headers),
-      response: parseTypeScriptString(route.response),
+      response: parseType(route.response),
+      errors: route.errors,
     };
 
     return acc;
@@ -767,17 +883,20 @@ export const generateRoutes = async (globalPrefix: string, options: Options) => 
 
   const routerMapValues= Object.entries(groupedValues)
   .map(([path, methods]) => {
-   
+    
     const methodBlock = Object.entries(methods)
-      .map(([method, c]: any) => `
+      .map(([method, c]: any) => {
+        return `
     ${method}: {
       params: ${formatExampleValue(c.params)},
       query: ${formatExampleValue(c.query)},
       body: ${formatExampleValue(c.body)},
       files: ${formatExampleValue(c.files)},
       headers: ${formatExampleValue(c.headers)},
-      response: ${formatExampleValue(c.response)}
-    }`).join(",\n");
+      response: ${formatExampleValue(c.response)},
+      errors: ${formatExampleErrorsValue(c.errors)}
+    }`
+    }).join(",\n");
     
     return `
   "${path}": {
@@ -856,10 +975,10 @@ export const transformBaseContract = async (complie: string) => {
   const contractType = contractProperty.getTypeAtLocation(appDeclaration);
 
   const types = transformMockData(
-    parseTypeScriptString(
+    parseBaseContractTypeString(
       contractType.getText()
     )
   )
-  
+
   return types;
 }

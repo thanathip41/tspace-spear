@@ -3,6 +3,7 @@ import pathSystem        from "path";
 import swaggerUiDist     from "swagger-ui-dist";
 import fastQuerystring   from "fast-querystring";
 import { type T }        from "../types";
+import { HTTP_STATUS_MESSAGES } from "../const";
 
 import { uWSBody, uWSfiles }   from "./uWS";
 import { netBody, netFiles }   from "./net";
@@ -98,6 +99,70 @@ export class ParserFactory {
   }
 
   public async swagger(doc: T.Swagger.Doc & { baseContract : Record<string,any> | undefined }) {
+
+    const buildSchema = (example: any): Record<string, any> => {
+      if (example == null) {
+        return {
+          type: "object",
+          properties: {},
+        };
+      }
+
+      if (typeof example === "string") {
+        return {
+          type: "string",
+          example,
+        };
+      }
+
+      if (typeof example === "number") {
+        return {
+          type: Number.isInteger(example) ? "integer" : "number",
+          example,
+        };
+      }
+
+      if (typeof example === "boolean") {
+        return {
+          type: "boolean",
+          example,
+        };
+      }
+
+      if (Array.isArray(example)) {
+        return {
+          type: "array",
+          example,
+          items: example.length ? buildSchema(example[0]) : {},
+        };
+      }
+
+      return {
+        type: "object",
+        properties: Object.fromEntries(
+          Object.entries(example).map(([key, value]) => [
+            key,
+            buildSchema(value),
+          ]),
+        ),
+        example,
+      };
+    }
+
+    const getContentType = (example: unknown): string => {
+      switch (typeof example) {
+        case "string":
+        case "number":
+        case "boolean":
+          return "text/plain";
+
+        case "object":
+          return "application/json";
+
+        default:
+          return "application/json";
+      }
+    }
 
     const resolveGlobalPrefix = (
         {
@@ -239,7 +304,7 @@ export class ParserFactory {
         const preRoute = ({
           ...appRoutes, 
           ...doc.baseContract
-        })?.[pathWithoutGlobalPrefix]?.[r.method];
+        })?.[pathWithoutGlobalPrefix]?.[r.method] as any
 
         if (paths[path] == null) {
           paths[path] = {
@@ -269,25 +334,15 @@ export class ParserFactory {
 
             if (response == null || !Object.keys(response).length) continue;
 
+            const contentType = getContentType(response.example);
+            
+            const schema = buildSchema(response.example);
+
             responses[`${response.status}`] = {
               description: response.description,
               content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties:
-                      response.example == null
-                        ? {}
-                        : Object.keys(response.example).reduce(
-                            (prev: Record<string, any>, key: string) => {
-                              prev[key] = {
-                                example: (response?.example ?? {})[key] ?? {},
-                              };
-                              return prev;
-                            },
-                            {},
-                          ),
-                  },
+                [contentType]: {
+                  schema
                 },
               },
             };
@@ -419,44 +474,19 @@ export class ParserFactory {
            
           }
 
-          if(preRoute && Object.keys(preRoute.response ?? {}).length) {
-            
+          if(preRoute && preRoute.response) {
+          
             const responses: Record<string, any> = {};
 
-            const example = preRoute.response;
-
-            const contentType =
-              typeof example === "string"
-                ? "text/plain"
-                : Array.isArray(example)
-                  ? "application/json"
-                  : "application/json";
+            const contentType = getContentType(preRoute.response);
+            
+            const schema = buildSchema(preRoute.response);
 
             responses["200"] = {
               description: "Success",
               content: {
                 [contentType]: {
-                  schema:
-                  typeof example === "string"
-                    ? {
-                        type: "string",
-                        example,
-                      }
-                    : {
-                    type: "object",
-                    properties:
-                      example == null
-                        ? {}
-                        : Object.keys(example).reduce(
-                          (prev: Record<string, any>, key: string) => {
-                            prev[key] = {
-                              example: example[key],
-                            };
-                            return prev;
-                          },
-                          {},
-                        ),
-                  },
+                  schema
                 },
               },
             };
@@ -464,6 +494,46 @@ export class ParserFactory {
             spec.responses = {
               ...responses,
             };
+          }
+      
+          if(preRoute && Array.isArray(preRoute.errors)) {
+              
+            const responses: Record<string, any> = {};
+
+            for(const e of Array.from(preRoute.errors ?? [])) {
+              const error = e as { message: string , statusCode: number };
+
+              if(error.statusCode == null || error.message == null) continue;
+              
+              responses[error.statusCode] = {
+                //@ts-ignore
+                description: HTTP_STATUS_MESSAGES[error.statusCode] || "Error",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: Object.keys(error)
+                      .reduce(
+                        (prev: Record<string, any>, key: string) => {
+                          prev[key] = {
+                            //@ts-ignore
+                            example: error[key],
+                          };
+                          return prev;
+                        },
+                        {},
+                      )
+                    },
+                  },
+                },
+              };
+            }
+            
+            spec.responses = {
+              ...spec.responses,
+              ...responses
+            };
+            
           }
 
           paths[path][method] = spec;
@@ -719,30 +789,23 @@ export class ParserFactory {
           spec.responses = {
             ...responses,
           };
-        } else if(preRoute && Object.keys(preRoute.response ?? {}).length) {
+        } else if(preRoute && preRoute.response) {
             
           const responses: Record<string, any> = {};
           
-            responses["200"] = {
-              description: null,
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: Object.keys(preRoute.response ?? {}).reduce(
-                        (prev: Record<string, any>, key: string) => {
-                          prev[key] = {
-                            example: (preRoute.response ?? {})[key] ?? {},
-                          };
-                          return prev;
-                        },
-                        {},
-                      )
-                  },
-                },
-              },
-            };
+          const contentType = getContentType(preRoute.response);
+            
+          const schema = buildSchema(preRoute.response);
 
+          responses["200"] = {
+            description: "Success",
+            content: {
+              [contentType]: {
+                schema
+              },
+            },
+          };
+            
           spec.responses = {
             ...responses
           };
