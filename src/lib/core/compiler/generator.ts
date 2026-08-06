@@ -255,7 +255,7 @@ const resolveType = (type: Type): string => {
       return response.replace(/^.*?&\s*/, "").replace(/^\(|\)$/g, "");
     }
 
-    return mapping.findLast(t => !t.startsWith("TResponseError<")) ?? "never";
+    return mapping.findLast(t => !t.includes("TResponseError<")) ?? "never";
   }
 
   if (
@@ -359,7 +359,7 @@ const resolveTypeErrorOnly = (type: Type) => {
     const result = mapping
     .flatMap(type => {
       const match = type.match(
-        /^TResponseError<\s*(["'`])([\s\S]*?)\1\s*,\s*(\d+)\s*>$/
+        /^(?:import\([^)]*\)\.)?TResponseError<\s*(["'`])([\s\S]*?)\1\s*,\s*(\d+)\s*>$/
       );
 
       if (!match) return [];
@@ -565,6 +565,16 @@ const transformMockData = (obj: any): any => {
     if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
 
     let value = obj[key];
+
+    if(key === 'errors') {
+     result[key] = value.map((v:any) => {
+      return {
+        message : v.message,
+        statusCode : +v.statusCode
+      }
+     });
+     continue;
+    }
 
     if (value && typeof value === "object") {
       if (Object.keys(value).length === 0 || "[x: string]" in value) {
@@ -974,11 +984,10 @@ export const transformBaseContract = async (complie: string) => {
 
   const contractType = contractProperty.getTypeAtLocation(appDeclaration);
 
-  const types = transformMockData(
-    parseBaseContractTypeString(
-      contractType.getText()
-    )
+  const parsed =  parseBaseContractTypeString(
+    contractType.getText()
   )
+  const types = transformMockData(parsed)
 
   return types;
 }
