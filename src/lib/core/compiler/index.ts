@@ -8,13 +8,12 @@ export class Compiler {
         name: RegExp
     }) {
         return await generateRoutes(globalPrefix , options)
-        .catch(err => console.log(err))
+        .catch(_ => null)
     }   
 
     public async transformBaseContract (complie: string) {
         return await transformBaseContract(complie)
         .catch(_ => {
-            console.log(_)
             return {}
         })
     }
