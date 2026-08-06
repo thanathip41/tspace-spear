@@ -589,7 +589,7 @@ const transformMockData = (obj: any): any => {
         break;
 
       case "string":
-        result[key] = "string";
+        result[key] = key === 'uuid' ? "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" :"string";
         break;
 
       case "string[]":
