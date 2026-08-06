@@ -791,8 +791,10 @@ class Spear<
                         continue
                     }
                     
-                    if(o instanceof RegExp && o.test(origin)) {
-                        res.setHeader('Access-Control-Allow-Origin', origin)
+                    const reqOrigin = Array.isArray(origin) ? origin[0] : origin;
+
+                    if (reqOrigin && o instanceof RegExp && o.test(reqOrigin)) {
+                        res.setHeader('Access-Control-Allow-Origin', reqOrigin);
                     }
                 }
             }

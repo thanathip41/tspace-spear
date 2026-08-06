@@ -1,7 +1,6 @@
 import http, { 
     type IncomingMessage, 
-    type ServerResponse, 
-    type IncomingHttpHeaders, 
+    type ServerResponse,
     type OutgoingHttpHeader, 
     type OutgoingHttpHeaders,
 } from "http";
@@ -43,11 +42,10 @@ type TContext<
 > = Omit<ContextExtensions, keyof Override> & Override
 
 type TIp = string | null
+
 type TIps = string[]
 
-type THeaders<T = IncomingHttpHeaders> = {
-   [K in keyof T]: T[K]
-}
+type THeaders=  Record<string, string | undefined>
 
 type TQuery<T = Record<string, string | undefined>> = T
 
@@ -577,10 +575,10 @@ export declare namespace T {
     type Request          = TRequest
     type Server           = TServer
 
-    type Headers<T = IncomingHttpHeaders>  = THeaders<T>
-    type Ip                                = TIp
-    type Ips                               = TIps
-    type FileInput                         = TFile
+    type Headers          = THeaders
+    type Ip               = TIp
+    type Ips              = TIps
+    type FileInput        = TFile
 
     type FileUpload<T = Record<string, TFile[] | undefined>>     = T
     type Cookies<T = Record<string, string | undefined>>         = TCookies<T>
