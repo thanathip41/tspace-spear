@@ -121,62 +121,62 @@ function partialContent(this: TResponse) {
 }
 function badRequest(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' resulted in a bad request. Please review the data and try again.`;
-    return this.status(400).json({ message });
+    return this.status(400).json({ message, statusCode : 400 });
 }
 
 function unauthorized(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' is unauthorized. Please verify.`;
-    return this.status(401).json({ message });
+    return this.status(401).json({ message, statusCode : 401 });
 }
 
 function paymentRequired(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' requires payment. Please proceed with payment.`;
-    return this.status(402).json({ message });
+    return this.status(402).json({ message, statusCode : 402 });
 }
 
 function forbidden(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' is forbidden. Please check the permissions or access rights.`;
-    return this.status(403).json({ message });
+    return this.status(403).json({ message, statusCode : 403 });
 }
 
 function notFound(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' was not found. Please re-check your URL again.`;
-    return this.status(404).json({ message });
+    return this.status(404).json({ message, statusCode : 404 });
 }
 
 function notAllowed(this: TResponse, message?: string) {
     message = message ?? `The HTTP method '${this._req.method}' is not allowed for '${this._req.url}'.`;
-    return this.status(405).json({ message });
+    return this.status(405).json({ message, statusCode : 405 });
 }
 
 function timeout(this: TResponse, message?: string) {
     message = message ?? `The request to '${this._req.url}' timed out before the server could complete it.`;
-    return this.status(408).json({ message });
+    return this.status(408).json({ message, statusCode : 408 });
 }
 
 function conflict(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' conflicts with the current state of the resource.`;
-    return this.status(409).json({ message });
+    return this.status(409).json({ message, statusCode : 409 });
 }
 
 function tooLarge(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' exceeds the maximum allowed payload size.`;
-    return this.status(413).json({ message });
+    return this.status(413).json({ message, statusCode : 413 });
 }
 
 function unprocessable(this: TResponse, message?: string) {
     message = message ?? `The request to '${this._req.url}' failed validation.`;
-    return this.status(422).json({ message });
+    return this.status(422).json({ message, statusCode : 422 });
 }
 
 function tooManyRequests(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' is too many requests. Please wait and try again.`;
-    return this.status(429).json({ message });
+    return this.status(429).json({ message, statusCode : 429 });
 }
 
 function serverError(this: TResponse, message?: string) {
     message = message ?? `The request '${this._req.url}' resulted in a server error. Please investigate.`;
-    return this.status(500).json({ message });
+    return this.status(500).json({ message, statusCode : 500 });
 }
 
 function serveMedia(this: TResponse, filePath: string) {

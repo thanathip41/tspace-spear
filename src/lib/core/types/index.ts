@@ -114,8 +114,6 @@ type TResponse = {
 
     setStatusCode(statusCode: TStatusCode, contentType?: 'TEXT' | 'JSON'): void;
 
-    end<T = any>(chunk?: string | Buffer, encoding?: BufferEncoding) : T.Response & T
-
     /** 200 OK - Standard successful response */
     ok: <T extends Record<string, any>>(data?: T) => T.Response & T
 
@@ -167,15 +165,6 @@ type TResponse = {
     /** 500 Internal Server Error - Generic server failure */
     serverError: <T extends string, C = 500> (message?: T) => TResponseError<T,C>
 
-    /** 502 Bad Gateway - Invalid response from upstream server */
-    badGateway: <T extends string, C = 502> (message?: T) => TResponseError<T,C>
-
-    /** 503 Service Unavailable - Server temporarily unavailable */
-    unavailable: <T extends string, C = 503> (message?: T) => TResponseError<T,C>
-
-    /** 504 Gateway Timeout - Upstream server timeout */
-    gatewayTimeout: <T extends string, C = 504> (message?: T) => TResponseError<T,C>
-
     /**
      * Serve a media file (video, image, PDF, etc.) from file system.
      * @param filePath Absolute or relative path to media file
@@ -186,25 +175,34 @@ type TResponse = {
      * Send JSON response.
      * @param data JSON serializable object
      */
-    json: <T extends Record<string, any>>(data?:T) => T.Response & T
+    json: <T extends Record<string, any>>(data?:T) => T.Response & T;
 
     /**
      * Send error response (generic wrapper).
      * @param err Error object or message
      */
-    error: (err: any) => any
+    error: (err: any) => TResponseError<'Internal Server Error',500>;
+
+    /**
+     * Ends the response, optionally sending a final chunk.
+     *
+     * @param chunk Final response body.
+     * @param encoding String encoding.
+     * @returns The response instance.
+     */
+    end: <T = string>(chunk?: T | Buffer, encoding?: BufferEncoding) => T.Response & T
 
     /**
      * Send plain text response.
      * @param message Text content
      */
-    send: (message: string) => any;
+    send: <T = string>(message: T) => T.Response & T;
 
     /**
      * Send HTML response.
      * @param html HTML string
      */
-    html: (html: string) => any;
+    html:<T = string>(html: T) => T.Response & T;
 
     /**
      * Set HTTP status code and return chained response helpers.
