@@ -750,8 +750,17 @@ class Spear<
                 this._onListeners.forEach(listener => listener());
 
                 if (this._swagger.use) {
-                    const baseContract = await new Compiler()
-                    .transformBaseContract(this._swagger.complie!);
+                    const complie =
+                    typeof this._swagger.complie === 'boolean'
+                    ? this._swagger.complie === false
+                    ? null
+                    : 'app'
+                    : this._swagger.complie;
+
+                    const baseContract = complie == null 
+                    ? {} 
+                    : await new Compiler()
+                    .transformBaseContract(complie);
 
                     await this._swaggerHandler(baseContract);
                 }
@@ -1695,8 +1704,17 @@ class Spear<
                     this._onListeners.forEach(listener => listener());
 
                     if (this._swagger.use) {
-                        const baseContract = await new Compiler()
-                        .transformBaseContract(this._swagger.complie!);
+                        const complie =
+                            typeof this._swagger.complie === 'boolean'
+                            ? this._swagger.complie === false
+                            ? null
+                            : 'app'
+                            : this._swagger.complie;
+
+                        const baseContract = complie == null 
+                            ? {} 
+                            : await new Compiler()
+                            .transformBaseContract(complie);
 
                         await this._swaggerHandler(baseContract);
                     }

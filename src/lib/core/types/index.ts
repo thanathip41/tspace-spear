@@ -381,7 +381,7 @@ type TSwaggerDoc = {
      *
      * @default "app"
      */
-    complie ?: string; 
+    complie ?: string | boolean; 
     specs ?: (TSwagger & { path : string , method : string})[]
     options ?: {
         decoratedOnly ?: boolean, // default : false
