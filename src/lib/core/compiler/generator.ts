@@ -343,11 +343,21 @@ const transformMockData = (obj: any): any => {
 
     let value = obj[key];
 
+    if(value === 'never') {
+      result[key] = undefined;
+      continue;
+    };
+
     if (key === "errors") {
-      result[key] = value.map((v: any) => ({
-        message: v.message,
-        statusCode: +v.statusCode,
-      }));
+      result[key] = value.map((v: any) => {
+        if(!v.message || !v.statusCode) {
+          return null;
+        }
+        return {
+          message: v.message,
+          statusCode: +v.statusCode,
+        }
+      }).filter(Boolean);
       continue;
     }
 
@@ -652,5 +662,6 @@ export const transformBaseContract = async (complie: string): Promise<any> => {
   const contractType = contractProperty.getTypeAtLocation(appDeclaration);
 
   const parsed = parseBaseContractTypeString(contractType.getText());
+
   return transformMockData(parsed);
 };
