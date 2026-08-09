@@ -25,8 +25,34 @@ const app = new Spear({
   .useSwagger()
   .useBodyParser()
 
-  .get('/',() => ({ message : 'GET: Hi app!' }))
-  .post('/',() => ({ message : 'POST: Hi app!' }))
+  .get('/',(ctx) => {
+
+    if(ctx.query.code === '400') {
+      return ctx.res.badRequest();
+    }
+
+    if(ctx.query.code === '401') {
+      return ctx.res.unauthorized();
+    }
+
+    if(ctx.query.code === '403') {
+      return ctx.res.forbidden();
+    }
+
+    if(ctx.query.code === '404') {
+      return ctx.res.notFound();
+    }
+
+    if(ctx.query.code === '500') {
+      return ctx.res.serverError();
+    }
+
+    return { 
+      success : true,
+      message : 'GET: Hi app!' 
+    }
+  })
+  .post('/',() => ({ success : true, message : 'POST: Hi app!' }))
 
 app.listen(8000 , ({ port , server }) =>  {
   console.log(\`Server listening on : http://localhost:\${port}\`)
