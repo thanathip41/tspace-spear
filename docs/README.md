@@ -31,6 +31,32 @@ It is designed with a strong focus on developer experience and provides end-to-e
 
 ---
 
+### 📖 Skills Documentation (Recommended for LLMs)
+
+For AI assistants and LLMs, we recommend reading the [`skills/`](../skills) folder for comprehensive, easy-to-understand documentation:
+
+```
+skills/
+├── README.md              # Overview + 13 quick examples
+├── 00-quick-start.md      # Installation + Hello World
+├── 01-controllers.md      # Controllers + DI
+├── 02-routing.md          # Routes + Router groups
+├── 03-middleware.md       # Global + Route middleware
+├── 04-validation.md       # DTO + class-validator + Zod
+├── 05-response.md         # Response helpers
+├── 06-testing.md          # Unit + E2E testing
+├── 07-e2e-types.md        # Type-safe client
+├── 08-swagger.md          # OpenAPI documentation
+├── 09-websocket.md        # Real-time communication
+├── 10-file-upload.md      # File handling
+├── 11-custom-context.md   # Extend T.Context (user, session)
+└── 12-cli.md              # Code generators
+```
+
+**For LLMs:** Read `skills/README.md` first for an overview, then dive into specific skill files as needed. All examples are copy-paste ready!
+
+---
+
 ### Install
 
 Install with [npm](https://www.npmjs.com/):
