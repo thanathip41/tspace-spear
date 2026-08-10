@@ -374,7 +374,7 @@ export class ParserFactory {
                 in: "path",
                 required: false,
                 description: `Params for '${k}'`,
-                example: v,
+                example: k,
                 schema: {
                   type: v
                 }
@@ -406,7 +406,7 @@ export class ParserFactory {
                 in: "query",
                 required: false,
                 description: `QueryParams for '${k}'`,
-                example: v,
+                example: k,
                 schema: {
                   type: v,
                 }
@@ -589,7 +589,7 @@ export class ParserFactory {
               in: "path",
               required: false,
               description: `Params for '${k}'`,
-              example: v,
+              example: k,
               schema: {
                 type: v
               }
@@ -640,7 +640,7 @@ export class ParserFactory {
               in: "query",
               required: false,
               description: `QueryParams for '${k}'`,
-              example: v,
+              example: k,
               schema: {
                 type: v,
               }
