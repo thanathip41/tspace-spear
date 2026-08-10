@@ -155,15 +155,37 @@ const resolveType = (type: Type): string => {
   }
 
   if (type.getText().includes("TResponseError")) {
-    const mapping = type.getText().replace(/^Promise<(.*)>$/, "$1").split(" | ");
-    const response = mapping.find(t => t.includes("TResponse &"));
+
+    const mapping = type.isUnion()
+        ? type.getUnionTypes()
+        : [type];
+
+    const response = mapping.find(t => {
+      return t.isIntersection() &&
+        t.getIntersectionTypes().some(i =>
+            i.getText().includes("TResponse")
+        );
+    });
+
     if (response) {
-      return response.replace(/^.*?&\s*/, "").replace(/^\(|\)$/g, "");
+      const filtered = response.getIntersectionTypes().filter(t => {
+          const text = t.getText();
+          return !text.includes("Response") &&
+              !text.includes("TResponse");
+      });
+
+      if (filtered[0] != null) {
+          return resolveType(filtered[0]);
+      }
     }
-    return mapping.findLast(t => !t.includes("TResponseError<")) ?? "never";
+
+    // return { ... } without res.json
+    const pureResponse = mapping[mapping.length - 1];
+    return resolveType(pureResponse);
   }
 
   if (type.getText().includes("Response") && type.getText().includes("TResponse")) {
+
     const filtered = type.getIntersectionTypes().filter(t => {
       const text = t.getText();
       return !text.includes("Response") && !text.includes("TResponse");
@@ -519,8 +541,9 @@ export const generateRoutes = async (globalPrefix: string, options: Options): Pr
 
           const methodPath = decorator.getArguments()[0]?.getText().replace(/['"`]/g, "") || "";
           const fullPath = normalizePath(`${basePath}/${methodPath}`);
-          const response = resolveType(method.getReturnType());
-          const errors = resolveTypeErrorOnly(method.getReturnType());
+          const resultTyped = method.getReturnType();
+          const response = resolveType(resultTyped);
+          const errors = resolveTypeErrorOnly(resultTyped);
 
           let body = "never";
           let params = "never";
@@ -661,7 +684,9 @@ export const transformBaseContract = async (complie: string): Promise<any> => {
   const contractProperty = appType.getProperty("baseContract")!;
   const contractType = contractProperty.getTypeAtLocation(appDeclaration);
 
-  const parsed = parseBaseContractTypeString(contractType.getText());
+  const typeText = contractType.getText();
+  const parsed = parseBaseContractTypeString(typeText);
+  const mock =  transformMockData(parsed);
 
-  return transformMockData(parsed);
+  return mock;
 };
