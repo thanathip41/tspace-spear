@@ -21,29 +21,30 @@ const METHODS = [
 
 type Method = typeof METHODS[number];
 
-const parseValue = (value: string) : any => {
+const parseValue = (value: string): any => {
+  const len = value.length;
 
-  if (/^-?\d+(\.\d+)?$/.test(value)) {
+  if (len === 0) return value;
 
-    const num = Number(value);
+  let i = 0;
 
-    if (
-      Number.isFinite(num) &&
-      Number.isSafeInteger(num)
-    ) {
-      return num;
-    }
+  if (value.charCodeAt(0) === 45) {
+    i = 1;
+    if (len === 1) return value;
+  }
 
-    if (
-      Number.isFinite(num) &&
-      !Number.isInteger(num)
-    ) {
-      return num;
+  for (; i < len; i++) {
+    const c = value.charCodeAt(i);
+
+    if (c < 48 || c > 57) {
+      return value;
     }
   }
 
-  return value;
-}
+  const num = Number(value);
+
+  return Number.isSafeInteger(num) ? num : value;
+};
 export class FastRouter {
   private trees: Record<string, Node> = Object.create(null);
   private _routes: T.Route[] = [] 
