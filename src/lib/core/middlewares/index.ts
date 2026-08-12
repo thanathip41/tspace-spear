@@ -1,4 +1,6 @@
-import crypto   from 'crypto';
+import http     from "http";
+import net      from "net";
+import crypto   from "crypto";
 import { T }    from "../..";
 import { 
     ParserFactory 
@@ -47,16 +49,38 @@ type ValidateSchema = {
  * app.use(bodyParser({ except: ['GET'] }));
  * ```
  */
-export const bodyParser = ({ except } : { except ?: T.MethodInput[] } = {}) => {
+export const bodyParser = (opts: { 
+    adapter ?: T.AdapterServer;
+    except  ?: T.MethodInput[];
+} = {}) => {
     const parser = new ParserFactory();
+
+    if(opts.adapter) {
+        let adapter !: T.Adapter;
+
+        if (opts.adapter === http) {
+            adapter = { kind: 'http', server: opts.adapter };
+        } 
+
+        else if (opts.adapter === net) {
+            adapter = { kind: 'net', server: opts.adapter };
+        } 
+        
+        else {
+            //@ts-ignore
+            adapter = { kind: 'uWS', server: opts.adapter };
+        }
+
+        parser.useAdapter(adapter);
+    }
 
     return (async (ctx : T.Context , next : T.NextFunction) => {
         
         const { req, res } = ctx;
 
         if(
-            Array.isArray(except) && 
-            except.some(v => v.toLowerCase() === (req.method!).toLowerCase())
+            Array.isArray(opts.except) && 
+            opts.except.some(v => v.toLowerCase() === (req.method!).toLowerCase())
         ) {
             return next();
         }
@@ -108,7 +132,8 @@ export const bodyParser = ({ except } : { except ?: T.MethodInput[] } = {}) => {
  * }));
  * ```
  */
-export const fileUpload = (opt : {
+export const fileUpload = (opts : {
+    adapter ?: T.Adapter;
     limit ?: number
     tempFileDir ?: string
     removeTempFile ?: {
@@ -119,22 +144,26 @@ export const fileUpload = (opt : {
 
     const parser = new ParserFactory();
 
-    if(opt.limit == null) {
-        opt.limit = Infinity
+    if(opts.adapter) {
+        parser.useAdapter(opts.adapter)
     }
 
-    if(opt.tempFileDir == null) {
-        opt.tempFileDir = 'tmp'
+    if(opts.limit == null) {
+        opts.limit = Infinity
     }
 
-    if(opt.removeTempFile == null) {
-        opt.removeTempFile = {
+    if(opts.tempFileDir == null) {
+        opts.tempFileDir = 'tmp'
+    }
+
+    if(opts.removeTempFile == null) {
+        opts.removeTempFile = {
             remove : false,
             ms : 1000 * 60 * 10
         }
     }
 
-    const options = { ...opt } as {
+    const options = { ...opts } as {
       limit: number;
       tempFileDir: string;
       removeTempFile: {

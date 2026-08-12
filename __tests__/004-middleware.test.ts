@@ -3,6 +3,17 @@ import { expect } from "chai";
 import { Spear } from "../src/lib";
 import { ApiClient } from "../src/lib/core/client";
 import { getAdapter } from "./app/adapter";
+import { 
+  bodyParser,
+  fileUpload,
+  cookieParser, 
+  auth, 
+  rateLimiter, 
+  timeout, 
+  securityHeaders, 
+  requestId, 
+  validate 
+} from "../src/lib/core/middlewares";
 
 describe("Middleware Unit Tests", () => {
   let server;
@@ -14,19 +25,23 @@ describe("Middleware Unit Tests", () => {
 
   before((done) => {
     app = new Spear({ logger: true, adapter })
-      .use((ctx: any, next: any) => {
+      .use(bodyParser({ adapter }))
+      .use(fileUpload({ adapter }))
+      .use(cookieParser())
+      .use((ctx, next: any) => {
         executionOrder.push("global-1-start");
         return next();
       })
-      .use((ctx: any, next: any) => {
+      .use((ctx, next: any) => {
         executionOrder.push("global-2-start");
         return next();
       })
-      .use((ctx: any, next: any) => {
+      .use((ctx, next: any) => {
         (ctx.req as any).customHeader = "injected-by-middleware";
         return next();
       })
-      .get("/middleware-test", (ctx: any) => {
+
+      .get("/middleware-test", (ctx) => {
         return {
           customHeader: (ctx.req as any).customHeader,
           message: "handled",
@@ -34,28 +49,71 @@ describe("Middleware Unit Tests", () => {
       })
       .get(
         "/middleware-next",
-        (ctx: any, next: any) => {
+        (ctx, next: any) => {
           executionOrder.push("handler");
           return next();
         },
-        (ctx: any) => {
+        (ctx) => {
           return { executed: true };
         },
       )
       .get(
         "/middleware-status",
-        (ctx: any, next: any) => {
+        (ctx, next: any) => {
           ctx.res.set(201);
           return next();
         },
-        (ctx: any) => {
+        (ctx) => {
           return { status: "modified" };
         },
       )
-      .useCookiesParser()
-      .get("/cookies-parser", (ctx: any) => {
+      .get("/cookies-parser", (ctx) => {
         return { cookies: ctx.cookies };
-      });
+      })
+      // Test auth middleware - apply to specific route only
+      .get("/auth-test", 
+        auth({ 
+          type: 'bearer',
+          validate: async (token) => token === 'valid-token'
+        }),
+        (ctx) => {
+          return { authenticated: true };
+        }
+      )
+      // Test rate limiter - apply to specific route only
+      .get("/rate-limit-test", 
+        rateLimiter({ windowMs: 60000, max: 3, usePathMethod: false }),
+        () => ({ ok: true })
+      )
+      // Test timeout middleware - apply to specific route only
+      .get("/timeout-test", 
+        timeout(100, { message: 'Request took too long' }),
+        async (ctx) => {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          return { ok: true };
+        }
+      )
+      // Test security headers - apply to specific route only
+      .get("/security-headers-test",
+        securityHeaders(),
+        () => ({ ok: true })
+      )
+      // Test request ID - apply to specific route only
+      .get("/request-id-test",
+        requestId(),
+        (ctx) => ({ ok: true })
+      )
+      // Test validation - apply to specific route only
+      .post("/validate-test",
+        validate({
+          body: {
+            name: { type: 'string', required: true, minLength: 2 },
+            age: { type: 'integer', min: 18, max: 100 },
+            email: { type: 'email' }
+          }
+        }),
+        (ctx) => ({ valid: true })
+      );
 
     app.listen(5004 + portOffset, ({ port, server: sCallback }: any) => {
       server = sCallback;
@@ -107,6 +165,93 @@ describe("Middleware Unit Tests", () => {
     const res = await client.get("/cookies-parser");
     expect(res.ok).to.be.equal(true);
     expect(res.status).to.be.equal(200);
+  });
+
+  it("should authenticate with valid bearer token", async () => {
+    const res = await client.get("/auth-test", {
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
+  });
+
+  it("should reject invalid bearer token", async () => {
+    const res = await client.get("/auth-test", {
+      headers: { Authorization: 'Bearer invalid-token' }
+    });
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(401);
+  });
+
+  it("should reject requests without auth header", async () => {
+    const res = await client.get("/auth-test");
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(401);
+  });
+
+  it("should allow requests within rate limit", async () => {
+    for (let i = 0; i < 3; i++) {
+      const res = await client.get("/rate-limit-test");
+      expect(res.ok).to.be.equal(true);
+    }
+  });
+
+  it("should reject requests exceeding rate limit", async () => {
+    const res = await client.get("/rate-limit-test");
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(429);
+  });
+
+  it("should complete request within timeout", async () => {
+    const res = await client.get("/timeout-test");
+    expect(res.ok).to.be.equal(true);
+    expect(res.status).to.be.equal(200);
+  });
+
+  it("should add security headers to response", async () => {
+    const res = await client.get("/security-headers-test");
+    expect(res.ok).to.be.equal(true);
+    expect(res.headers.get('x-xss-protection')).to.equal('1; mode=block');
+    expect(res.headers.get('x-content-type-options')).to.equal('nosniff');
+    expect(res.headers.get('x-frame-options')).to.equal('DENY');
+  });
+
+  it("should add request ID to response", async () => {
+    const res = await client.get("/request-id-test");
+    expect(res.ok).to.be.equal(true);
+    expect(res.headers.get('x-request-id')).to.exist;
+  });
+
+  it("should pass validation with valid data", async () => {
+    const res = await client.post("/validate-test", {
+      body: { name: 'John', age: 25, email: 'john@example.com' }
+    });
+    console.log(res)
+    expect(res.ok).to.be.equal(true);
+  });
+
+  it("should fail validation with missing required field", async () => {
+    const res = await client.post("/validate-test", {
+      body: { age: 25 }
+    });
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(400);
+  });
+
+  it("should fail validation with invalid email", async () => {
+    const res = await client.post("/validate-test", {
+      body: { name: 'John', email: 'invalid' }
+    });
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(400);
+  });
+
+  it("should fail validation with age out of range", async () => {
+    const res = await client.post("/validate-test", {
+      body: { name: 'John', age: 150 }
+    });
+    expect(res.ok).to.be.equal(false);
+    expect(res.status).to.be.equal(400);
   });
 });
 
@@ -166,11 +311,11 @@ describe("Error Handler Tests", () => {
     .get("/error", () => {
       throw new Error("Test error");
     })
-    .get("/error-with-status", (ctx: any) => {
+    .get("/error-with-status", (ctx) => {
       ctx.res.set(422);
       throw new Error("Validation failed");
     })
-    .catch((err: any, ctx: any) => {
+    .catch((err: any, ctx) => {
       return ctx.res.status(err.statusCode || 500).json({
         customError: true,
         message: err.message,
