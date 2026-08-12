@@ -275,22 +275,6 @@ class Spear<
     }
 
     /**
-     * The 'usePreRouteTypes' method is used to create pre routes for e2e and swagger
-     * 
-     * @param {{object}} options options
-     * @property {string} options.folder
-     * @property {RegExp} options.name
-     * @returns {this}
-     */
-    public usePreRouteTypes (options : {
-        folder: string
-        name: RegExp
-    }): this {
-        this._generatePreRouteTypes = options;
-        return this;
-    }
-
-    /**
      * The 'ws' method is used to creates the WebSocket server.
      * 
      * @callback {Function} WebSocketServer
@@ -316,6 +300,22 @@ class Spear<
         this._globalMiddlewares.push(middleware)
 
         return this
+    }
+
+    /**
+     * The 'usePreRouteTypes' method is used to create pre routes for e2e and swagger
+     * 
+     * @param {{object}} options options
+     * @property {string} options.folder
+     * @property {RegExp} options.name
+     * @returns {this}
+     */
+    public usePreRouteTypes (options : {
+        folder: string
+        name: RegExp
+    }): this {
+        this._generatePreRouteTypes = options;
+        return this;
     }
 
     /**
@@ -1555,6 +1555,8 @@ class Spear<
     private _wrapHandlers (...handlers : T.ContextHandler[]) {
 
         return (req : T.Request, res : T.Response , ps : Record<string,string>) => {
+           
+            const baseCtx = this._createContext({ req, res, ps });
 
             const dispatch = (index: number = 0): void => {
 
@@ -1562,8 +1564,19 @@ class Spear<
 
                 if (!handler) return;
 
-                const ctx = this._createContext({ req, res, ps });
+                const ctx = Object.assign(
+                    baseCtx,
+                    this._updateContext({ req })
+                );
 
+                // const ctx = baseCtx;
+                // const u = this._updateContext({ req });
+
+                // ctx.files   = u.files;
+                // ctx.body    = u.body;
+                // ctx.headers = u.headers;
+                // ctx.cookies = u.cookies;
+                
                 try {
                     const next = () => dispatch(index + 1);
 
@@ -1809,6 +1822,23 @@ class Spear<
 
             ip,
             ips
+        }
+    }
+
+    private _updateContext({ req } : {
+        req: T.Request
+    }) {
+
+        const headers = req.headers as T.Headers;
+        const body    = req.body as T.Body;
+        const files   = req.files as T.FileUpload;
+        const cookies = req.cookies as T.Cookies;
+
+        return {
+            headers : headers,
+            body    : body  ?? EMPTY,
+            files   : files ?? EMPTY,
+            cookies : cookies ?? EMPTY,
         }
     }
 
