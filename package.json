@@ -91,6 +91,11 @@
       "types": "./dist/lib/core/testing/index.d.ts",
       "import": "./dist/lib/core/testing/index.js",
       "require": "./dist/lib/core/testing/index.js"
+    },
+    "./middlewares": {
+      "types": "./dist/lib/core/middlewares/index.d.ts",
+      "import": "./dist/lib/core/middlewares/index.js",
+      "require": "./dist/lib/core/middlewares/index.js"
     }
   },
   "engines": {
