@@ -55,6 +55,11 @@ export const httpAdaptRequestResponse = (
       return response;
     },
 
+    removeHeader(key:string) {
+      response.http.removeHeader(key);
+      return;
+    },
+
     setHeader(key: string, value: string) {
       if (!response.writableEnded()) {
         response.http.setHeader(key, value);

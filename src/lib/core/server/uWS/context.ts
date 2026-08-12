@@ -37,6 +37,11 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       return response;
     },
 
+    removeHeader(key:string) {
+      delete response.writeHeaders()[key];
+      return;
+    },
+
     setHeader: (key: string, value: string) => {
     
       if (!response.aborted()) {

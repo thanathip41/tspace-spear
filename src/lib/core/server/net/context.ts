@@ -26,6 +26,11 @@ const createResponseObject = (socket: Socket,method: string) => {
       return response;
     },
 
+    removeHeader(key:string) {
+      delete response.writeHeaders()[key];
+      return;
+    },
+
     setHeader(key: string, value: string | number) {
       _writeHeaders[key.toLowerCase()] = value;
       return response;

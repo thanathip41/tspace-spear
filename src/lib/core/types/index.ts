@@ -108,6 +108,8 @@ type TResponse = {
 
     writeHead: (statusCode: TStatusCode, headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]) => any;
 
+    removeHeader: (name: string) => any;
+
     setHeader: (name: string, value: number | string | readonly string[]) => any;
 
     setStatusCode(statusCode: TStatusCode, contentType?: 'TEXT' | 'JSON'): void;
