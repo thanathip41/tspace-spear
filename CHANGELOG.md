@@ -9,11 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Features
+- Added helper middleware functions for common tasks:
+  - `bodyParser()` - Parse request body with automatic adapter detection (uWS, net, http)
+  - `fileUpload()` - Handle multipart/form-data file uploads with configurable options
+  - `cookieParser()` - Parse Cookie header and populate req.cookies
+  - `auth()` - Authentication middleware supporting Bearer, Basic, and API key schemes
+  - `rateLimiter()` - Rate limiting with path + method + IP by default
+  - `timeout()` - Request timeout with 408 response using Promise.race()
+  - `securityHeaders()` - HTTP security headers (HSTS, CSP, XSS protection, X-Frame-Options)
+  - `requestId()` - Generate and track unique request IDs
+  - `validate()` - Schema validation with 16+ type checks (email, url, uuid, ipv4, ipv6, etc.)
+- Added JSDoc documentation to all middleware functions with usage examples
+- Added comprehensive type definitions for validation middleware (ValidateType, ValidateField, ValidateSchema)
+- Updated middleware test suite to use new helper functions
+
 ### Bug Fixes
-- Fixed part value in fast-router
-- Fixed example in Swagger documentation
-- Fixed compile type issues
-- Fixed CLI example app
+- Fixed bodyParser, fileUpload, and cookieParser to use ctx.parser for proper adapter detection
+- Fixed timeout middleware to properly race timeout against handler completion
+- Fixed rateLimiter to use path + method + IP as default rate limit key
 
 ---
 
