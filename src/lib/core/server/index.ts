@@ -1564,18 +1564,12 @@ class Spear<
 
                 if (!handler) return;
 
+                // Sync with changes made by previous middlewares.
+                // ctx provides the latest body, files, headers, and cookies state.
                 const ctx = Object.assign(
                     baseCtx,
                     this._updateContext({ req })
                 );
-
-                // const ctx = baseCtx;
-                // const u = this._updateContext({ req });
-
-                // ctx.files   = u.files;
-                // ctx.body    = u.body;
-                // ctx.headers = u.headers;
-                // ctx.cookies = u.cookies;
                 
                 try {
                     const next = () => dispatch(index + 1);
@@ -1766,7 +1760,7 @@ class Spear<
         req: T.Request
         res: T.Response
         ps: Record<string, string>
-    }) : any {
+    }){
 
         const request = req as T.Request;
 
@@ -1775,14 +1769,14 @@ class Spear<
             adapter        :  this._adapter.kind
         }) as T.Response
 
-        const headers = req.headers as T.Headers;
+        const headers = request.headers as T.Headers;
         const params = ps as T.Params;
 
         const body    = request.body as T.Body;
         const files   = request.files as T.FileUpload;
         const cookies = request.cookies as T.Cookies;
 
-        const query = this._parser.queryString(req.url!) as T.Query || {};
+        const query = this._parser.queryString(req.url!) as T.Query;
 
         const xff  = headers['x-forwarded-for'];
         const xrip = headers['x-real-ip'];
@@ -1809,19 +1803,18 @@ class Spear<
         request.ips    = ips
 
         return {
-            req: request,
-            res: response,
+            req     : request,
+            res     : response,
     
-            headers: headers ?? EMPTY,
-            params: params ?? EMPTY,
+            headers : headers ?? EMPTY,
+            params  : params ?? EMPTY,
+            query   : query ?? EMPTY,
+            body    : body  ?? EMPTY,
+            files   : files ?? EMPTY,
+            cookies : cookies ?? EMPTY,
 
-            query,
-            body: body  ?? EMPTY,
-            files: files ?? EMPTY,
-            cookies: cookies ?? EMPTY,
-
-            ip,
-            ips
+            ip      : ip ?? null,
+            ips     : ips ?? []
         }
     }
 
