@@ -171,14 +171,7 @@ class ApiClient<
       body
     })
 
-    if(res.body instanceof ReadableStream) {
-      return {
-        ok      : res.ok,
-        headers : res.headers,
-        status  : res.status as any,
-        data    : res.body as any,
-      }
-    }
+    const contentType = res.headers.get("content-type")?.toLowerCase() ?? "";
 
     const hasBody =
       res.body !== null &&
@@ -186,18 +179,33 @@ class ApiClient<
       res.status !== 205 &&
       res.status !== 304;
 
-    let data = undefined;
+    let data: unknown = undefined;
 
-    try {
-      data = hasBody ? await res.text() : undefined;
-      if (data) data = JSON.parse(data);
-    } catch {}
-   
+    if (hasBody) {
+      if (
+        contentType.includes("application/x-ndjson") ||
+        contentType.includes("text/event-stream")
+      ) {
+        data = res.body;
+      }
+
+      else if (
+        contentType.includes("application/json") ||
+        contentType.includes("+json")
+      ) {
+        data = await res.json();
+      }
+
+      else {
+        data = await res.text();
+      }
+    }
+
     return {
       ok      : res.ok,
       headers : res.headers,
       status  : res.status as any,
-      data    : data,
+      data    : data as any,
     }
   }
 
