@@ -91,8 +91,50 @@ const createResponseObject = (socket: Socket,method: string) => {
 
       return;
     },
-  };
 
+    async stream(result: AsyncIterable<unknown>) {
+
+      response.setHeader(
+        'Content-Type',
+        'application/x-ndjson; charset=utf-8'
+      );
+
+      const status = response.statusCode();
+
+      const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
+
+      let head = `HTTP/1.1 ${status} ${statusMsg}\r\n`;
+
+      for (const [key, value] of Object.entries(response.writeHeaders())) {
+        head += `${key}: ${value}\r\n`;
+      }
+
+      head += '\r\n';
+
+      response.net.write(head);
+
+      for await (const value of result) {
+        const chunk = JSON.stringify(value) + '\n';
+
+        if (response.net.destroyed || !response.net.writable) {
+            return;
+        }
+
+        const ok = response.net.write(chunk);
+
+        if (!ok) {
+          await new Promise<void>(resolve => {
+              response.net.once('drain', resolve);
+          });
+        }
+      }
+
+      if (!response.net.destroyed) {
+          response.net.end();
+      }
+    }
+
+  };
   return response;
 };
 

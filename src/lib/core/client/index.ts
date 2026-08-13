@@ -171,6 +171,15 @@ class ApiClient<
       body
     })
 
+    if(res.body instanceof ReadableStream) {
+      return {
+        ok      : res.ok,
+        headers : res.headers,
+        status  : res.status as any,
+        data    : res.body as any,
+      }
+    }
+
     const hasBody =
       res.body !== null &&
       res.status !== 204 &&

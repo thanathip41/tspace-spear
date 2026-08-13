@@ -114,6 +114,90 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
         }
       });
     },
+
+    async stream(result: AsyncIterable<unknown>) {
+      if (response.aborted()) {
+          return;
+      }
+
+      response.setHeader(
+        'Content-Type',
+        'application/x-ndjson; charset=utf-8'
+      );
+
+      _aborted = false;
+      _writableEnded = false;
+
+      const headers = response.writeHeaders();
+
+      const status = response.statusCode();
+
+      const statusMessage =
+        HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
+        HTTP_STATUS_MESSAGES[500];
+
+      response.uWS.cork(() => {
+        if (response.aborted()) {
+            return;
+        }
+
+        response.uWS.writeStatus(
+            `${status} ${statusMessage}`
+        );
+
+        for (const key in headers) {
+            response.uWS.writeHeader(
+                key,
+                headers[key]
+            );
+        }
+      });
+
+     
+      for await (const value of result) {
+
+        if (response.aborted()) {
+            _aborted = true;
+            return;
+        }
+
+        const chunk = JSON.stringify(value) + "\n";
+
+        let writable = true;
+
+        response.uWS.cork(() => {
+            if (response.aborted()) {
+                return;
+            }
+
+            writable = response.uWS.write(chunk);
+        });
+
+        if (!writable) {
+          await new Promise<void>(resolve => {
+              response.uWS.onWritable(() => {
+                  resolve();
+                  return false;
+              });
+          });
+
+          if (response.aborted()) {
+              _aborted = true;
+              return;
+          }
+        }
+      }
+
+      if (!response.aborted()) {
+
+        response.uWS.cork(() => {
+          response.uWS.end();
+        });
+
+        _aborted = true;
+        _writableEnded = true;
+      }
+  }
   };
 
   response.uWS.onAborted(() => {

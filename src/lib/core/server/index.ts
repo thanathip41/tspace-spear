@@ -1596,11 +1596,30 @@ class Spear<
     private _wrapResponse(handler: T.ContextHandler) {
         return (ctx: T.Context, next: T.NextFunction) => {
             Promise.resolve(handler(ctx, next))
-            .then(result => {
+            .then(async(result) => {
                
+
+                if (result == null) {
+                    ctx.res.noContent();
+                    return;
+                }
+
+                if (typeof result === 'string') {
+                    ctx.res.send(result);
+                    return;
+                }
+
                 if (ctx.res.writableEnded()) {
                     return;
                 }
+
+                if (
+                    typeof result[Symbol.asyncIterator] === 'function'
+                ) {
+                    ctx.res.stream(result as AsyncIterable<unknown>);
+                    return;
+                }
+            
 
                 if (result instanceof ServerResponse) {
                     return;

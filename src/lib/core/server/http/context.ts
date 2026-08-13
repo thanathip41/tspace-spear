@@ -103,6 +103,28 @@ export const httpAdaptRequestResponse = (
 
       response.http.end(JSON.stringify(chunk));
       return;
+    },
+
+    async stream (result: AsyncIterable<unknown>) {
+
+      response.writeHead(200, {
+        'Content-Type': 'application/x-ndjson;'
+      });
+             
+      for await (const value of result) {
+        const chunk = JSON.stringify(value) + '\n';
+
+        if (!response.http.write(chunk)) {
+            await new Promise<void>(resolve => {
+              response.http.once('drain', resolve);
+            });
+        }
+      }
+
+      response.end();
+
+      return ;
+
     }
   };
   return {

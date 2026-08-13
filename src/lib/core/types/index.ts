@@ -114,6 +114,8 @@ type TResponse = {
 
     setStatusCode(statusCode: TStatusCode, contentType?: 'TEXT' | 'JSON'): void;
 
+    stream: <T = AsyncIterable<unknown>> (data:T) => T.Response & T;
+
     /** 200 OK - Standard successful response */
     ok: <T extends Record<string, any>>(data?: T) => T.Response & T
 
