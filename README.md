@@ -93,6 +93,8 @@ skills/
 - [Router](#router)
 - [Serve Static Files](#serve-static-files)
 - [Swagger](#swagger)
+  - [Zero-Configuration Swagger](#zero-configuration-swagger)
+  - [Configuration Swagger](#configuration-swagger)
 - [WebSocket](#web-socket)
 - [Graphql](#graphql)
 - [E2E](#e2e)
@@ -1027,14 +1029,30 @@ new Spear({
 ```
 
 ## Swagger
-Provides built-in Swagger support to document your API endpoints. <br>
 
-It allows you to: <br>
+Provides built-in Swagger support for documenting your API endpoints.
 
-Describe request parameters (query, body, params) <br>
-Generate API documentation <br>
-Improve developer experience <br>
-Standardize API contracts
+It allows you to:
+
+- Describe request parameters (`query`, `body`, `params`)
+- Automatically generate API documentation
+- Improve the developer experience
+- Standardize API contracts
+
+### Zero-Configuration Swagger
+
+Add Swagger to your app with **zero configuration**.
+
+Once your app is running, Swagger UI is automatically available at:
+
+![Swagger Setup](https://raw.githubusercontent.com/thanathip41/tspace-spear/master/images/setup-swagger.png)
+
+**Swagger UI:** `http://localhost:5000/api/docs`
+
+![Swagger UI](https://raw.githubusercontent.com/thanathip41/tspace-spear/master/images/swagger.png)
+
+### Configuration Swagger
+
 ```js
 
 // file cat-controller.ts
@@ -1226,13 +1244,13 @@ class CatController {
 
 ```
 ## Web Socket
-provides built-in WebSocket support for real-time communication. <br>
+provides built-in WebSocket support for real-time communication.
 
-It allows you to: <br>
+It allows you to:
 
-Handle client connections <br>
-Send/receive messages <br>
-Build chat systems <br>
+Handle client connections
+Send/receive messages
+Build chat systems
 Manage real-time events
 ```js
 import { Spear } from "tspace-spear";

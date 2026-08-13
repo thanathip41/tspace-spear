@@ -21,6 +21,8 @@
 - [Router](#router)
 - [Serve Static Files](#serve-static-files)
 - [Swagger](#swagger)
+    - [Zero-Configuration Swagger](#zero-configuration-swagger)
+    - [Configuration Swagger](#configuration-swagger)
 - [Web Socket](#web-socket)
 - [Graphql](#graphql)
 - [E2E](#e2e)

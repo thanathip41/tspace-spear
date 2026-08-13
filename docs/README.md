@@ -970,6 +970,21 @@ Describe request parameters (query, body, params) <br>
 Generate API documentation <br>
 Improve developer experience <br>
 Standardize API contracts
+
+#### Zero-Configuration Swagger
+
+Add Swagger to your app with **zero configuration**.
+
+Once your app is running, Swagger UI is automatically available at:
+
+![Swagger Setup](https://raw.githubusercontent.com/thanathip41/tspace-spear/master/images/setup-swagger.png)
+
+**Swagger UI:** `http://localhost:5000/api/docs`
+
+![Swagger UI](https://raw.githubusercontent.com/thanathip41/tspace-spear/master/images/swagger.png)
+
+#### Configuration Swagger
+
 ```js
 
 // file cat-controller.ts
