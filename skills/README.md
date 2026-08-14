@@ -55,6 +55,7 @@
 | [10-file-upload.md](./10-file-upload.md) | File Upload | Upload, save, validate, remove files |
 | [11-custom-context.md](./11-custom-context.md) | Custom Context | Extend T.Context with custom types (user, session) |
 | [12-cli.md](./12-cli.md) | CLI | Generate modules, controllers, services |
+| [13-stream-yield.md](./13-stream-yield.md) | Stream & Yield | Async generators, streaming responses, SSE |
 
 ---
 
@@ -324,3 +325,23 @@ spear generate service orders
 
 # Generate middleware
 spear generate middleware auth
+```
+
+### Streaming with Yield
+```typescript
+import Spear from "tspace-spear";
+
+const app = new Spear()
+  .get('/progress', async function* () {
+    for (let i = 1; i <= 5; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      yield { 
+        progress: i * 20, 
+        message: `Step ${i}/5` 
+      };
+    }
+  });
+
+app.listen(8000);
+// Client receives progress updates in real-time!
+```

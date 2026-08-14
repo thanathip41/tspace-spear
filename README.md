@@ -19,6 +19,7 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 💉 Built-in constructor-based dependency injection (DI) for [Services](#service)
 - 📦 [DTO](#dto) (Data Transfer Object) support for structured and type-safe request handling
 - 📂 Built-in [File Upload](#file-upload) support via `useFileUpload()` with zero configuration required
+- 🔄 [Async Generator](#streaming-with-async-generators) support for streaming data progressively to clients
 - 🔌 Native [WebSocket](#web-socket) support for real-time applications and event-driven systems
 - ⚛️ [GraphQL](#graphql) support with flexible schema integration and HTTP adapters
 - 🖥️ Built-in [Cluster mode](#cluster) support for multi-core scalability and higher throughput
@@ -28,6 +29,7 @@ It is designed with a strong focus on developer experience and provides end-to-e
 - 🔥 Lightweight and optimized for high-performance APIs and microservices
 - 🧪 First-class testing support with built-in mocks, spies, and test utilities
 - 🎯 Type-safe testing APIs with zero-boilerplate setup
+
 
 ---
 
@@ -64,7 +66,8 @@ skills/
 ├── 09-websocket.md        # Real-time communication
 ├── 10-file-upload.md      # File handling
 ├── 11-custom-context.md   # Extend T.Context (user, session)
-└── 12-cli.md              # Code generators
+├── 12-cli.md              # Code generators
+└── 13-stream-yield.md     # Async generators & streaming responses
 ```
 
 **For LLMs:** Read `skills/README.md` first for an overview, then dive into specific skill files as needed. All examples are copy-paste ready!
@@ -97,6 +100,12 @@ skills/
   - [Configuration Swagger](#configuration-swagger)
 - [WebSocket](#web-socket)
 - [Graphql](#graphql)
+- [Streaming with Async Generators](#streaming-with-async-generators)
+    - [Basic Example](#basic-example)
+    - [Client-Side Consumption](#client-side-consumption)
+    - [Async Generator vs Regular Handler](#async-generator-vs-regular-handler)
+    - [Streaming Lifecycle](#streaming-lifecycle)
+    - [Key Points](#key-points)
 - [E2E](#e2e)
 - [Testing](#testing)
 
@@ -1324,7 +1333,7 @@ new Spear()
 
 ```
 
-### Graphql
+## Graphql
 GraphQL CRUD Example with graphql-yoga + tspace-spear
 
 This example shows how to build a simple GraphQL CRUD API using graphql-yoga and tspace-spear.
@@ -1480,6 +1489,136 @@ const app = new Spear()
   console.log(`server listening on : http://localhost:${port}/graphql`)
 })
 ```
+
+## Streaming with Async Generators
+supports **async generator functions** that use `yield` to stream data progressively to clients. This is perfect for:
+ 
+ - 📊 Real-time progress tracking
+ - 📡 Server-Sent Events (SSE)
+ - 📄 Large dataset pagination
+ - 🔄 Live data feeds
+ - 📹 Video/audio streaming
+ - 📝 Log streaming
+
+### Basic Example
+
+```js
+import Spear from "tspace-spear";
+
+const app = new Spear()
+  .get("/progress", async function* () {
+    for (let i = 1; i <= 5; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      yield {
+        progress: i * 20,
+        message: `Step ${i}/5`,
+      };
+    }
+  });
+
+app.listen(8000);
+```
+
+### Client-Side Consumption
+
+Because the response is streamed, clients should consume the response progressively rather than waiting for the complete body.
+
+For example, using the Fetch API:
+
+```js
+const response = await fetch("http://localhost:8000/progress");
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+
+  if (done) break;
+
+  const chunk = decoder.decode(value, { stream: true });
+
+  console.log(chunk);
+}
+
+**Client receives:**
+```json
+{"progress":20,"message":"Processing 1/5"}
+{"progress":40,"message":"Processing 2/5"}
+{"progress":60,"message":"Processing 3/5"}
+{"progress":80,"message":"Processing 4/5"}
+{"progress":100,"message":"Processing 5/5"}
+```
+
+The client receives chunks as the server yields them.
+
+### Async Generator vs Regular Handler
+
+Regular Handler
+
+```js
+.get("/users", async () => {
+  return await getUsers();
+});
+```
+
+The server waits for `getUsers()` to finish before returning the response.
+
+Async Generator
+
+```js
+.get("/users", async function* () {
+  for await (const user of getUsers()) {
+    yield user;
+  }
+});
+```
+Each user can be sent as soon as it becomes available.
+
+### Streaming Lifecycle
+
+The overall flow is:
+
+```text
+Client
+  │
+  │ HTTP Request
+  ▼
+Spear Route
+  │
+  │ async generator starts
+  ▼
+yield data
+  │
+  ├──► Client receives chunk
+  │
+  ▼
+yield data
+  │
+  ├──► Client receives chunk
+  │
+  ▼
+yield data
+  │
+  ├──► Client receives chunk
+  │
+  ▼
+Generator completes
+  │
+  ▼
+HTTP Response ends
+```
+
+### Key Points
+
+- Use `async function*` to create a streaming route.
+- Use `yield` to emit individual response chunks.
+- Each chunk can be processed by the client as soon as it arrives.
+- `await` can be used between `yield` operations for asynchronous work.
+- Async generators are ideal for large, long-running, or continuously generated responses.
+- For newline-delimited JSON streaming, `application/x-ndjson` is a suitable response format.
+
 
 ## E2E
 Provides end-to-end type safety and testing support across the full request lifecycle, from request input to
