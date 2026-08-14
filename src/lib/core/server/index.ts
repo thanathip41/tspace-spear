@@ -664,7 +664,7 @@ class Spear<
                 this._normalizePath(
                     this._resolveGlobalPrefix({ path, method }),
                     path
-                ),
+                ) as `/${string}`,
                 ...handlers
             );
         }
@@ -878,7 +878,7 @@ class Spear<
      * @returns {this}
      */
     public get<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -913,7 +913,7 @@ class Spear<
      * @returns {this}
      */
     public post<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -947,7 +947,7 @@ class Spear<
      * @returns {this}
      */
     public put<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -980,7 +980,7 @@ class Spear<
      * @returns {this}
      */
     public patch<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -1013,7 +1013,7 @@ class Spear<
      * @returns {this}
      */
     public delete<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -1046,7 +1046,7 @@ class Spear<
      * @returns {this}
      */
     public head<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -1079,7 +1079,7 @@ class Spear<
      * @returns {this}
      */
     public options <
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -1112,7 +1112,7 @@ class Spear<
      * @returns {this}
      */
     public all<
-        const Path extends string,
+        const Path extends `/${string}` | "*",
         const Handlers extends { 
             cb(
                 ctx: T.Context<{ params: TExtractParams<Path>}>, 
@@ -1294,7 +1294,7 @@ class Spear<
                         this._normalizePath(
                             prefixPath,
                             path
-                        ), 
+                        ) as `/${string}`, 
                         ...this._normalizeMiddlewares(middlewares),
                         controllerInstance[String(handler)].bind(controllerInstance)
                     )
@@ -1343,7 +1343,7 @@ class Spear<
                     this._normalizePath(
                         prefixPath, 
                         path
-                    ), 
+                    ) as `/${string}`, 
                     ...this._normalizeMiddlewares(middlewares),
                     controllerInstance[String(handler)].bind(controllerInstance)
                 )
