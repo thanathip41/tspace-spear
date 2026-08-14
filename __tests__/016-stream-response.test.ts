@@ -413,8 +413,8 @@ describe("Stream Response Tests", () => {
     });
 
     it("should work with error handling middleware", async () => {
-      // const res = await client.get("/stream/error");
-      // expect(res.status).to.be.oneOf([200, 500]);
+      const res = await client.get("/stream/error");
+      expect(res.status).to.be.oneOf([200, 500]);
     });
 
     it("should maintain connection state during stream", async () => {
