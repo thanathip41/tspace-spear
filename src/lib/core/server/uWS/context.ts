@@ -76,8 +76,20 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
 
       response.uWS.cork(() => {
         if (!response.aborted()) {
+
           _aborted = true;
+
           _writableEnded = true;
+
+          // @Default headers from uws 
+          // Date
+          // Content-length
+          // uWebsocket
+          _writeHeaders = {
+            'Connection' : 'keep-alive',
+            'Keep-Alive' : 'timeout=5',
+            ..._writeHeaders,
+          }
 
           const headers = response.writeHeaders();
 
@@ -120,10 +132,12 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
           return;
       }
 
-      response.setHeader(
-        'Content-Type',
-        'application/x-ndjson; charset=utf-8'
-      );
+      _writeHeaders = {
+        'Content-Type' : 'application/x-ndjson; charset=utf-8',
+        'Connection' : 'keep-alive',
+        'Keep-Alive' : 'timeout=5',
+        ..._writeHeaders,
+      }
 
       _aborted = false;
       _writableEnded = false;

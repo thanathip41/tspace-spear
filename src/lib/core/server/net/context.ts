@@ -32,7 +32,7 @@ const createResponseObject = (socket: Socket,method: string) => {
     },
 
     setHeader(key: string, value: string | number) {
-      _writeHeaders[key.toLowerCase()] = value;
+      _writeHeaders[key] = value;
       return response;
     },
 
@@ -66,8 +66,12 @@ const createResponseObject = (socket: Socket,method: string) => {
       
       const content = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk || ''));
 
-      if (!response.headersSent()) {
-        response.setHeader('content-length', content.length);
+      _writeHeaders = {
+        'Date' : `${new Date().toUTCString()}`,
+        'Connection' : 'keep-alive',
+        'Keep-Alive' : 'timeout=5',
+        'Content-Length' : content.length,
+        ..._writeHeaders,
       }
 
       const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
@@ -94,11 +98,14 @@ const createResponseObject = (socket: Socket,method: string) => {
 
     async stream(result: AsyncIterable<unknown>) {
 
-      response.setHeader(
-        'Content-Type',
-        'application/x-ndjson; charset=utf-8'
-      );
-
+      _writeHeaders = {
+        'Content-Type' : 'application/x-ndjson; charset=utf-8',
+        'Date' : `${new Date().toUTCString()}`,
+        'Connection' : 'keep-alive',
+        'Keep-Alive' : 'timeout=5',
+        ..._writeHeaders,
+      }
+     
       const status = response.statusCode();
 
       const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
@@ -124,14 +131,16 @@ const createResponseObject = (socket: Socket,method: string) => {
 
         if (!ok) {
           await new Promise<void>(resolve => {
-              response.net.once('drain', resolve);
+            response.net.once('drain', resolve);
           });
         }
       }
 
       if (!response.net.destroyed) {
-          response.net.end();
+        response.net.end();
       }
+
+      return;
     }
 
   };
