@@ -9,15 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Testing
-- Updated all streaming tests to follow consistent pattern:
-  1. Check `expect(res.data).to.be.instanceOf(ReadableStream)`
-  2. Use `streamValues()` to read stream data
-  3. Validate the parsed values
-- Added support for testing across all adapters (http, net, uws)
-- Fixed 4 failing tests to achieve 100% pass rate (20/20 tests passing)
-
 ### Features
+- Added streaming response support with Async Generators
+  - Support `yield` for streaming data chunks with `res.stream()`
+  - Added `res.stream()` method for consistent streaming across all adapters
+  - Added `streamValues()` helper for testing streaming responses
+- Added `returnServer()` and `returnClient()` methods for returning raw server/client instances
+- Added support for writing headers consistently across all adapters (http, net, uws)
 - Added helper middleware functions for common tasks:
   - `bodyParser()` - Parse request body with automatic adapter detection (uWS, net, http)
   - `fileUpload()` - Handle multipart/form-data file uploads with configurable options
@@ -30,10 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `validate()` - Schema validation with 16+ type checks (email, url, uuid, ipv4, ipv6, etc.)
 - Added JSDoc documentation to all middleware functions with usage examples
 - Added comprehensive type definitions for validation middleware (ValidateType, ValidateField, ValidateSchema)
-- Updated middleware test suite to use new helper functions
-- Added comprehensive streaming response test suite with 20 test cases
-- Added `streamValues` helper function for reading and validating ReadableStream data in tests
-- Added file download test controller with dynamic size generation
+- Added `removeHeader` method to response
 
 ### Bug Fixes
 - Fixed bodyParser, fileUpload, and cookieParser to use ctx.parser for proper adapter detection
@@ -46,73 +41,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed all stream chunk tests to use `streamValues` helper for consistent stream validation
 - Fixed concurrent stream request tests to properly await stream data before validation
 - Fixed mixed stream and non-stream request tests to handle both stream and non-stream responses
+- Fixed type `Path` in router prefix with `/`
+
+### Testing
+- Updated all streaming tests to follow consistent pattern:
+  1. Check `expect(res.data).to.be.instanceOf(ReadableStream)`
+  2. Use `streamValues()` to read stream data
+  3. Validate the parsed values
+- Added support for testing across all adapters (http, net, uws)
+- Fixed 4 failing tests to achieve 100% pass rate (20/20 tests passing)
+
+### Documentation
+- Updated documentation for streaming with Async Generators
+- Added images for documentation (setup-swagger.png, swagger.png)
+
 
 ---
 
 ## [1.3.2] - 2026-08-09
-- Added helper middleware functions for common tasks:
-  - `bodyParser()` - Parse request body with automatic adapter detection (uWS, net, http)
-  - `fileUpload()` - Handle multipart/form-data file uploads with configurable options
-  - `cookieParser()` - Parse Cookie header and populate req.cookies
-  - `auth()` - Authentication middleware supporting Bearer, Basic, and API key schemes
-  - `rateLimiter()` - Rate limiting with path + method + IP by default
-  - `timeout()` - Request timeout with 408 response using Promise.race()
-  - `securityHeaders()` - HTTP security headers (HSTS, CSP, XSS protection, X-Frame-Options)
-  - `requestId()` - Generate and track unique request IDs
-  - `validate()` - Schema validation with 16+ type checks (email, url, uuid, ipv4, ipv6, etc.)
-- Added JSDoc documentation to all middleware functions with usage examples
-- Added comprehensive type definitions for validation middleware (ValidateType, ValidateField, ValidateSchema)
-- Updated middleware test suite to use new helper functions
+### Features
+- Added skills documentation for LLMs
+- Added compiler types for main & controllers
+- Added compiler types to values for Swagger examples
+- Added `useRouter` with TOptions for known types
+- Added type definitions for `baseContract` & `compiledContract`
+- Added testing capabilities with adapter support
+- Added HTTP status codes: 206, 405, 408, 413
+- Added WebSocket support for net adapter
+- Added `res.set()` for setting response properties
+- Added script `npm test` for all adapters
+- Added type definitions for params in routes app
+- Added decorator middleware support (class, method, and function)
+- Added custom context type support
+- Added GraphQL support
+- Added generator types and client types
+- Added CLI tool for project scaffolding
+- Added validate DTO support
+- Added pre-routes for end-to-end types
+- Added adapter for uWS (uWebSockets.js)
+- Added fast router integration
+- Added body parser & cookies parser
+- Added file upload support with busboy
+- Added cluster & logger support
 
 ### Bug Fixes
-- Fixed bodyParser, fileUpload, and cookieParser to use ctx.parser for proper adapter detection
- - Added skills documentation for LLMs
- - Added compiler types for main & controllers
- - Added compiler types to values for Swagger examples
- - Added `useRouter` with TOptions for known types
- - Added type definitions for `baseContract` & `compiledContract`
- - Added testing capabilities with adapter support
- - Added HTTP status codes: 206, 405, 408, 413
- - Added WebSocket support for net adapter
- - Added `res.set()` for setting response properties
- - Added script `npm test` for all adapters
- - Added type definitions for params in routes app
- - Added decorator middleware support (class, method, and function)
- - Added custom context type support
- - Added GraphQL support
- - Added generator types and client types
- - Added CLI tool for project scaffolding
- - Added validate DTO support
- - Added pre-routes for end-to-end types
- - Added adapter for uWS (uWebSockets.js)
- - Added fast router integration
- - Added body parser & cookies parser
- - Added file upload support with busboy
- - Added cluster & logger support
-
-### Bug Fixes
- - Fixed part value in fast-router
- - Fixed example in Swagger documentation
- - Fixed compile type issues
- - Fixed CLI example app
- - Fixed compile issues in `useSwagger` (allow disabled)
- - Fixed header type changed to `Record`
- - Fixed compiler types for response error
- - Fixed types for response handling
- - Fixed compile type example UUID format
- - Fixed compile app in Swagger
- - Fixed test cases for testing (change offsetPort to port)
- - Fixed clone dependency class for testing
- - Replaced all `@Service` to `@Dependencies`
- - Fixed compile type for maybe app maybe server
- - Fixed `MockService` in testing
- - Fixed `useRouter` add TOptions for known types
- - Fixed removed write keepalive
- - Fixed constructor server
- - Fixed response send set content text
- - Fixed merge types `TRoutes` + `AppRoutes`
- - Fixed decorator middleware bug with pure function
- - Fixed decorator middleware issues
+- Fixed part value in fast-router
+- Fixed example in Swagger documentation
+- Fixed compile type issues
+- Fixed CLI example app
+- Fixed compile issues in `useSwagger` (allow disabled)
+- Fixed header type changed to `Record`
+- Fixed compiler types for response error
+- Fixed types for response handling
+- Fixed compile type example UUID format
+- Fixed compile app in Swagger
+- Fixed test cases for testing (change offsetPort to port)
+- Fixed clone dependency class for testing
+- Replaced all `@Service` to `@Dependencies`
+- Fixed compile type for maybe app maybe server
 - Fixed `MockService` in testing
 - Fixed `useRouter` add TOptions for known types
 - Fixed removed write keepalive
