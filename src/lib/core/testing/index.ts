@@ -9,17 +9,24 @@ import type { T }           from '../types';
 import { Spear }            from '../server';
 import { ApiClient }        from '../client';
 import { SERVICE_METADATA } from '../metadata';
+import { AnyRoutes }        from '../client/types';
 
 
-type ClassType = new (...args: any) => any;
+type AnyClass = new (...args: any) => any;
+
+type AnyFunction = (...args: any[]) => any;
+
+type MethodKeys<T> = {
+  [K in keyof T]: T[K] extends AnyFunction ? K : never
+}[keyof T];
 
 /**
  * Options for creating a test module.
  */
 export interface TestModuleOptions {
-  controllers?: ClassType[];
-  services?: ClassType[];
-  mocks?: Map<ClassType, any>;
+  controllers?: AnyClass[];
+  services?: AnyClass[];
+  mocks?: Map<AnyClass, any>;
   logger?: boolean;
   port?: number;
 }
@@ -27,10 +34,10 @@ export interface TestModuleOptions {
 /**
  * Result of building a test module.
  */
-export interface TestModuleResult {
+export interface TestModuleResult<T extends AnyRoutes = any> {
   app: Spear;
   server: T.Server;
-  client: ApiClient<any>;
+  client: ApiClient<T>;
   port: number;
   close: () => Promise<void>;
 }
@@ -57,11 +64,11 @@ export class TestingService {
    * @param options.mocks A map of dependency classes to mock implementations.
    * @returns A fully constructed service instance.
    */
-  public createService<T extends ClassType>(
+  public createService<T extends AnyClass>(
     ServiceClass: T,
     options: {
-      dependencies?: ClassType[];
-      mocks?: Map<ClassType, any>;
+      dependencies?: AnyClass[];
+      mocks?: Map<AnyClass, any>;
     } = {}
   ): InstanceType<T> {
     const { dependencies = [], mocks = new Map() } = options;
@@ -69,7 +76,7 @@ export class TestingService {
     const serviceMetadata = Reflect.getMetadata(
       SERVICE_METADATA,
       ServiceClass
-    ) as ClassType[] | undefined;
+    ) as AnyClass[] | undefined;
     
     const depsToResolve = serviceMetadata ?? dependencies;
     const resolvedDeps: any[] = [];
@@ -98,7 +105,7 @@ export class TestingService {
    * @returns The typed mock object.
    */
   public createMockService<
-    T extends ClassType,
+    T extends AnyClass,
     K extends keyof InstanceType<T>
   >(
     ServiceClass: T,
@@ -127,20 +134,26 @@ export class TestingService {
    * @returns An object containing the original method, call count,
    * captured arguments, and captured return values.
    */
-  public spyOn<T extends Record<string, Function>>(
+  public spyOn<
+    T extends object,
+    K extends MethodKeys<T>
+  >(
     target: T,
-    methodName: keyof T
+    methodName: {
+      [K in keyof T]: T[K] extends AnyFunction ? K : never
+    }[keyof T]
   ): {
     callCount: number;
-    calls: any[][];
-    results: any[];
-    original: Function;
+    calls: T[K] extends (...args: infer A) => any ? A[] : never;
+    results: T[K] extends (...args: any[]) => infer R ? R[] : never;
+    original: T[K];
   } {
     const original = target[methodName] as Function;
     const calls: any[][] = [];
     const results: any[] = [];
     
     const self = { callCount: 0 };
+
     target[methodName] = function (this: T, ...args: any[]) {
       self.callCount++;
       calls.push(args);
@@ -150,10 +163,12 @@ export class TestingService {
     } as any;
     
     return {
-      get callCount() { return self.callCount; },
-      calls,
-      results,
-      original
+      get callCount() {
+        return self.callCount;
+      },
+      calls: calls as T[K] extends (...args: infer A) => any ? A[] : never,
+      results: results as T[K] extends (...args: any[]) => infer R ? R[] : never,
+      original: original as T[K],
     };
   }
 }
@@ -181,11 +196,11 @@ export class TestingController {
    * @param options.mocks A map of service classes to mock implementations.
    * @returns A fully constructed controller instance.
    */
-  public createController<T extends ClassType>(
+  public createController<T extends AnyClass>(
     ControllerClass: T,
     options: {
-      services?: ClassType[];
-      mocks?: Map<ClassType, any>;
+      services?: AnyClass[];
+      mocks?: Map<AnyClass, any>;
     } = {}
   ): InstanceType<T> {
     const { services = [], mocks = new Map() } = options;
@@ -193,7 +208,7 @@ export class TestingController {
     const serviceMetadata = Reflect.getMetadata(
       SERVICE_METADATA,
       ControllerClass
-    ) as ClassType[] | undefined;
+    ) as AnyClass[] | undefined;
     
     const depsToResolve = serviceMetadata ?? services;
     const resolvedDeps: any[] = [];
@@ -314,11 +329,11 @@ export class TestingController {
  * Test module builder for integration testing.
  */
 export class TestModule {
-  private controllers: ClassType[] = [];
-  private services: ClassType[] = [];
-  private mocks: Map<ClassType, any> = new Map();
+  private controllers: AnyClass[] = [];
+  private services: AnyClass[] = [];
+  private mocks: Map<AnyClass, any> = new Map();
   private logger: boolean = false;
-  private port: number = 5050;
+  private port: number = 5001;
   
   private constructor() {}
   
@@ -340,7 +355,7 @@ export class TestModule {
    * @param controllers Controller classes to register.
    * @returns {this}
    */
-  public setControllers(controllers: ClassType[]): this {
+  public setControllers(controllers: AnyClass[]): this {
     this.controllers = controllers;
     return this;
   }
@@ -351,7 +366,7 @@ export class TestModule {
    * @param controller The controller class to register.
    * @returns {this}
    */
-  public addController(controller: ClassType): this {
+  public addController(controller: AnyClass): this {
     this.controllers.push(controller);
     return this;
   }
@@ -362,7 +377,7 @@ export class TestModule {
    * @param services Service classes to register.
    * @returns {this}
    */
-  public setServices(services: ClassType[]): this {
+  public setServices(services: AnyClass[]): this {
     this.services = services;
     return this;
   }
@@ -373,7 +388,7 @@ export class TestModule {
    * @param service The service class to register.
    * @returns {this}
    */
-  public addService(service: ClassType): this {
+  public addService(service: AnyClass): this {
     this.services.push(service);
     return this;
   }
@@ -387,7 +402,7 @@ export class TestModule {
    * @param mocks A map of service classes to mock implementations.
    * @returns {this}
    */
-  public setMocks(mocks: Map<ClassType, any>): this {
+  public setMocks(mocks: Map<AnyClass, any>): this {
     this.mocks = mocks;
     return this;
   }
@@ -399,7 +414,7 @@ export class TestModule {
    * @param mock The mock implementation.
    * @returns {this}
    */
-  public addMock(service: ClassType, mock: any): this {
+  public addMock(service: AnyClass, mock: any): this {
     this.mocks.set(service, mock);
     return this;
   }
@@ -439,7 +454,7 @@ export class TestModule {
    * containing the application, server, API client, listening port,
    * and a helper to gracefully shut down the server.
    */
-  public async compile(): Promise<TestModuleResult> {
+  public async compile<T extends AnyRoutes = any>(): Promise<TestModuleResult<T>> {
     const app = new Spear({
       controllers: this.controllers,
       logger: this.logger
@@ -477,15 +492,15 @@ export class TestModule {
 /**
  * Creates a test HTTP server with the given controllers.
  */
-export async function createTestServer(
+export async function createTestServer<T extends AnyRoutes = any>(
   options: TestModuleOptions = {}
-): Promise<TestModuleResult> {
+): Promise<TestModuleResult<T>> {
   const {
     controllers = [],
     services = [],
     mocks = new Map(),
     logger = false,
-    port = 5050
+    port = 5001
   } = options;
   
   return TestModule.create()
@@ -498,7 +513,7 @@ export async function createTestServer(
 }
 
 export function createMockService<
-  T extends ClassType,
+  T extends AnyClass,
   K extends keyof InstanceType<T>
 >(
   ServiceClass: T,
