@@ -272,7 +272,7 @@ describe("Example 6: Using TestingService for Service Testing", () => {
 
   it("should spy on method calls", () => {
     const service = new UserService();
-    const spy = testing.spyOn(service as unknown as Record<string, Function>, "findAll");
+    const spy = testing.spyOn(service, "findAll");
     
     service.findAll();
     service.findAll();
