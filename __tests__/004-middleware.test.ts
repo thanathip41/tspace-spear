@@ -123,7 +123,6 @@ describe("Middleware Unit Tests", () => {
   });
 
   after((done) => {
-    console.log("done!!");
     done();
   });
 
@@ -226,7 +225,7 @@ describe("Middleware Unit Tests", () => {
     const res = await client.post("/validate-test", {
       body: { name: 'John', age: 25, email: 'john@example.com' }
     });
-    console.log(res)
+
     expect(res.ok).to.be.equal(true);
   });
 
