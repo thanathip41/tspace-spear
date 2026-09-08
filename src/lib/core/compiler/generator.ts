@@ -22,10 +22,9 @@ type Route = {
 type Options = { folder: string; name: RegExp; output?: string };
 
 const normalizeType = (t: string): string => {
-  return t
-    .split("|")
-    .map(v => v.trim())
-    .filter(v => v !== "null" && v !== "undefined")[0] || "string";
+    return t
+        .replace(/\s*\|\s*(null|undefined)\s*$/, "")
+        .trim() || "string";
 };
 
 const maybeObject = (v: string): boolean => {
@@ -189,20 +188,37 @@ const resolveType = (type: Type): string => {
     const filtered = type.getIntersectionTypes().filter(t => {
       const text = t.getText();
       return !text.includes("Response") && !text.includes("TResponse");
-    });
+    })
     if (filtered[0] == null) return "never";
     return resolveType(filtered[0]);
   }
 
   if (type.isUnion()) {
-    const text = type.getText();
-    if (text.startsWith("import")) return "{}";
-    return text;
+    const filtered = type
+        .getUnionTypes()
+        .filter(t => !t.isNull() && !t.isUndefined());
+
+    return filtered
+      .map(t => {
+        const text = t.getText();
+        if (text.startsWith("import")) return "{}";
+        const normalized = text.replace(
+          /import\(["'][^"']+["']\)\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g,
+          "$1"
+        );
+        return normalized
+      })
+      .join(" | ");
   }
 
   if (type.isArray()) {
-    const element = resolveType(type.getArrayElementTypeOrThrow());
-    return `${element}[]`;
+    const elementType = type.getArrayElementTypeOrThrow();
+    const text = elementType.getText();
+    const normalized = text.replace(
+      /import\(["'][^"']+["']\)\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g,
+      "$1"
+    );
+    return `${ normalized}[]`;
   }
 
   if (type.getProperties().length) {
@@ -210,6 +226,7 @@ const resolveType = (type: Type): string => {
     const obj: string[] = [];
 
     for (const prop of props) {
+  
       const decl = prop.getDeclarations()[0];
       if (!decl) continue;
 
@@ -219,6 +236,7 @@ const resolveType = (type: Type): string => {
       let value = resolveType(propType);
 
       if (/^\s*(\(.*\)\s*=>|function\b)/.test(value)) continue;
+
       if (text.includes("[x: string]")) value = text;
 
       const maybeOptional = value.includes(" | undefined");
@@ -286,7 +304,6 @@ const formatExampleValue = (v: any): string => {
 
   if (typeof v === "string") {
     const t = normalizeType(v.trim());
-
     if (maybeObject(t)) {
       const inner = t.trim().slice(1, -1);
       const result = Object.fromEntries(
