@@ -1,4 +1,3 @@
-import ts   from "typescript";
 import fs   from "fs";
 import path from "path";
 
@@ -672,6 +671,20 @@ ${routerMapValues}
     : `${__dirname}/pre-routes.ts`;
 
   await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
+
+  const ts = (() => {
+    try {
+      return require('typescript');
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!ts) {
+    throw new Error(
+      'TypeScript is required for this feature. Install it with: npm install typescript'
+    );
+  }
 
   const compiled = ts.transpileModule(output, {
     compilerOptions: {
