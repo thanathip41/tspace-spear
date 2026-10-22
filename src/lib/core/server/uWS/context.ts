@@ -75,55 +75,55 @@ export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
       }
 
       response.uWS.cork(() => {
-        if (!response.aborted()) {
-
-          _aborted = true;
-
-          _writableEnded = true;
-
-          // @Default headers from uws 
-          // Date
-          // Content-length
-          // uWebsocket
-          _writeHeaders = {
-            'Connection' : 'keep-alive',
-            'Keep-Alive' : 'timeout=5',
-            ..._writeHeaders,
-          }
-
-          const headers = response.writeHeaders();
-
-          const status = response.statusCode();
-
-          const statusMessage =
-            HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
-            HTTP_STATUS_MESSAGES[500];
-
-          response.uWS.writeStatus(`${status} ${statusMessage}`);
-
-          for (const key in headers) {
-            const value = headers[key];
-            response.uWS.writeHeader(key, value);
-          }
-
-          if (chunk === undefined) {
-            response.uWS.end();
-            return;
-          }
-
-          if (
-            typeof chunk === 'string' ||
-            Buffer.isBuffer(chunk) ||
-            chunk instanceof Uint8Array
-          ) {
-            response.uWS.end(chunk);
-            return;
-          }
-
-          response.uWS.end(JSON.stringify(chunk));
-          
+        if (response.aborted()) {
           return;
         }
+
+        _aborted = true;
+
+        _writableEnded = true;
+
+        // @Default headers from uws 
+        // Date
+        // Content-length
+        _writeHeaders = {
+          'Connection' : 'keep-alive',
+          'Keep-Alive' : 'timeout=5',
+          ..._writeHeaders,
+        }
+
+        const headers = response.writeHeaders();
+
+        const status = response.statusCode();
+
+        const statusMessage =
+          HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
+          HTTP_STATUS_MESSAGES[500];
+
+        response.uWS.writeStatus(`${status} ${statusMessage}`);
+
+        for (const key in headers) {
+          const value = headers[key];
+          response.uWS.writeHeader(key, value);
+        }
+
+        if (chunk === undefined) {
+          response.uWS.end();
+          return;
+        }
+
+        if (
+          typeof chunk === 'string' ||
+          Buffer.isBuffer(chunk) ||
+          chunk instanceof Uint8Array
+        ) {
+          response.uWS.end(chunk);
+          return;
+        }
+
+        response.uWS.end(JSON.stringify(chunk));
+        
+        return;
       });
     },
 

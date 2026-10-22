@@ -15,6 +15,8 @@ export const uWSServer = ({
 
     const server = uWS.App();
 
+    uWS?._cfg?.('silent');
+
     server.any('/*', (uwsRes, uwsReq) => {
 
         const { req , res } = uWSAdaptRequestResponse(uwsReq, uwsRes);

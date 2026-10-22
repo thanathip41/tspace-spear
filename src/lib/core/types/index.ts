@@ -323,6 +323,7 @@ export type UWS = {
         close?: (ws: any, code: number, message: ArrayBuffer) => void;
     }) => any;
   }
+  _cfg ?: (mode : string) => void
 };
 
 type TAdapter =
