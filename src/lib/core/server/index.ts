@@ -1554,6 +1554,8 @@ class Spear<
 
     private _wrapHandlers (...handlers : T.ContextHandler[]) {
 
+        const length = handlers.length;
+
         return (req : T.Request, res : T.Response , ps : Record<string,string>) => {
            
             const baseCtx = this._createContext({ req, res, ps });
@@ -1574,7 +1576,7 @@ class Spear<
                 try {
                     const next = () => dispatch(index + 1);
 
-                    const isLast = index === handlers.length - 1;
+                    const isLast = index === length - 1;
 
                     if (isLast) {
                         return this._wrapResponse(handler)(

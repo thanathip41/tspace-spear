@@ -1,225 +1,210 @@
-import type { T }   from "../../types";
+
+import type { T } from "../../types";
 import { HTTP_STATUS_MESSAGES } from "../../const";
 
-export const uWSAdaptRequestResponse = (uwsReq: any, uwsRes: any) => {
-  const headers: Record<string, any> = {};
+export const uWSAdaptRequestResponse = (
+    uwsReq: any,
+    uwsRes: any
+) => {
+    const headers: Record<string, any> = Object.create(null);
 
-  uwsReq.forEach((key: string, value: any) => {
-    headers[key.toLowerCase()] = value;
-  });
+    uwsReq.forEach((key: string, value: any) => {
+        headers[key.toLowerCase()] = value;
+    });
 
-  const request: Record<string, any> = {
-    uWS: uwsReq,
-    method: String(uwsReq.getMethod()).toUpperCase(),
-    url: uwsReq.getUrl() + (uwsReq.getQuery() ? `?${uwsReq.getQuery()}` : ""),
-    headers: headers,
-  };
+    const query = uwsReq.getQuery();
 
-  let _writableEnded = false;
-  let _aborted =  false;
-  let _writeHeaders = Object.create(null);
-  let _headersSent = false;
-  let _statusCode = 200;
+    const request: Record<string, any> = {
+        uWS: uwsReq,
+        method: uwsReq.getMethod().toUpperCase(),
+        url: uwsReq.getUrl() + (query ? `?${query}` : ""),
+        headers
+    };
 
-  const response = {
-    uWS: uwsRes,
-    
-    writableEnded: () => _writableEnded,
-    aborted: () => _aborted,
-    writeHeaders: () => _writeHeaders,
-    headersSent: () => _headersSent,
-    statusCode: () => _statusCode,
+    let _writableEnded = false;
+    let _aborted = false;
+    let _headersSent = false;
+    let _statusCode = 200;
 
-    setStatusCode (status : number) {
-      _statusCode = status;      
-      response.uWS.statusCode = status; 
+    const _writeHeaders: Record<string, any> = Object.create(null);
 
-      return response;
-    },
+    const response = {
+        uWS: uwsRes,
 
-    removeHeader(key:string) {
-      delete response.writeHeaders()[key];
-      return;
-    },
+        writableEnded: () => _writableEnded,
+        aborted: () => _aborted,
+        writeHeaders: () => _writeHeaders,
+        headersSent: () => _headersSent,
+        statusCode: () => _statusCode,
 
-    setHeader: (key: string, value: string) => {
-    
-      if (!response.aborted()) {
-         _writeHeaders = {
-          ...response.writeHeaders(),
-          [key]: value,
-        };
-      }
-      return response;
-    },
-    writeHead(status: number, context: Record<string, string>) {
+        setStatusCode(status: number) {
+            _statusCode = status;
+            return response;
+        },
 
-      if(response.writableEnded()) return response;
+        removeHeader(key: string) {
+            delete _writeHeaders[key];
+        },
 
-      _writeHeaders = {
-        ...context,
-        ...response.writeHeaders() 
-      };
+        setHeader(key: string, value: any) {
+            if (!_aborted && !_writableEnded) {
+                _writeHeaders[key] = value;
+            }
 
-      _headersSent = true;
+            return response;
+        },
 
-      response.uWS.statusCode = status;
-      
-      _statusCode = status;
-
-      return response;
-    },
-    end: (chunk ?: unknown) => {
-      if (response.aborted()) {
-        return;
-      }
-
-      response.uWS.cork(() => {
-        if (response.aborted()) {
-          return;
-        }
-
-        _aborted = true;
-
-        _writableEnded = true;
-
-        // @Default headers from uws 
-        // Date
-        // Content-length
-        _writeHeaders = {
-          'Connection' : 'keep-alive',
-          'Keep-Alive' : 'timeout=5',
-          ..._writeHeaders,
-        }
-
-        const headers = response.writeHeaders();
-
-        const status = response.statusCode();
-
-        const statusMessage =
-          HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
-          HTTP_STATUS_MESSAGES[500];
-
-        response.uWS.writeStatus(`${status} ${statusMessage}`);
-
-        for (const key in headers) {
-          const value = headers[key];
-          response.uWS.writeHeader(key, value);
-        }
-
-        if (chunk === undefined) {
-          response.uWS.end();
-          return;
-        }
-
-        if (
-          typeof chunk === 'string' ||
-          Buffer.isBuffer(chunk) ||
-          chunk instanceof Uint8Array
+        writeHead(
+            status: number,
+            context?: Record<string, string>
         ) {
-          response.uWS.end(chunk);
-          return;
-        }
+            if (_writableEnded || _aborted) {
+                return response;
+            }
 
-        response.uWS.end(JSON.stringify(chunk));
-        
-        return;
-      });
-    },
+            if (context) {
+                for (const key in context) {
+                    if (
+                        Object.prototype.hasOwnProperty.call(context, key) &&
+                        !Object.prototype.hasOwnProperty.call(_writeHeaders, key)
+                    ) {
+                        _writeHeaders[key] = context[key];
+                    }
+                }
+            }
 
-    async stream(result: AsyncIterable<unknown>) {
-      if (response.aborted()) {
-          return;
-      }
+            _statusCode = status;
+            _headersSent = true;
 
-      _writeHeaders = {
-        'Content-Type' : 'application/x-ndjson; charset=utf-8',
-        'Connection' : 'keep-alive',
-        'Keep-Alive' : 'timeout=5',
-        ..._writeHeaders,
-      }
+            return response;
+        },
 
-      _aborted = false;
-      _writableEnded = false;
-
-      const headers = response.writeHeaders();
-
-      const status = response.statusCode();
-
-      const statusMessage =
-        HTTP_STATUS_MESSAGES[status as keyof typeof HTTP_STATUS_MESSAGES] ??
-        HTTP_STATUS_MESSAGES[500];
-
-      response.uWS.cork(() => {
-        if (response.aborted()) {
-            return;
-        }
-
-        response.uWS.writeStatus(
-            `${status} ${statusMessage}`
-        );
-
-        for (const key in headers) {
-            response.uWS.writeHeader(
-                key,
-                headers[key]
-            );
-        }
-      });
-
-     
-      for await (const value of result) {
-
-        if (response.aborted()) {
-            _aborted = true;
-            return;
-        }
-
-        const chunk = JSON.stringify(value) + "\n";
-
-        let writable = true;
-
-        response.uWS.cork(() => {
-            if (response.aborted()) {
+        end(chunk?: unknown) {
+            if (_aborted || _writableEnded) {
                 return;
             }
 
-            writable = response.uWS.write(chunk);
-        });
+            const uws = uwsRes;
+            const headers = _writeHeaders;
+            const status = _statusCode;
 
-        if (!writable) {
-          await new Promise<void>(resolve => {
-              response.uWS.onWritable(() => {
-                  resolve();
-                  return false;
-              });
-          });
+            const statusMessage =
+                HTTP_STATUS_MESSAGES[
+                    status as keyof typeof HTTP_STATUS_MESSAGES
+                ] ?? HTTP_STATUS_MESSAGES[500];
 
-          if (response.aborted()) {
-              _aborted = true;
-              return;
-          }
+            _aborted = true;
+            _writableEnded = true;
+            _headersSent = true;
+
+            uws.cork(() => {
+                uws.writeStatus(`${status} ${statusMessage}`);
+
+                for (const key in headers) {
+                    uws.writeHeader(key, headers[key]);
+                }
+
+                if (chunk === undefined) {
+                    uws.end();
+                } else if (
+                    typeof chunk === "string" ||
+                    Buffer.isBuffer(chunk) ||
+                    chunk instanceof Uint8Array
+                ) {
+                    uws.end(chunk);
+                } else {
+                    uws.end(JSON.stringify(chunk));
+                }
+            });
+        },
+
+        async stream(result: AsyncIterable<unknown>) {
+            if (_aborted || _writableEnded) {
+                return;
+            }
+
+            const uws = uwsRes;
+            const headers = _writeHeaders;
+
+            // Default headers
+            if (!headers["Content-Type"]) {
+                headers["Content-Type"] =
+                    "application/x-ndjson; charset=utf-8";
+            }
+
+            const status = _statusCode;
+
+            const statusMessage =
+                HTTP_STATUS_MESSAGES[
+                    status as keyof typeof HTTP_STATUS_MESSAGES
+                ] ?? HTTP_STATUS_MESSAGES[500];
+
+            _headersSent = true;
+
+            uws.cork(() => {
+                if (_aborted) return;
+
+                uws.writeStatus(`${status} ${statusMessage}`);
+
+                for (const key in headers) {
+                    uws.writeHeader(key, headers[key]);
+                }
+            });
+
+            for await (const value of result) {
+                if (_aborted) {
+                    return;
+                }
+
+                const chunk = JSON.stringify(value) + "\n";
+
+                let writable = true;
+
+                uws.cork(() => {
+                    if (_aborted) {
+                        writable = false;
+                        return;
+                    }
+
+                    writable = uws.write(chunk);
+                });
+
+                if (!writable) {
+                    await new Promise<void>((resolve) => {
+                        uws.onWritable(() => {
+                            resolve();
+                            return false;
+                        });
+                    });
+
+                    if (_aborted) {
+                        return;
+                    }
+                }
+            }
+
+            if (!_aborted) {
+                uws.cork(() => {
+                    if (_aborted) return;
+
+                    _aborted = true;
+                    _writableEnded = true;
+
+                    uws.end();
+                });
+            }
         }
-      }
+    };
 
-      if (!response.aborted()) {
-
-        response.uWS.cork(() => {
-          response.uWS.end();
-        });
-
+    uwsRes.onAborted(() => {
         _aborted = true;
-        _writableEnded = true;
-      }
-  }
-  };
+    });
 
-  response.uWS.onAborted(() => {
-    _aborted = true;
-  });
-
-  return { 
-    req : request, 
-    res: response 
-  } as unknown as { req: T.Request; res: T.Response };
+    return {
+        req: request,
+        res: response
+    } as unknown as {
+        req: T.Request;
+        res: T.Response;
+    };
 };

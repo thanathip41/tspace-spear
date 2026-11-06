@@ -68,8 +68,6 @@ const createResponseObject = (socket: Socket,method: string) => {
 
       _writeHeaders = {
         'Date' : `${new Date().toUTCString()}`,
-        'Connection' : 'keep-alive',
-        'Keep-Alive' : 'timeout=5',
         'Content-Length' : content.length,
         ..._writeHeaders,
       }
@@ -101,8 +99,6 @@ const createResponseObject = (socket: Socket,method: string) => {
       _writeHeaders = {
         'Content-Type' : 'application/x-ndjson; charset=utf-8',
         'Date' : `${new Date().toUTCString()}`,
-        'Connection' : 'keep-alive',
-        'Keep-Alive' : 'timeout=5',
         ..._writeHeaders,
       }
      
