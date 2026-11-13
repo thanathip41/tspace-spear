@@ -331,7 +331,7 @@ class Spear<
      * app.set("Cache-Control", "no-cache");
      * ```
      */
-    public set (key: string, value: number | string | readonly string[]): this {
+    public set (key: string, value: number | string | readonly string[] | undefined): this {
 
         const middleware = (ctx : T.Context, next : T.NextFunction) => {
             ctx.res.set(key, value);

@@ -97,7 +97,7 @@ type TResponse = {
     headersSent: () => boolean;
     statusCode: () => number;
 
-    set(name: string, value: number | string | readonly string[]): any;
+    set(name: string, value: number | string | readonly string[] | undefined): any;
     set(statusCode: TStatusCode, contentType?: 'TEXT' | 'JSON'): void;
     set(statusCode: TStatusCode, headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]): any;
 
