@@ -1569,6 +1569,8 @@ class Spear<
 
                 if (!handler) return;
 
+                // Sync with changes made by previous middlewares.
+                // ctx provides the latest body, files, headers, and cookies state.
                 this._updateContext(req, baseCtx);
 
                 const ctx = baseCtx;
@@ -1640,6 +1642,7 @@ class Spear<
                 }
 
                 this._sendResult(ctx, result);
+                return;
 
             } catch (err:any) {
                 return next(err);
@@ -1649,8 +1652,7 @@ class Spear<
 
     private _sendResult(ctx: T.Context, result: unknown): void {
 
-        if (result == null) {
-            ctx.res.noContent();
+        if (ctx.res.writableEnded()) {
             return;
         }
 
@@ -1666,7 +1668,8 @@ class Spear<
             return;
         }
 
-        if (ctx.res.writableEnded()) {
+        if (result == null) {
+            ctx.res.noContent();
             return;
         }
 
