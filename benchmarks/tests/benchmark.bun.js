@@ -1,6 +1,6 @@
 const { runBenchmark, sleep } = require('./utils')
 
-const { ServerSpear } = require('../servers/spear')
+const { ServerSpear, ServerSpearNet } = require('../servers/spear')
 const { ServerExpress } = require('../servers/express')
 const { ServerFastify } = require('../servers/fastify')
 const { ServerHttp } = require('../servers/http')
@@ -14,6 +14,7 @@ const runApps = async () => {
     { name: 'http', app: ServerHttp },
     { name: 'fastify', app: ServerFastify },
     { name: 'tspace-spear', app: ServerSpear },
+    { name: 'tspace-spear(net)', app: ServerSpearNet },
 
     // base on bun
     { name: 'elysia', app: ServerElysia },
