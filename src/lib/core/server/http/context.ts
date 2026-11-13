@@ -120,6 +120,17 @@ export const httpAdaptRequestResponse = (
 
       return ;
 
+    },
+
+    redirect(status: number, path: string) {
+
+      this.writeHead(status, {
+          Location: path
+      });
+
+      this.end();
+
+      return;
     }
   };
   return {

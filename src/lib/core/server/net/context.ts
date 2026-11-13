@@ -141,6 +141,15 @@ const createResponseObject = (socket: Socket,method: string) => {
       }
 
       return;
+    },
+
+    redirect(status: number, path: string) {
+
+      this.setStatusCode(status);
+      this.setHeader('Location', path);
+      this.end();
+
+      return;
     }
 
   };

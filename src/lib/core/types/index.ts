@@ -181,6 +181,15 @@ type TResponse = {
     error: (err: any) => TResponseError<'Internal Server Error',500>;
 
     /**
+     * redirect the response, optionally sending a final chunk.
+     *
+     * @param status status code
+     * @param path path to redirect
+     * @returns The response instance.
+     */
+    redirect: (status: TStatusCode, path : string) => T.Response
+
+    /**
      * Ends the response, optionally sending a final chunk.
      *
      * @param chunk Final response body.
