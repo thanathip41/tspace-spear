@@ -14,9 +14,7 @@ export interface ContextExtensions  {
   headers : THeaders
   params  : TParams
   cookies : TCookies
-  ip      : TIp
-  ips     : TIps
-
+ 
   body    : TBody
   query   : TQuery
   files   : TFileUpload
@@ -40,10 +38,6 @@ type TContext<
         >
     > = {}
 > = Omit<ContextExtensions, keyof Override> & Override
-
-type TIp = string | null
-
-type TIps = string[]
 
 type THeaders=  Record<string, string | undefined>
 
@@ -79,6 +73,7 @@ type TNextFunction<T = any> = (err ?: Error) =>  T | Promise<T>
 type TRequest = {
     uWs     : any; // typeof import('uWebSockets.js').HttpRequest
     http    : IncomingMessage;
+    net     : Socket;
     query   : TQuery;
     files   : TFileUpload;
     body    : TBody;
@@ -581,8 +576,6 @@ export declare namespace T {
     type Server           = TServer
 
     type Headers          = THeaders
-    type Ip               = TIp
-    type Ips              = TIps
     type FileInput        = TFile
 
     type FileUpload<T = Record<string, TFile[] | undefined>>     = T

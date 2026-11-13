@@ -39,12 +39,9 @@ import {
 
 import { 
     createServer, 
+    EMPTY_OBJECT, 
     litenServer 
 } from '../utils';
-
-
-const EMPTY = Object.freeze(Object.create(null));
-const EMPTY_ARRAY = Object.freeze([]) as unknown as string[];
 
 /**
  * 
@@ -1552,12 +1549,18 @@ class Spear<
         return
     }
 
-    private _wrapHandlers (...handlers : T.ContextHandler[]) {
+    private _wrapHandlers(...handlers: T.ContextHandler[]) {
 
         const length = handlers.length;
 
-        return (req : T.Request, res : T.Response , ps : Record<string,string>) => {
-           
+        if (length === 0) {
+            return () => undefined;
+        }
+
+        const lastHandler = this._wrapResponse(handlers[length - 1]);
+
+        return (req: T.Request, res: T.Response, ps: Record<string, string>) => {
+
             const baseCtx = this._createContext({ req, res, ps });
 
             const dispatch = (index: number = 0): void => {
@@ -1566,88 +1569,116 @@ class Spear<
 
                 if (!handler) return;
 
-                // Sync with changes made by previous middlewares.
-                // ctx provides the latest body, files, headers, and cookies state.
-                const ctx = Object.assign(
-                    baseCtx,
-                    this._updateContext({ req })
-                );
-                
+                this._updateContext(req, baseCtx);
+
+                const ctx = baseCtx;
+
+                let errorHandled = false;
+
+                const nextError = (err: unknown) => {
+
+                    if (errorHandled) return;
+
+                    errorHandled = true;
+
+                    return this._nextError(ctx)(err);
+                };
+
                 try {
-                    const next = () => dispatch(index + 1);
 
-                    const isLast = index === length - 1;
-
-                    if (isLast) {
-                        return this._wrapResponse(handler)(
-                            ctx, 
-                            this._nextError(ctx)
-                        );
+                    if (index === length - 1) {
+                        return lastHandler(ctx, nextError);
                     }
 
-                    return handler(ctx, next);
+                    const result = handler(
+                        ctx,
+                        (err?: unknown) => {
+                            if (err != null) {
+                                return nextError(err);
+                            }
+
+                            return dispatch(index + 1);
+                        }
+                    );
+
+                    if (
+                        result != null &&
+                        typeof (result as any).then === 'function'
+                    ) {
+                        Promise.resolve(result).catch(nextError);
+                    }
+
                 } catch (err) {
-                    return this._nextError(ctx)(err);
+                    return nextError(err);
                 }
             };
 
             return dispatch();
-        }
+        };
     }
 
     private _wrapResponse(handler: T.ContextHandler) {
+
         return (ctx: T.Context, next: T.NextFunction) => {
-            Promise.resolve(handler(ctx, next))
-            .then(async(result) => {
-               
 
-                if (result == null) {
-                    ctx.res.noContent();
-                    return;
-                }
+            try {
 
-                if (typeof result === 'string') {
-                    ctx.res.send(result);
-                    return;
-                }
-
-                if (ctx.res.writableEnded()) {
-                    return;
-                }
+                const result = handler(ctx, next);
 
                 if (
-                    typeof result[Symbol.asyncIterator] === 'function'
+                    result != null && 
+                    typeof (result as any).then === 'function'
                 ) {
-                    ctx.res.stream(result as AsyncIterable<unknown>);
-                    return;
-                }
-            
 
-                if (result instanceof ServerResponse) {
-                    return;
-                }
+                    Promise.resolve(result)
+                    .then(result => {
+                        this._sendResult(ctx, result);
+                    })
+                    .catch(next);
 
-                if(result instanceof Stream) {
-                    return;
-                }
-   
-                if (result == null) {
-                    ctx.res.noContent();
                     return;
                 }
 
-                if (typeof result === 'string') {
-                    ctx.res.send(result);
-                    return;
-                }
+                this._sendResult(ctx, result);
 
-                ctx.res.json(result);
-                return;
-            })
-            .catch(err => {
+            } catch (err:any) {
                 return next(err);
-            })
+            }
         };
+    }
+
+    private _sendResult(ctx: T.Context, result: unknown): void {
+
+        if (result == null) {
+            ctx.res.noContent();
+            return;
+        }
+
+        if (typeof result === 'string') {
+            ctx.res.send(result);
+            return;
+        }
+
+        if (
+            result instanceof ServerResponse ||
+            result instanceof Stream
+        ) {
+            return;
+        }
+
+        if (ctx.res.writableEnded()) {
+            return;
+        }
+
+        if (
+            typeof (result as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function'
+        ) {
+            ctx.res.stream(result as AsyncIterable<unknown>);
+            return;
+        }
+
+        ctx.res.json(result);
+        return;
     }
 
     private _nextError (ctx : T.Context) {
@@ -1788,7 +1819,7 @@ class Spear<
         const response = new Response(req, res, {
             formatResponse : this._formatResponse,
             adapter        :  this._adapter.kind
-        }) as T.Response
+        }) as unknown as T.Response
 
         const headers = request.headers as T.Headers;
         const params = ps as T.Params;
@@ -1799,61 +1830,30 @@ class Spear<
 
         const query = this._parser.queryString(req.url!) as T.Query;
 
-        const xff  = headers['x-forwarded-for'];
-        const xrip = headers['x-real-ip'];
-        const cfip = headers['cf-connecting-ip'];
-
-        let ips: T.Ips = [];
-
-        if (cfip) {
-            ips = Array.isArray(cfip) ? cfip : [cfip]
-        } else if (xff) {
-            ips = Array.isArray(xff) ? xff : [xff]
-        } else if (xrip) {
-            ips = Array.isArray(xrip) ? xrip : [xrip]
-        } else {
-            const addr = req.socket?.remoteAddress
-            ips = addr ? [addr] : EMPTY_ARRAY
-        }
-
-        const ip = (ips.length ? ips[0] : null) as T.Ip
-
         request.params = params
         request.query  = query
-        request.ip     = ip
-        request.ips    = ips
 
         return {
             req     : request,
             res     : response,
     
-            headers : headers ?? EMPTY,
-            params  : params ?? EMPTY,
-            query   : query ?? EMPTY,
-            body    : body  ?? EMPTY,
-            files   : files ?? EMPTY,
-            cookies : cookies ?? EMPTY,
+            headers : headers ?? EMPTY_OBJECT,
+            params  : params ?? EMPTY_OBJECT,
+            query   : query ?? EMPTY_OBJECT,
+            body    : body  ?? EMPTY_OBJECT,
+            files   : files ?? EMPTY_OBJECT,
+            cookies : cookies ?? EMPTY_OBJECT,
 
-            ip      : ip ?? null,
-            ips     : ips ?? []
-        }
+        } as T.Context
     }
 
-    private _updateContext({ req } : {
-        req: T.Request
-    }) {
+    private _updateContext(req: T.Request, ctx: T.Context): void {
 
-        const headers = req.headers as T.Headers;
-        const body    = req.body as T.Body;
-        const files   = req.files as T.FileUpload;
-        const cookies = req.cookies as T.Cookies;
+        ctx.headers = req.headers ?? EMPTY_OBJECT;
+        ctx.body    = req.body ?? EMPTY_OBJECT;
+        ctx.files   = req.files ?? EMPTY_OBJECT;
+        ctx.cookies = req.cookies ?? EMPTY_OBJECT;
 
-        return {
-            headers : headers,
-            body    : body  ?? EMPTY,
-            files   : files ?? EMPTY,
-            cookies : cookies ?? EMPTY,
-        }
     }
 
     private _normalizePath(...paths: string[]): string {

@@ -314,6 +314,7 @@ function set(
 }
 
 export class Response {
+
     constructor(
         req: T.Request,
         res: T.Response,
@@ -327,34 +328,34 @@ export class Response {
             _req: req,
             _formatResponse: options.formatResponse,
             _adapter: options.adapter,
-          
-            status,
-            json,
-            send,
-            html,
-            error,
-            ok,
-            created,
-            accepted,
-            noContent,
-            partialContent,
-
-            badRequest,
-            unauthorized,
-            paymentRequired,
-            forbidden,
-            notFound,
-            notAllowed,
-            timeout,
-            conflict,
-            tooLarge,
-            unprocessable,
-            tooManyRequests,
-
-            serverError,
-            setCookies,
-            set,
-            serveMedia
         });
     }
+
+    status = status;
+    json = json;
+    send = send;
+    html = html;
+    error = error;
+    ok = ok;
+    created = created;
+    accepted = accepted;
+    noContent = noContent;
+    partialContent = partialContent;
+
+    badRequest = badRequest;
+    unauthorized = unauthorized;
+    paymentRequired = paymentRequired;
+    forbidden = forbidden;
+    notFound = notFound;
+    notAllowed = notAllowed;
+    timeout = timeout;
+    conflict = conflict;
+    tooLarge = tooLarge;
+    unprocessable = unprocessable;
+    tooManyRequests = tooManyRequests;
+
+    serverError = serverError;
+    setCookies = setCookies;
+    set = set;
+    serveMedia = serveMedia;
 }

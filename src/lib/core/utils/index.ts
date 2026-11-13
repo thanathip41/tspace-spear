@@ -171,3 +171,5 @@ export const litenServer = ({
 
   return;
 };
+
+export const EMPTY_OBJECT = Object.freeze(Object.create(null));

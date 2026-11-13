@@ -32,6 +32,10 @@ const createResponseObject = (socket: Socket,method: string) => {
     },
 
     setHeader(key: string, value: string | number) {
+      if(value == null) {
+        this.removeHeader(key)
+        return;
+      }
       _writeHeaders[key] = value;
       return response;
     },

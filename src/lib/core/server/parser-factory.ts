@@ -3,11 +3,14 @@ import pathSystem        from "path";
 import swaggerUiDist     from "swagger-ui-dist";
 import fastQuerystring   from "fast-querystring";
 import { type T }        from "../types";
-import { HTTP_STATUS_MESSAGES } from "../const";
+import { EMPTY_OBJECT }  from "../utils";
 
-import { uWSBody, uWSfiles }   from "./uWS";
-import { netBody, netFiles }   from "./net";
-import { httpBody, httpfiles } from "./http";
+import { HTTP_STATUS_MESSAGES } from "../const";
+import { uWSBody, uWSfiles }    from "./uWS";
+import { netBody, netFiles }    from "./net";
+import { httpBody, httpfiles }  from "./http";
+
+
 export class ParserFactory {
   private uWS     = false;
   private net     = false;
@@ -27,7 +30,7 @@ export class ParserFactory {
   public queryString(url: string) {
     const i = url.indexOf("?");
 
-    if (i === -1) return {};
+    if (i === -1) return EMPTY_OBJECT;
 
     return fastQuerystring.parse(url.slice(i + 1));
   }

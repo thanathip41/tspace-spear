@@ -1,19 +1,9 @@
-import fsSystem          from "fs";
-import pathSystem        from "path";
-import mime              from "mime-types";
-import crypto            from "crypto";
-import { StringDecoder } from "string_decoder";
-
 import type { 
   IncomingMessage, 
   ServerResponse 
 } from "http";
 
-import busboy from "busboy";
-
 import type { T }               from "../../types";
-import { normalizeRequestBody } from "../../utils";
-import { PayloadTooLargeException } from "../../exception";
 
 export const httpAdaptRequestResponse = (
   req: IncomingMessage,
@@ -61,9 +51,14 @@ export const httpAdaptRequestResponse = (
     },
 
     setHeader(key: string, value: string) {
+      if(value == null) {
+        this.removeHeader(key)
+        return;
+      }
       if (!response.writableEnded()) {
         response.http.setHeader(key, value);
       }
+      
       return response;
     },
 
