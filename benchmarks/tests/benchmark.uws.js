@@ -4,6 +4,7 @@ const { ServerUWS } = require('../servers/uWS')
 const { ServerHyperExpress } = require('../servers/hyper-express')
 const { ServerSpearUWS } = require('../servers/spear')
 const { ServerMesh } = require('../servers/mesh')
+const { ServerFulmine } = require('../servers/fulmine')
 
 
 const runApps = async () => {
@@ -11,7 +12,8 @@ const runApps = async () => {
     { name: 'uWS', app: ServerUWS },
     { name: 'tspace-spear(uWS)', app: ServerSpearUWS },
     { name: 'hyper-express', app: ServerHyperExpress },
-    { name: 'mesh' , app : ServerMesh }
+    { name: 'mesh' , app : ServerMesh },
+    { name : 'fulmine', app : ServerFulmine }
   ]
     .sort(() => Math.random() - 0.5)
     .map((s, i) => {

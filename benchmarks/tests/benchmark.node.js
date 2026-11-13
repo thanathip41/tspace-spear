@@ -20,12 +20,12 @@ const runApps = async () => {
     { name: 'tspace-spear', app: ServerSpear },
     { name: 'express', app: ServerExpress },
     { name: 'http', app: ServerHttp },
-    { name: '0http', app: Server0Http },
+    // { name: '0http', app: Server0Http },
     { name: 'fastify', app: ServerFastify },
    
     // // base on bun
-    { name: 'elysia(node)', app: ServerElysiaNode },
-    { name: 'hono(node)', app: ServerHonoNode },
+    // { name: 'elysia(node)', app: ServerElysiaNode },
+    // { name: 'hono(node)', app: ServerHonoNode },
   ]
     .sort(() => Math.random() - 0.5)
     .map((s, i) => {

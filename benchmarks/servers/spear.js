@@ -1,9 +1,10 @@
-const { Spear } = require('../../dist/lib')
-const net = require('net')
+const { Spear } = require('../../dist/lib');
+const net = require('net');
+const uWS  = require('uWebSockets.js');  
 
 const ServerSpear =({ name, port, message }) => {
     const server = new Spear()
-    server.get('/' , () => message)
+    server.get('/' , ({ res }) => res.end(message))
     server.listen(port , () => console.log(`Server '${name}' running at : http://localhost:${port}`))
 
     return server;
@@ -11,7 +12,7 @@ const ServerSpear =({ name, port, message }) => {
 
 const ServerSpearNet =({ name, port, message }) => {
     const server = new Spear({ adapter : net })
-    server.get('/' , () => message)
+    server.get('/' , ({ res }) => res.end(message))
     server.listen(port , () => console.log(`Server '${name}' running at : http://localhost:${port}`))
 
     return server;
@@ -19,12 +20,8 @@ const ServerSpearNet =({ name, port, message }) => {
 
 const ServerSpearUWS = ({ name, port, message }) => {
     try {
-        const uWS  = require('uWebSockets.js');
-        
         const server = new Spear({ adapter : uWS })
-        
-        server.get('/' , () => message)
-        
+        server.get('/' , ({ res }) => res.end(message))
         server.listen(port , () =>  console.log(`Server '${name}' running at : http://localhost:${port}`))
 
         return server;

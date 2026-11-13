@@ -1,13 +1,13 @@
-const uWS  = require('uWebSockets.js');
+const uWS = require('uWebSockets.js');
+
 const ServerUWS = ({ name , port , message }) => {
     try {
         
+        uWS._cfg('silent');
+
         const app = uWS.App();
 
-        app.get('/', (res) => {
-            res.end(message);
-            return;
-        });
+        app.get('/', new uWS.DeclarativeResponse().end(message));
 
         app.listen(port, () => console.log(`Server '${name}' running at : http://localhost:${port}`));
 

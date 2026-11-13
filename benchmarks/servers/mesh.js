@@ -3,7 +3,7 @@ const ServerMesh = ({ name, port, message }) => {
     const server = new App();
 
     server.get('/', (req, res) => {
-        return res.send(message)
+        return res.end(message)
     })
 
     server.listen(port, () =>

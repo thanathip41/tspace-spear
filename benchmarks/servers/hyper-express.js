@@ -3,7 +3,7 @@ const ServerHyperExpress = ({ name, port, message }) => {
     const server = new HyperExpress.Server();
 
     server.get('/', (req, res) => {
-        return res.send(message)
+        return res.end(message)
     })
 
     server.listen(port, () =>
