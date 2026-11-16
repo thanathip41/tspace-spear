@@ -83,7 +83,11 @@ class Spear<
         }
     }
 
-    private _adapter : T.Adapter = { kind : 'http', server : http };
+    private _runtime = process.versions.bun ? "bun" : "node";
+
+    private _adapter : T.Adapter = this._runtime === 'bun' 
+    ? { kind : 'bun', server : Bun }
+    : { kind : 'http', server : http };
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : T.Request , res : T.Response) => void);
     private _swagger : { use : boolean } & T.Swagger.Doc = {
@@ -415,7 +419,11 @@ class Spear<
      */
     public useAdapter (adapter:  T.AdapterServer): this {
 
-       if (adapter === http) {
+        if (this._runtime === 'bun' && adapter === Bun) {
+            this._adapter = { kind: 'bun', server: adapter };
+        } 
+
+        else if (adapter === http) {
             this._adapter = { kind: 'http', server: adapter };
         } 
         

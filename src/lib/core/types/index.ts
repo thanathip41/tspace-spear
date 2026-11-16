@@ -331,12 +331,12 @@ export type UWS = {
 };
 
 type TAdapter =
+  | { kind: 'bun'; server: typeof Bun }
   | { kind: 'http'; server: typeof http }
   | { kind: 'net'; server: typeof net }
   | { kind: 'uWS'; server: UWS };
 
-type TAdapterServer = typeof http | typeof net | UWS
-
+type TAdapterServer =  typeof Bun | typeof http | typeof net | UWS
 
 type TApplication = {
     controllers  ?: (new (...args:any) => any)[] | { folder : string ,  name ?: RegExp; preRouteTypes ?: boolean };

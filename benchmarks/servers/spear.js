@@ -1,8 +1,21 @@
 const { Spear } = require('../../dist/lib');
 const net = require('net');
+const http = require('http');
 
 const ServerSpear =({ name, port, message }) => {
-    const server = new Spear()
+    const server = new Spear({
+        adapter : http
+    })
+    server.get('/' , ({ res }) => res.end(message))
+    server.listen(port , () => console.log(`Server '${name}' running at : http://localhost:${port}`))
+
+    return server;
+}
+
+const ServerSpearBun =({ name, port, message }) => {
+    const server = new Spear({
+        adapter : Bun
+    })
     server.get('/' , ({ res }) => res.end(message))
     server.listen(port , () => console.log(`Server '${name}' running at : http://localhost:${port}`))
 
@@ -42,5 +55,6 @@ const ServerSpearUWS = ({ name, port, message }) => {
 module.exports = {
   ServerSpear,
   ServerSpearUWS,
-  ServerSpearNet
+  ServerSpearNet,
+  ServerSpearBun
 }

@@ -10,6 +10,7 @@ import { Stream } from "stream";
 import fsSystem from "fs";
 import pathSystem from "path";
 import xml2js from "xml2js";
+import { bunServer } from "../server/bun";
 
 export const normalizeRequestBody = async ({
   contentType,
@@ -100,6 +101,7 @@ export const createServer = ({
   cors?: (req: T.Request, res: T.Response) => void;
 }) => {
   switch (adapter.kind) {
+    
     case "uWS": {
       return uWSServer({
         uWS: adapter.server,
@@ -121,6 +123,15 @@ export const createServer = ({
     case "http": {
       return httpServer({
         http: adapter.server,
+        ws,
+        cors,
+        lookup,
+      });
+    }
+
+    case "bun": {
+      return bunServer({
+        bun: adapter.server,
         ws,
         cors,
         lookup,
@@ -156,6 +167,20 @@ export const litenServer = ({
 
     hostname
       ? server.listen(port, hostname, handler)
+      : server.listen(port, handler);
+
+    return;
+  }
+
+   if (adapterKind === "bun") {
+    console.log('listen... with bun runtime')
+    const handler = async () => {
+      await onListening?.();
+      callback?.({ server, port });
+    };
+
+    hostname
+      ? server.listen(port, "0.0.0.0", handler)
       : server.listen(port, handler);
 
     return;
