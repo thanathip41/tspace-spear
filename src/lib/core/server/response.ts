@@ -320,7 +320,7 @@ export class Response {
         res: T.Response,
         options: {
             formatResponse?: Function | null;
-            adapter?: 'http' | 'net'| 'uWS'
+            adapter?: T.Adapter["kind"];
         }
     ) {
         Object.assign(this, res, {
