@@ -6,6 +6,7 @@ const { ServerFastify } = require('../servers/fastify')
 const { ServerHttp } = require('../servers/http')
 const { ServerElysia } = require('../servers/elysia')
 const { ServerHono } = require('../servers/hono')
+const { ServerBun }  = require('../servers/bun')
 
 const runApps = async () => {
   const apps = [
@@ -19,6 +20,7 @@ const runApps = async () => {
     // base on bun
     { name: 'elysia', app: ServerElysia },
     { name: 'hono', app: ServerHono },
+    { name: 'bun', app : ServerBun }
   ]
   .sort(() => Math.random() - 0.5)
   .map((s, i) => {
