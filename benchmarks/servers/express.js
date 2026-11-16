@@ -2,6 +2,9 @@ const express = require('express')
 const ServerExpress = ({ name, port, message }) => {
     const server = express();
 
+    server.set('etag', false);
+    server.set('x-powered-by', false);
+
     server.get('/', (req, res) => {
         return res.end(message)
     })
