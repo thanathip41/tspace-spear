@@ -26,9 +26,50 @@ type BunResponse = {
     writeHead(status: number, context?: Record<string, string>): BunResponse;
     end(chunk?: unknown): BunResponse;
     stream(result: AsyncIterable<unknown>): BunResponse;
-    waitForResponse(): Promise<BunResponse>;
     redirect(status: number, path: string): BunResponse;
+
+    _waitForResponse(): Promise<BunResponse>;
+    _toResponse() : void;
 };
+
+
+const createResponse = (ctx: any, value?: unknown): Response => {
+    if (ctx.aborted) {
+        return new Response(null, { status: 500 });
+    }
+
+    if (value instanceof Response) {
+        return value;
+    }
+
+    const status = ctx.statusCode;
+
+   
+    return new Response(
+        status === 204 || status === 205 || status === 304
+            ? null
+            : value !== undefined
+                ? normalizeBody(value)
+                : ctx.body,
+        {
+            status,
+            headers: ctx.headers,
+        }
+    );
+};
+
+const finishResponse = (instance: any) => {
+    const ctx = instance.context();
+
+    if (ctx.aborted) {
+        return new Response(null, { status: 500 });
+    }
+
+    return ctx.pending
+        ? ctx.pending.then((value: unknown) => createResponse(ctx, value))
+        : createResponse(ctx);
+};
+
 
 const normalizeBody = (chunk: unknown): BodyInit | null => {
     if (chunk == null) return null;
@@ -67,7 +108,6 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
         method: bunReq.method,
         url: getPathname(bunReq.url),
         headers,
-        body: bunReq.body,
         signal: bunReq.signal,
     };
 
@@ -81,8 +121,8 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
     const _writeHeaders = new Headers();
 
-    // Lazy response synchronization
     let responseReady: Promise<void> | undefined;
+    
     let resolveResponse: (() => void) | undefined;
 
     const notifyResponse = () => {
@@ -159,6 +199,7 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
         },
 
         end(chunk?: unknown) {
+           
             if (_aborted || _writableEnded) {
                 return response;
             }
@@ -235,7 +276,15 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
             return response;
         },
 
-        waitForResponse() {
+        redirect(status: number, path: string) {
+            response.setStatusCode(status);
+            response.setHeader("Location", path);
+            response.end();
+
+            return response;
+        },
+
+        async _waitForResponse() {
             if (_writableEnded || _aborted) {
                 return Promise.resolve(response);
             }
@@ -249,13 +298,11 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
             return responseReady.then(() => response);
         },
 
-        redirect(status: number, path: string) {
-            response.setStatusCode(status);
-            response.setHeader("Location", path);
-            response.end();
-
-            return response;
-        },
+        _toResponse () {
+            return this.writableEnded()
+                ? finishResponse(this)
+                : this._waitForResponse().then(() => finishResponse(this));
+        }
     };
 
     bunReq.signal.addEventListener(

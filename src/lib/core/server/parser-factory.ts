@@ -9,21 +9,14 @@ import { HTTP_STATUS_MESSAGES } from "../const";
 import { uWSBody, uWSfiles }    from "./uWS";
 import { netBody, netFiles }    from "./net";
 import { httpBody, httpfiles }  from "./http";
-
+import { bunBody , bunfiles }   from "./bun";
 
 export class ParserFactory {
-  private uWS     = false;
-  private net     = false;
+  private ADAPTER = 'http' as T.Adapter["kind"];
  
   public useAdapter(adapter: T.Adapter) {
   
-    if(adapter.kind === 'uWS') {
-      this.uWS = true;
-    }
-
-    if(adapter.kind === 'net') {
-      this.net = true
-    }
+    this.ADAPTER = adapter.kind ?? 'http';
 
     return this;
   }
@@ -52,12 +45,16 @@ export class ParserFactory {
     };
   }) {
 
-    if (this.uWS) {
+    if (this.ADAPTER === 'uWS') {
       return uWSfiles({ req, res, options });
     }
 
-    if(this.net) {
+    if(this.ADAPTER === 'net') {
       return netFiles({req , res , options })
+    }
+
+    if(this.ADAPTER === 'bun') {
+      return bunfiles({req , res , options })
     }
 
     return httpfiles({req , res , options });
@@ -65,12 +62,16 @@ export class ParserFactory {
 
   public async body(req: T.Request, res: T.Response): Promise<T.Body> {
 
-    if (this.uWS) {
+    if (this.ADAPTER === 'uWS') {
       return (await uWSBody(req, res)) as T.Body;
     }
 
-    if(this.net) {
+    if(this.ADAPTER === 'net') {
       return (await netBody(req,res)) as T.Body;
+    }
+
+    if(this.ADAPTER === 'bun') {
+      return (await bunBody(req,res)) as T.Body;
     }
 
     return (await httpBody(req,res)) as T.Body;

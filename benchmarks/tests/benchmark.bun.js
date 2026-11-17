@@ -11,16 +11,16 @@ const { ServerBun }  = require('../servers/bun')
 const runApps = async () => {
   const apps = [
     // base on node
-    // { name: 'express', app: ServerExpress },
-    // { name: 'http', app: ServerHttp },
-    // { name: 'fastify', app: ServerFastify },
+    { name: 'express', app: ServerExpress },
+    { name: 'http', app: ServerHttp },
+    { name: 'fastify', app: ServerFastify },
     { name: 'tspace-spear', app: ServerSpear },
     { name: 'tspace-spear(bun)', app: ServerSpearBun },
     { name: 'tspace-spear(net)', app: ServerSpearNet },
 
     // base on bun
-    // { name: 'elysia', app: ServerElysia },
-    // { name: 'hono', app: ServerHono },
+    { name: 'elysia', app: ServerElysia },
+    { name: 'hono', app: ServerHono },
     { name: 'bun', app : ServerBun }
   ]
   .sort(() => Math.random() - 0.5)

@@ -3,6 +3,7 @@ import { HEADER_CONTENT_TYPES } from "../const";
 import { uWSPipeStream, uWSServer } from "../server/uWS";
 import { httpPipeStream, httpServer } from "../server/http";
 import { netPipeStream, netServer } from "../server/net";
+import { bunPipeStream, bunServer } from "../server/bun";
 
 import type { T } from "../..";
 import querystring from "querystring";
@@ -10,7 +11,7 @@ import { Stream } from "stream";
 import fsSystem from "fs";
 import pathSystem from "path";
 import xml2js from "xml2js";
-import { bunServer } from "../server/bun";
+
 
 export const normalizeRequestBody = async ({
   contentType,
@@ -70,7 +71,7 @@ export const pipeStream = async ({
   req: T.Request;
   res: T.Response;
   filePath: string;
-  adapter: "http" | "net" | "uWS";
+  adapter:  T.Adapter["kind"];
 }): Promise<Stream> => {
   if (!fsSystem.existsSync(filePath)) {
     return res
@@ -84,6 +85,10 @@ export const pipeStream = async ({
 
   if (adapter === "net") {
     return netPipeStream({ req, socket: res.net, filePath });
+  }
+
+  if (adapter === "bun") {
+    return bunPipeStream({ req, res, filePath });
   }
 
   return httpPipeStream({ req, res, filePath });
@@ -173,14 +178,18 @@ export const litenServer = ({
   }
 
    if (adapterKind === "bun") {
-    console.log('listen... with bun runtime')
+
     const handler = async () => {
       await onListening?.();
       callback?.({ server, port });
     };
 
-    hostname
-      ? server.listen(port, "0.0.0.0", handler)
+    const normalizeHostname = typeof hostname === 'function' 
+    ? undefined
+    : hostname
+
+    hostname 
+      ? server.listen(port, normalizeHostname, handler)
       : server.listen(port, handler);
 
     return;

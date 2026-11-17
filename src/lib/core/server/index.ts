@@ -88,6 +88,7 @@ class Spear<
     private _adapter : T.Adapter = this._runtime === 'bun' 
     ? { kind : 'bun', server : Bun }
     : { kind : 'http', server : http };
+    
     private  _cluster ?: number | boolean;
     private _cors ?: ((req : T.Request , res : T.Response) => void);
     private _swagger : { use : boolean } & T.Swagger.Doc = {
@@ -146,7 +147,11 @@ class Spear<
 
         if(options.logger)  this.useLogger();
         if(options.cluster) this.useCluster(options.cluster);
-        if(options.adapter) this.useAdapter(options.adapter);
+        if(options.adapter) {
+            this.useAdapter(options.adapter);
+        } else {
+            this.useAdapter(this._adapter.server)
+        }
         if(options.globalPrefix) this.useGlobalPrefix(options.globalPrefix);
 
         // Ensure controllers is NOT an array and has the required shape
@@ -1659,7 +1664,7 @@ class Spear<
     }
 
     private _sendResult(ctx: T.Context, result: unknown): void {
-
+        
         if (ctx.res.writableEnded()) {
             return;
         }

@@ -1,21 +1,6 @@
 import { T } from "../../types";
 import { bunAdaptRequestResponse } from "./context";
 
-const normalizeBody = (chunk: unknown): BodyInit | null => {
-    if (chunk == null) return null;
-
-    if (
-        typeof chunk === "string" ||
-        chunk instanceof Uint8Array ||
-        chunk instanceof ArrayBuffer ||
-        chunk instanceof Blob
-    ) {
-        return chunk;
-    }
-
-    return JSON.stringify(chunk);
-};
-
 export const bunServer = ({
     bun ,
     lookup,
@@ -37,53 +22,7 @@ export const bunServer = ({
 
         lookup(req, res);
 
-    //       const createResponse = (value?: unknown): Response => {
-    //     const ctx = res.context();
-
-    //     if (ctx.aborted) {
-    //         return new Response(null, { status: 500 });
-    //     }
-
-    //     if (value instanceof Response) {
-    //         return value;
-    //     }
-
-    //     const body =
-    //         ctx.statusCode === 204 ||
-    //         ctx.statusCode === 205 ||
-    //         ctx.statusCode === 304
-    //             ? null
-    //             : value !== undefined
-    //                 ? normalizeBody(value)
-    //                 : ctx.body;
-
-    //     return new Response(body, {
-    //         status: ctx.statusCode,
-    //         headers: ctx.headers,
-    //     });
-    // };
-
-    // const finish = () => {
-    //     const ctx = res.context();
-
-    //     if (ctx.aborted) {
-    //         return new Response(null, { status: 500 });
-    //     }
-
-    //     if (ctx.pending) {
-    //         return ctx.pending.then(createResponse);
-    //     }
-
-    //     return createResponse();
-    // };
-
-    // if (res.writableEnded()) {
-    //     return finish();
-    // }
-
-    // return res.waitForResponse().then(finish);
-
-     return new Response('hi');
+        return res._toResponse();
     };
 
   const websocket = {
@@ -101,38 +40,41 @@ export const bunServer = ({
   };
 
   return {
+
     get instance() {
-      return instance;
+      return instance as any;
     },
 
     listen(
-    port: number,
-    hostname?: string,
-    callback?: (args: { port: number }) => void,
+      port: number,
+      hostname?: string,
+      callback?: (args: { port: number }) => void,
     ) {
-    if (ws?.handler) {
+      
+      if (ws?.handler) {
         instance = Bun.serve({
-        port,
-        hostname,
-        fetch,
-        websocket,
+          port,
+          hostname,
+          fetch,
+          websocket,
         });
+        
+        ws.server = instance as any;
 
-        //@ts-ignore
-        ws.server = instance;
-    } else {
-        //@ts-ignore
-        instance = Bun.serve({
-            port,
-            hostname,
-            fetch,
-        });
-    }
-
-        //@ts-ignore
-        callback?.({ port: instance.port });
+        callback?.({ port: instance.port! });
 
         return instance;
+      } 
+        
+      instance = Bun.serve({
+        port,
+        hostname : undefined,
+        fetch,
+      });
+     
+      callback?.({ port: instance.port! });
+
+      return instance;
     },
 
     close() {
