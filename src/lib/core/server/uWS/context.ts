@@ -39,87 +39,95 @@ export const uWSAdaptRequestResponse = (
 
         setStatusCode(status: number) {
             _statusCode = status;
-            return response;
+            return this;
         },
 
         removeHeader(key: string) {
             delete _writeHeaders[key];
+            return this;
         },
 
         setHeader(key: string, value: any) {
+
             if(value == null) {
                 this.removeHeader(key)
-                return;
+                return this;
             }
-            
-            if (!_aborted && !_writableEnded) {
+
+            if (Array.isArray(value)) {
+                value = value.map(String).join();
+            } 
+            else if (typeof value !== 'string') {
+                value = String(value);
+            }
+
+            if ((!_aborted && !_writableEnded)) {
                 _writeHeaders[key] = value;
             }
 
-            return response;
+            return this;
         },
 
         writeHead(
             status: number,
             context?: Record<string, string>
         ) {
+            
             if (_writableEnded || _aborted) {
-                return response;
+                return this;
             }
 
             if (context) {
                 for (const key in context) {
-                    if (
-                        Object.prototype.hasOwnProperty.call(context, key) &&
-                        !Object.prototype.hasOwnProperty.call(_writeHeaders, key)
-                    ) {
-                        _writeHeaders[key] = context[key];
-                    }
+                    this.setHeader(key, context[key]);
                 }
             }
 
             _statusCode = status;
             _headersSent = true;
 
-            return response;
+            return this;
         },
 
         end(chunk?: unknown) {
+
             if (_aborted || _writableEnded) {
                 return;
             }
 
-            const uws = uwsRes;
-            const headers = _writeHeaders;
-            const status = _statusCode;
+            const status = this.statusCode() as T.StatusCode;
 
-            const statusMessage =
-                HTTP_STATUS_MESSAGES[
-                    status as keyof typeof HTTP_STATUS_MESSAGES
-                ] ?? HTTP_STATUS_MESSAGES[500];
+            const statusMessage = HTTP_STATUS_MESSAGES[status] ?? HTTP_STATUS_MESSAGES[500];
 
             _aborted = true;
             _writableEnded = true;
             _headersSent = true;
 
-            uws.cork(() => {
-                uws.writeStatus(`${status} ${statusMessage}`);
+            uwsRes.cork(() => {
 
-                for (const key in headers) {
-                    uws.writeHeader(key, headers[key]);
+                uwsRes.writeStatus(`${status} ${statusMessage}`);
+
+                for (const [key, value] of Object.entries(this.writeHeaders())) {
+                    uwsRes.writeHeader(key, value);
                 }
 
-                if (chunk === undefined) {
-                    uws.end();
-                } else if (
+                if (
                     typeof chunk === "string" ||
                     Buffer.isBuffer(chunk) ||
                     chunk instanceof Uint8Array
                 ) {
-                    uws.end(chunk);
-                } else {
-                    uws.end(JSON.stringify(chunk));
+                    uwsRes.end(chunk);
+                    return;
                 }
+
+                if (chunk === undefined) {
+                    uwsRes.end();
+                    return;
+                } 
+                
+                uwsRes.end(JSON.stringify(chunk));
+                
+                return;
             });
         },
 
@@ -128,31 +136,23 @@ export const uWSAdaptRequestResponse = (
                 return;
             }
 
-            const uws = uwsRes;
-            const headers = _writeHeaders;
+            this.setHeader('Date',`${new Date().toUTCString()}`);
+            this.setHeader('Content-Type','application/x-ndjson; charset=utf-8');
 
-            // Default headers
-            if (!headers["Content-Type"]) {
-                headers["Content-Type"] =
-                    "application/x-ndjson; charset=utf-8";
-            }
-
-            const status = _statusCode;
+            const status = this.statusCode() as T.StatusCode;
 
             const statusMessage =
-                HTTP_STATUS_MESSAGES[
-                    status as keyof typeof HTTP_STATUS_MESSAGES
-                ] ?? HTTP_STATUS_MESSAGES[500];
+                HTTP_STATUS_MESSAGES[status] ?? HTTP_STATUS_MESSAGES[500];
 
             _headersSent = true;
 
-            uws.cork(() => {
+            uwsRes.cork(() => {
                 if (_aborted) return;
 
-                uws.writeStatus(`${status} ${statusMessage}`);
+                uwsRes.writeStatus(`${status} ${statusMessage}`);
 
-                for (const key in headers) {
-                    uws.writeHeader(key, headers[key]);
+                for (const [key, value] of Object.entries(this.writeHeaders())) {
+                    uwsRes.writeHeader(key, value);
                 }
             });
 
@@ -165,18 +165,18 @@ export const uWSAdaptRequestResponse = (
 
                 let writable = true;
 
-                uws.cork(() => {
+                uwsRes.cork(() => {
                     if (_aborted) {
                         writable = false;
                         return;
                     }
 
-                    writable = uws.write(chunk);
+                    writable = uwsRes.write(chunk);
                 });
 
                 if (!writable) {
                     await new Promise<void>((resolve) => {
-                        uws.onWritable(() => {
+                        uwsRes.onWritable(() => {
                             resolve();
                             return false;
                         });
@@ -189,15 +189,17 @@ export const uWSAdaptRequestResponse = (
             }
 
             if (!_aborted) {
-                uws.cork(() => {
+                uwsRes.cork(() => {
                     if (_aborted) return;
 
                     _aborted = true;
                     _writableEnded = true;
 
-                    uws.end();
+                    uwsRes.end();
                 });
             }
+
+            return;
         },
 
         redirect(status: number, path: string) {

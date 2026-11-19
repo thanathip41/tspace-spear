@@ -41,50 +41,72 @@ export const httpAdaptRequestResponse = (
 
     setStatusCode (status : number) {
       _statusCode = status;
-      response.http.statusCode = status;
-      return response;
+      this.http.statusCode = status;
+      return this;
     },
 
     removeHeader(key:string) {
-      response.http.removeHeader(key);
-      return;
+      this.http.removeHeader(key);
+      return this;
     },
 
-    setHeader(key: string, value: string) {
+    setHeader(key: string, value: unknown) {
+      
       if(value == null) {
         this.removeHeader(key)
-        return;
+        return this;
       }
-      if (!response.writableEnded()) {
-        response.http.setHeader(key, value);
+
+      if (Array.isArray(value)) {
+        value = value.map(String).join();
+      } 
+
+      else if (typeof value !== 'string') {
+        value = String(value);
+      }
+
+      if (!this.writableEnded()) {
+        this.http.setHeader(key, value as string);
       }
       
-      return response;
+      return this;
     },
 
     writeHead(status: number, context: Record<string, string>) {
-      if(response.headersSent()) return response;
+      if(this.headersSent()) {
+        return this;
+      }
+
+      if (context) {
+          for (const key in context) {
+              this.setHeader(key, context[key]);
+          }
+      }
 
       _statusCode = +status;
       _headersSent = true;
-      response.http.statusCode = +status;
-      response.http.writeHead(+status, context);
 
-      return response;
+      this.http.statusCode = +status;
+      this.http.writeHead(+status);
+      
+      return this;
     },
+
     end(chunk?: unknown) {
       
-      if (response.writableEnded()) return;
+      if (this.writableEnded()) return;
 
-      if (chunk == null) {
-        response.http.end();
-        return;
+      if (!this.headersSent()) {
+        this.http.statusCode = this.statusCode();
       }
 
       _writableEnded = true;
+      _headersSent = true;
+      _aborted = true;
 
-      if (!response.headersSent()) {
-        response.http.statusCode = response.statusCode();
+      if (chunk === undefined) {
+        this.http.end();
+        return;
       }
 
       if (
@@ -92,31 +114,32 @@ export const httpAdaptRequestResponse = (
         Buffer.isBuffer(chunk) ||
         chunk instanceof Uint8Array
       ) {
-        response.http.end(chunk);
+        this.http.end(chunk);
         return;
       }
 
-      response.http.end(JSON.stringify(chunk));
+      this.http.end(JSON.stringify(chunk));
+      
       return;
     },
 
     async stream (result: AsyncIterable<unknown>) {
 
-      response.writeHead(200, {
+      this.writeHead(200, {
         'Content-Type': 'application/x-ndjson;'
       });
              
       for await (const value of result) {
         const chunk = JSON.stringify(value) + '\n';
 
-        if (!response.http.write(chunk)) {
+        if (!this.http.write(chunk)) {
             await new Promise<void>(resolve => {
-              response.http.once('drain', resolve);
+              this.http.once('drain', resolve);
             });
         }
       }
 
-      response.end();
+      this.end();
 
       return ;
 

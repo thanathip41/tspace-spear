@@ -23,21 +23,35 @@ const createResponseObject = (socket: Socket,method: string) => {
 
     setStatusCode (status : number) {
       _statusCode = status;
-      return response;
+      return this;
     },
 
     removeHeader(key:string) {
-      delete response.writeHeaders()[key];
-      return;
+      delete this.writeHeaders()[key];
+      return this;
     },
 
-    setHeader(key: string, value: string | number) {
-      if(value == null) {
-        this.removeHeader(key)
-        return;
-      }
+    setHeader(key: string, value: any) {
+
+      // if(value == null) {
+      //     this.removeHeader(key)
+      //     return this;
+      // }
+
+      // if (Array.isArray(value)) {
+      //     value = value.map(String).join();
+      // } 
+      // else if (typeof value !== 'string') {
+      //     value = String(value);
+      // }
+
+      // if ((!_aborted && !_writableEnded)) {
+      //     _writeHeaders[key] = value;
+      // }
+
       _writeHeaders[key] = value;
-      return response;
+
+      return this;
     },
 
     writeHead(status: number, context?: Record<string, string | number>) {
@@ -51,34 +65,33 @@ const createResponseObject = (socket: Socket,method: string) => {
             context[key] === 'application/json'
           ) {
            
-            response.setHeader(key, 'text/plain');
+            this.setHeader(key, 'text/plain');
             continue;
           }
-          response.setHeader(key, context[key]);
+          this.setHeader(key, context[key]);
         }
       }
-      return response;
+      return this;
     },
 
     end(chunk?: unknown) {
 
-      if (response.writableEnded()) return;
+      if (this.writableEnded()) return;
 
-      response.net.cork();
+      this.net.cork();
 
       if(method === 'HEAD') chunk = '';
       
       const content = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk || ''));
 
-      _writeHeaders = {
-        'Date' : `${new Date().toUTCString()}`,
-        'Content-Length' : content.length,
-        ..._writeHeaders,
-      }
+      this.setHeader('Date',`${new Date().toUTCString()}`);
+      this.setHeader('Content-Length',content.length);
 
-      const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
+      const status = this.statusCode() as T.StatusCode;
 
-      let head = `HTTP/1.1 ${response.statusCode()} ${statusMsg}\r\n`;
+      const statusMsg = HTTP_STATUS_MESSAGES[status] || 'Unknown';
+
+      let head = `HTTP/1.1 ${this.statusCode()} ${statusMsg}\r\n`;
       for (const [key, value] of Object.entries(response.writeHeaders())) {
         head += `${key}: ${value}\r\n`;
       }
@@ -86,59 +99,59 @@ const createResponseObject = (socket: Socket,method: string) => {
 
       const fullResponse = Buffer.concat([Buffer.from(head), content]);
 
-      if (response.net.writable && !response.net.destroyed) {
-        response.net.write(fullResponse);
+      if (this.net.writable && !this.net.destroyed) {
+        this.net.write(fullResponse);
       }
 
       _headersSent = true;
       _writableEnded = true;
 
-      response.net.uncork();
+      this.net.uncork();
 
       return;
     },
 
     async stream(result: AsyncIterable<unknown>) {
 
-      _writeHeaders = {
-        'Content-Type' : 'application/x-ndjson; charset=utf-8',
-        'Date' : `${new Date().toUTCString()}`,
-        ..._writeHeaders,
-      }
-     
-      const status = response.statusCode();
+      this.setHeader('Date',`${new Date().toUTCString()}`);
+      this.setHeader('Content-Type','application/x-ndjson; charset=utf-8');
 
-      const statusMsg = HTTP_STATUS_MESSAGES[response.statusCode() as T.StatusCode] || 'Unknown';
+      const status = this.statusCode() as T.StatusCode;
+
+      const statusMsg = HTTP_STATUS_MESSAGES[status] || 'Unknown';
 
       let head = `HTTP/1.1 ${status} ${statusMsg}\r\n`;
 
-      for (const [key, value] of Object.entries(response.writeHeaders())) {
+      for (const [key, value] of Object.entries(this.writeHeaders())) {
         head += `${key}: ${value}\r\n`;
       }
 
       head += '\r\n';
 
-      response.net.write(head);
+      this.net.write(head);
 
       for await (const value of result) {
         const chunk = JSON.stringify(value) + '\n';
 
-        if (response.net.destroyed || !response.net.writable) {
+        if (this.net.destroyed || !this.net.writable) {
             return;
         }
 
-        const ok = response.net.write(chunk);
+        const ok = this.net.write(chunk);
 
         if (!ok) {
           await new Promise<void>(resolve => {
-            response.net.once('drain', resolve);
+            this.net.once('drain', resolve);
           });
         }
       }
 
-      if (!response.net.destroyed) {
-        response.net.end();
+      if (!this.net.destroyed) {
+        this.net.end();
       }
+
+      _headersSent = true;
+      _writableEnded = true;
 
       return;
     },
@@ -153,6 +166,7 @@ const createResponseObject = (socket: Socket,method: string) => {
     }
 
   };
+
   return response;
 };
 
@@ -254,11 +268,6 @@ export const netAdaptRequestResponse = (
       }
 
       len = remain;
-
-      // if (!keepAlive) {
-      //   socket.end();
-      //   return;
-      // }
     }
   };
 

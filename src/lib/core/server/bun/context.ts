@@ -24,9 +24,9 @@ type BunResponse = {
     removeHeader(key: string): BunResponse;
     setHeader(key: string, value: any): BunResponse;
     writeHead(status: number, context?: Record<string, string>): BunResponse;
-    end(chunk?: unknown): BunResponse;
-    stream(result: AsyncIterable<unknown>): BunResponse;
-    redirect(status: number, path: string): BunResponse;
+    end(chunk?: unknown): any;
+    stream(result: AsyncIterable<unknown>):any;
+    redirect(status: number, path: string):any;
 
     _waitForResponse(): Promise<BunResponse>;
     _toResponse() : void;
@@ -152,25 +152,25 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
         setStatusCode(status: number) {
             _statusCode = status;
-            return response;
+            return this;
         },
 
         removeHeader(key: string) {
             _writeHeaders.delete(key);
-            return response;
+            return this;
         },
 
         setHeader(key: string, value: any) {
             if (value == null) {
                 _writeHeaders.delete(key);
-                return response;
+                return this;
             }
 
             if (!_aborted && !_writableEnded) {
                 _writeHeaders.set(key, String(value));
             }
 
-            return response;
+            return this;
         },
 
         writeHead(
@@ -178,32 +178,28 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
             context?: Record<string, string>
         ) {
             if (_writableEnded || _aborted) {
-                return response;
+                return this;
             }
 
             if (context) {
                 for (const key in context) {
-                    if (
-                        Object.prototype.hasOwnProperty.call(context, key) &&
-                        !_writeHeaders.has(key)
-                    ) {
-                        _writeHeaders.set(key, context[key]);
-                    }
+                    this.setHeader (key, context[key]);
                 }
             }
 
             _statusCode = status;
             _headersSent = true;
 
-            return response;
+            return this;
         },
 
         end(chunk?: unknown) {
            
             if (_aborted || _writableEnded) {
-                return response;
+                return;
             }
 
+            _aborted = true;
             _writableEnded = true;
             _headersSent = true;
 
@@ -225,17 +221,13 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
         stream(result: AsyncIterable<unknown>) {
             if (_aborted || _writableEnded) {
-                return response;
+                return;
             }
 
-            if (!_writeHeaders.has("Content-Type")) {
-                _writeHeaders.set(
-                    "Content-Type",
-                    "application/x-ndjson; charset=utf-8"
-                );
-            }
+            this.setHeader('Content-Type','application/x-ndjson; charset=utf-8');
 
             const encoder = new TextEncoder();
+
             const iterator = result[Symbol.asyncIterator]();
 
             const stream = new ReadableStream<Uint8Array>({
@@ -273,15 +265,15 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
             notifyResponse();
 
-            return response;
+            return this;
         },
 
         redirect(status: number, path: string) {
-            response.setStatusCode(status);
-            response.setHeader("Location", path);
-            response.end();
+            this.setStatusCode(status);
+            this.setHeader("Location", path);
+            this.end();
 
-            return response;
+            return;
         },
 
         async _waitForResponse() {
