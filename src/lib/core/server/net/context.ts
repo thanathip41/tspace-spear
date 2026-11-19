@@ -27,29 +27,27 @@ const createResponseObject = (socket: Socket,method: string) => {
     },
 
     removeHeader(key:string) {
-      delete this.writeHeaders()[key];
+      delete _writeHeaders[key];
       return this;
     },
 
     setHeader(key: string, value: any) {
 
-      // if(value == null) {
-      //     this.removeHeader(key)
-      //     return this;
-      // }
+      if(value == null) {
+          this.removeHeader(key)
+          return this;
+      }
 
-      // if (Array.isArray(value)) {
-      //     value = value.map(String).join();
-      // } 
-      // else if (typeof value !== 'string') {
-      //     value = String(value);
-      // }
+      if (Array.isArray(value)) {
+          value = value.map(String).join();
+      } 
+      else if (typeof value !== 'string') {
+          value = String(value);
+      }
 
-      // if ((!_aborted && !_writableEnded)) {
-      //     _writeHeaders[key] = value;
-      // }
-
-      _writeHeaders[key] = value;
+      if ((!_aborted && !_writableEnded)) {
+          _writeHeaders[key] = value;
+      }
 
       return this;
     },
