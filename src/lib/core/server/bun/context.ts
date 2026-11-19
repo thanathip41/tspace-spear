@@ -59,6 +59,7 @@ const createResponse = (ctx: any, value?: unknown): Response => {
 };
 
 const finishResponse = (instance: any) => {
+   
     const ctx = instance.context();
 
     if (ctx.aborted) {
@@ -199,7 +200,6 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
                 return;
             }
 
-            _aborted = true;
             _writableEnded = true;
             _headersSent = true;
 
@@ -216,7 +216,7 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
             notifyResponse();
 
-            return response;
+            return;
         },
 
         stream(result: AsyncIterable<unknown>) {
@@ -265,7 +265,7 @@ export const bunAdaptRequestResponse = (bunReq: Request) => {
 
             notifyResponse();
 
-            return this;
+            return;
         },
 
         redirect(status: number, path: string) {
