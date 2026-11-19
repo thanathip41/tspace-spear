@@ -13,9 +13,9 @@ export const uWSServer = ({
   cors    ?: ((req : T.Request , res : T.Response) => void);
 }) => {
 
-    const server = uWS.App();
+    uWS._cfg?.('999999990007');
 
-    uWS?._cfg?.('silent');
+    const server = uWS.App();
 
     server.any('/*', (uwsRes, uwsReq) => {
 
@@ -23,7 +23,9 @@ export const uWSServer = ({
         
         if(cors) cors(req, res);
         
-        return lookup(req, res);
+        lookup(req, res);
+
+        return;
     })
 
     if (ws?.handler) {
