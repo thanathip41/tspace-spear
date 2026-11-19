@@ -17,7 +17,8 @@ import net                 from 'net';
 import { ParserFactory }   from './parser-factory';
 import { FastRouter }      from './fast-router';
 import { Router }          from './router';
-import { Response }        from './response';
+import { ResponseFactory } from './response-factory';
+import { ServerManager }   from './server-manager';
 import { Compiler }        from '../compiler';
 import { AppRoutes }       from '../compiler/pre-routes';
 
@@ -37,11 +38,10 @@ import {
     SWAGGER_METADATA 
 } from '../metadata';
 
-import { 
-    createServer, 
-    EMPTY_OBJECT, 
-    litenServer 
+import {  
+    EMPTY_OBJECT,
 } from '../utils';
+
 
 /**
  * 
@@ -750,7 +750,7 @@ class Spear<
             return server
         }
  
-        litenServer({
+        ServerManager.listen({
             adapterKind: this._adapter.kind,
             server,
             port,
@@ -1628,11 +1628,13 @@ class Spear<
                 }
             };
 
-            return dispatch();
+            return dispatch(0);
         };
     }
 
     private _wrapResponse(handler: T.ContextHandler) {
+
+        const sendResult = this._sendResult.bind(this);
 
         return (ctx: T.Context, next: T.NextFunction) => {
 
@@ -1647,14 +1649,14 @@ class Spear<
 
                     Promise.resolve(result)
                     .then(result => {
-                        this._sendResult(ctx, result);
+                        sendResult(ctx, result);
                     })
                     .catch(next);
 
                     return;
                 }
 
-                this._sendResult(ctx, result);
+                sendResult(ctx, result);
                 return;
 
             } catch (err:any) {
@@ -1769,7 +1771,7 @@ class Spear<
 
         if(cluster.isWorker) {
             
-            litenServer({
+            ServerManager.listen({
                 adapterKind: this._adapter.kind,
                 server,
                 port,
@@ -1814,7 +1816,7 @@ class Spear<
 
         const ws = this._ws;
 
-        const server = createServer({
+        const server = ServerManager.create({
             adapter,
             ws,
             cors,
@@ -1830,27 +1832,24 @@ class Spear<
         ps: Record<string, string>
     }){
 
-        const request = req as T.Request;
-
-        const response = new Response(req, res, {
+        const response = new ResponseFactory(req, res, {
             formatResponse : this._formatResponse,
             adapter        :  this._adapter.kind
         }) as unknown as T.Response
 
-        const headers = request.headers as T.Headers;
+        const query = this._parser.queryString(req.url) as T.Query;
         const params = ps as T.Params;
+        const headers = req.headers as T.Headers;
 
-        const body    = request.body as T.Body;
-        const files   = request.files as T.FileUpload;
-        const cookies = request.cookies as T.Cookies;
+        const body    = req.body as T.Body;
+        const files   = req.files as T.FileUpload;
+        const cookies = req.cookies as T.Cookies;
 
-        const query = this._parser.queryString(req.url!) as T.Query;
-
-        request.params = params
-        request.query  = query
+        req.params = params;
+        req.query  = query;
 
         return {
-            req     : request,
+            req     : req,
             res     : response,
     
             headers : headers ?? EMPTY_OBJECT,

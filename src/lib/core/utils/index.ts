@@ -1,9 +1,9 @@
 import { HEADER_CONTENT_TYPES } from "../const";
 
-import { uWSPipeStream, uWSServer } from "../server/uWS";
-import { httpPipeStream, httpServer } from "../server/http";
-import { netPipeStream, netServer } from "../server/net";
-import { bunPipeStream, bunServer } from "../server/bun";
+import { uWSPipeStream } from "../server/uWS";
+import { httpPipeStream } from "../server/http";
+import { netPipeStream } from "../server/net";
+import { bunPipeStream } from "../server/bun";
 
 import type { T } from "../..";
 import querystring from "querystring";
@@ -92,118 +92,6 @@ export const pipeStream = async ({
   }
 
   return httpPipeStream({ req, res, filePath });
-};
-
-export const createServer = ({
-  adapter,
-  ws,
-  lookup,
-  cors,
-}: {
-  adapter: T.Adapter;
-  ws: T.WS;
-  lookup: Function;
-  cors?: (req: T.Request, res: T.Response) => void;
-}) => {
-  switch (adapter.kind) {
-    
-    case "uWS": {
-      return uWSServer({
-        uWS: adapter.server,
-        ws,
-        cors,
-        lookup,
-      });
-    }
-
-    case "net": {
-      return netServer({
-        net: adapter.server,
-        ws,
-        cors,
-        lookup,
-      });
-    }
-
-    case "http": {
-      return httpServer({
-        http: adapter.server,
-        ws,
-        cors,
-        lookup,
-      });
-    }
-
-    case "bun": {
-      return bunServer({
-        bun: adapter.server,
-        ws,
-        cors,
-        lookup,
-      });
-    }
-
-    default: {
-      throw new Error(`Unsupported adapter`);
-    }
-  }
-};
-
-export const litenServer = ({
-  adapterKind,
-  server,
-  port,
-  hostname,
-  callback,
-  onListening,
-}: {
-  adapterKind: T.Adapter["kind"];
-  server: T.Server;
-  port: number;
-  hostname?: string | ((callback: { server: T.Server; port: number }) => void);
-  callback?: (data: { server: T.Server; port: number }) => void;
-  onListening?: () => void | Promise<void>;
-}) => {
-  if (adapterKind === "uWS") {
-    const handler = async () => {
-      await onListening?.();
-      callback?.({ server, port });
-    };
-
-    hostname
-      ? server.listen(port, hostname, handler)
-      : server.listen(port, handler);
-
-    return;
-  }
-
-   if (adapterKind === "bun") {
-
-    const handler = async () => {
-      await onListening?.();
-      callback?.({ server, port });
-    };
-
-    const normalizeHostname = typeof hostname === 'function' 
-    ? undefined
-    : hostname
-
-    hostname 
-      ? server.listen(port, normalizeHostname, handler)
-      : server.listen(port, handler);
-
-    return;
-  }
-
-  hostname
-    ? server.listen(port, hostname, () => callback?.({ server, port: port }))
-    : server.listen(port, () => callback?.({ server, port: port }));
-
-  server.on("listening", async () => {
-    await onListening?.();
-  });
-
-  return;
 };
 
 export const EMPTY_OBJECT = Object.freeze(Object.create(null));

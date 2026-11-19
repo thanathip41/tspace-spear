@@ -285,35 +285,36 @@ function set(
     | OutgoingHttpHeader[]
 ): any {
 
-  if (typeof arg1 === "string") {
-    this.setHeader(arg1, arg2 as number | string | readonly string[]);
-    return;
-  }
+    if (typeof arg1 === "string") {
+        this.setHeader(arg1, arg2 as number | string | readonly string[]);
+        return this;
+    }
 
-  if (this.headersSent()) return;
+    if (this.headersSent())  return this;
 
-  if (arg2 === "TEXT") {
-    this.writeHead(arg1, HEADER_CONTENT_TYPES.text);
-    return;
-  }
+    if (arg2 === "TEXT") {
+        this.writeHead(arg1, HEADER_CONTENT_TYPES.text);
+        return this;
+    }
 
-  if (arg2 === "JSON") {
-    this.writeHead(arg1, HEADER_CONTENT_TYPES.json);
-    return;
-  }
+    if (arg2 === "JSON") {
+        this.writeHead(arg1, HEADER_CONTENT_TYPES.json);
+        return this;
+    }
 
-  if (arg2 && typeof arg2 === "object") {
-    this.writeHead(
-      arg1,
-      arg2 as OutgoingHttpHeaders | OutgoingHttpHeader[]
-    );
-    return;
-  }
+    if (arg2 && typeof arg2 === "object") {
+        this.writeHead(
+        arg1,
+        arg2 as OutgoingHttpHeaders | OutgoingHttpHeader[]
+        );
+        return this;
+    }
 
-  this.setStatusCode(arg1);
+    this.setStatusCode(arg1);
+    return this;
 }
 
-export class Response {
+export class ResponseFactory {
 
     constructor(
         req: T.Request,

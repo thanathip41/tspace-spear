@@ -20,6 +20,7 @@ export class ParserFactory {
 
     return this;
   }
+  
   public queryString(url: string) {
     const i = url.indexOf("?");
 
